@@ -1,0 +1,24 @@
+name: "Check PR Source Branch"
+
+on:
+  pull_request:
+    branches:
+      - master # Chỉ chạy khi PR vào master
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Branch Name
+        run: |
+          SOURCE_BRANCH=${{ github.head_ref }}
+          echo "Source branch is $SOURCE_BRANCH"
+          
+          # Kiểm tra nếu là develop HOẶC bắt đầu bằng release_
+          if [[ "$SOURCE_BRANCH" == "develop" ]] || [[ "$SOURCE_BRANCH" =~ ^release_ ]]; then
+            echo "Branch name is valid."
+            exit 0
+          else
+            echo "Error: Only 'develop' or 'release_***' branches can PR into master."
+            exit 1
+          fi
