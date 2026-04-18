@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="SC.Api/SC.Api.csproj" />
+    <Project Path="SC.Application\SC.Application.csproj" />
+    <Project Path="SC.Contract/SC.Contract.csproj" />
+    <Project Path="SC.Domain/SC.Domain.csproj" />
+    <Project Path="SC.Infrastructure/SC.Infrastructure.csproj" />
+    <Project Path="SC.Persistence/SC.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="SC.Architecture.Test/SC.Architecture.Test.csproj" />
+  </Folder>
+</Solution>
