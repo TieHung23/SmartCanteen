@@ -5,7 +5,7 @@ namespace SC.Domain.Abstraction.Entities;
 public class Entity<T> : IEntity<T>
 {
     [Key]
-    public T Id { get; protected set; }
+    public required T Id { get; init; }
     
     public bool IsDeleted { get; protected set; }
 }
