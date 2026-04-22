@@ -1,0 +1,72 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+  workflow_dispatch:
+
+jobs:
+  deploy-via-ssh:
+    name: CD Deploy (SSH Ubuntu)
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            **/*.csproj
+
+      - name: Publish API
+        run: dotnet publish SC.Api/SC.Api.csproj -c Release -o ./publish
+
+      - name: Package artifact
+        run: tar -czf sc-api-release.tar.gz -C ./publish .
+
+      - name: Upload package to Ubuntu
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          source: sc-api-release.tar.gz
+          target: /tmp
+
+      - name: Deploy via SSH (simulate supported)
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: DEPLOY_PATH,DEPLOY_SIMULATE
+          script: |
+            set -e
+            TARGET_PATH="${DEPLOY_PATH:-/opt/smartcanteen/api}"
+            SIMULATE="${DEPLOY_SIMULATE:-true}"
+
+            mkdir -p "$TARGET_PATH"
+            if [ "$SIMULATE" = "true" ]; then
+              echo "[SIMULATE] SSH connected to Ubuntu"
+              echo "[SIMULATE] Would extract /tmp/sc-api-release.tar.gz to $TARGET_PATH"
+              echo "[SIMULATE] Would restart service smartcanteen-api"
+            else
+              tar -xzf /tmp/sc-api-release.tar.gz -C "$TARGET_PATH"
+              sudo systemctl restart smartcanteen-api
+              sudo systemctl status smartcanteen-api --no-pager
+            fi
+
