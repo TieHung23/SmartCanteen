@@ -1,21 +1,22 @@
 using SC.Domain.Abstraction.Entities;
+using SC.Domain.Domain.Payment.Enum;
+using SC.Domain.Domain.Payment.ValueObject;
 
-namespace SC.Domain.Domain.Payment;
+namespace SC.Domain.Domain.Payment.AggregateRoot;
 
 public class Payment : Entity<Guid>, IAuditableEntity<Guid>
 {
     public required BalanceSnapshot BalanceSnapshot { get; set; }
-    
     public required string GatewayTransactionId { get; set; }
     public PaymentStatus Status { get; set; }
     public PaymentMethod Method { get; set; }
+    public PaymentType Type { get; set; }
     
     public required User.User User { get; set; }
     public Guid UserId { get; set; }
-    
+
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
-    
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
     
@@ -23,7 +24,13 @@ public class Payment : Entity<Guid>, IAuditableEntity<Guid>
     {
     }
     
-    public static Payment Create(BalanceSnapshot balanceSnapshot, string gatewayTransactionId, PaymentMethod method, User.User user, Guid createdBy)
+    public static Payment Create(
+        BalanceSnapshot balanceSnapshot, 
+        string gatewayTransactionId, 
+        PaymentMethod method, 
+        User.User user, 
+        Guid createdBy,
+        PaymentType type)
     {
         return new Payment
         {
@@ -35,7 +42,8 @@ public class Payment : Entity<Guid>, IAuditableEntity<Guid>
             User = user,
             UserId = user.Id,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = createdBy
+            CreatedBy = createdBy,
+            Type = type
         };
     }
     

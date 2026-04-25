@@ -1,8 +1,6 @@
-using SC.Domain.Abstraction.Aggregates;
+namespace SC.Domain.Domain.User.ValueObject;
 
-namespace SC.Domain.Domain.User;
-
-public class Money: ValueObject
+public class Money: Abstraction.Aggregates.ValueObject
 {
     public decimal Amount { get; }
     public string Currency { get; }
@@ -19,8 +17,7 @@ public class Money: ValueObject
     
     public Money Add(Money other)
     {
-        if (Currency != other.Currency) throw new InvalidOperationException("Cannot add money with different currencies.");
-        return new Money(Amount + other.Amount, Currency);
+        return Currency != other.Currency ? throw new InvalidOperationException("Cannot add money with different currencies.") : new Money(Amount + other.Amount, Currency);
     }
 
     protected override IEnumerable<object> GetEqualityComponents()
