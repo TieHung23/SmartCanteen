@@ -1,4 +1,4 @@
-namespace SC.Domain.Domain.Payment;
+namespace SC.Domain.Domain.Payment.Enum;
 
 public enum PaymentStatus
 {

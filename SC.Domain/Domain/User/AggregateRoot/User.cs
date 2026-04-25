@@ -1,4 +1,6 @@
 using SC.Domain.Abstraction.Entities;
+using SC.Domain.Domain.User.Enum;
+using SC.Domain.Domain.User.ValueObject;
 
 namespace SC.Domain.Domain.User;
 
@@ -10,8 +12,6 @@ public class User : Entity<Guid>, IAuditableEntity<Guid>
     public required string ImgUrl { get; set; }
     public required Role Role { get; set; } = Role.User;
     public Money Balance { get; set; } = Money.Create(0, "VND");
-    
-    
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }

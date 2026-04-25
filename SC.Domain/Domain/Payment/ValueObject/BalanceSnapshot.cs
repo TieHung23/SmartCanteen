@@ -1,8 +1,6 @@
-using SC.Domain.Abstraction.Aggregates;
+namespace SC.Domain.Domain.Payment.ValueObject;
 
-namespace SC.Domain.Domain.Payment;
-
-public class BalanceSnapshot : ValueObject
+public class BalanceSnapshot : Abstraction.Aggregates.ValueObject
 {
     public decimal DeltaAmount { get; }
     public decimal BalanceBefore { get; }

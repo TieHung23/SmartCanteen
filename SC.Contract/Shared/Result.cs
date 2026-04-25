@@ -28,6 +28,6 @@ public class Result
     public static Result<TValue> Success<TValue>(TValue value) => new(true, value, Error.None);
     
     public static Result<TValue> Failure<TValue>(Error error) => new(false, default(TValue), error);
-    
-    public static Result<TValue> Create<TValue>(TValue? value) => value is null ? Failure<TValue>(Error.NullValue) : Success(value);
+
+    protected static Result<TValue> Create<TValue>(TValue? value) => value is null ? Failure<TValue>(Error.NullValue) : Success(value);
 }
