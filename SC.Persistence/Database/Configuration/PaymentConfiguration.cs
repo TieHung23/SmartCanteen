@@ -1,0 +1,54 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SC.Domain.Domain.Payment.AggregateRoot;
+
+namespace SC.Persistence.Database.Configuration;
+
+public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
+{
+    public void Configure(EntityTypeBuilder<Payment> builder)
+    {
+        builder.ToTable("Payments");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.GatewayTransactionId)
+            .IsRequired()
+            .HasMaxLength(200);
+
+        builder.Property(x => x.Status)
+            .IsRequired()
+            .HasConversion<int>();
+
+        builder.Property(x => x.Method)
+            .IsRequired()
+            .HasConversion<int>();
+
+        builder.Property(x => x.Type)
+            .IsRequired()
+            .HasConversion<int>();
+
+        builder.HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.OwnsOne(x => x.BalanceSnapshot, snapshot =>
+        {
+            snapshot.Property(x => x.DeltaAmount)
+                .HasColumnName("BalanceSnapshotDeltaAmount")
+                .HasPrecision(18, 2);
+
+            snapshot.Property(x => x.BalanceBefore)
+                .HasColumnName("BalanceSnapshotBalanceBefore")
+                .HasPrecision(18, 2);
+
+            snapshot.Property(x => x.BalanceAfter)
+                .HasColumnName("BalanceSnapshotBalanceAfter")
+                .HasPrecision(18, 2);
+        });
+
+        builder.Property(x => x.CreatedAtUtc).IsRequired();
+        builder.Property(x => x.CreatedBy).IsRequired();
+    }
+}
