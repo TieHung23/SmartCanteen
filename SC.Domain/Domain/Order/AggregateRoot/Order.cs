@@ -1,6 +1,7 @@
 using SC.Domain.Abstraction.Entities;
 using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
-using ProductAggregate = SC.Domain.Domain.Product.AggregateRoot.Product;
+using DishesAggregate = SC.Domain.Domain.Dishes.AggregateRoot.Dishes;
+using PaymentAggregate = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 using SC.Domain.Domain.Order.ValueObject;
 
 namespace SC.Domain.Domain.Order.AggregateRoot;
@@ -9,6 +10,9 @@ public class Order : Entity<Guid>, IAuditableEntity<Guid>
 {
     public Guid MealId { get; set; }
     public MealAggregate? Meal { get; set; }
+
+    public Guid? PaymentId { get; set; }
+    public PaymentAggregate? Payment { get; set; }
 
     public IList<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
@@ -39,12 +43,12 @@ public class Order : Entity<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
-    public void AddProduct(ProductAggregate product, int quantity)
+    public void AddDishes(DishesAggregate dishes, int quantity)
     {
-        OrderItems.Add(OrderItem.Create(product, quantity));
+        OrderItems.Add(OrderItem.Create(dishes, quantity));
     }
 
-    public void RemoveProduct(OrderItem orderItem)
+    public void RemoveDishes(OrderItem orderItem)
     {
         OrderItems.Remove(orderItem);
     }

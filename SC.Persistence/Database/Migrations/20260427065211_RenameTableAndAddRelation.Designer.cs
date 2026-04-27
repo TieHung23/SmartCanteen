@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SC.Persistence.Database;
@@ -11,9 +12,11 @@ using SC.Persistence.Database;
 namespace SC.Persistence.Database.Migrations
 {
     [DbContext(typeof(SmartCanteenDbContext))]
-    partial class SmartCanteenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427065211_RenameTableAndAddRelation")]
+    partial class RenameTableAndAddRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -279,52 +282,6 @@ namespace SC.Persistence.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
-                });
-
-            modelBuilder.Entity("SC.Persistence.Database.Logging.ApplicationLog", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Exception")
-                        .HasColumnType("text");
-
-                    b.Property<string>("HttpMethod")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("Level")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("MessageTemplate")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Properties")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("RequestPath")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("TimeStamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ApplicationLogs", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Dishes.AggregateRoot.Dishes", b =>

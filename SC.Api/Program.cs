@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using SC.Api.DependencyInjection.Configurations;
 using SC.Persistence.Database;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.ConfigureLogging();
+builder.Services.ConfigureSwagger(builder.Configuration);
 
 builder.Services.AddDbContext<SmartCanteenDbContext>(options =>
 {
@@ -25,8 +26,16 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    var swaggerVersion = builder.Configuration["Swagger:Version"] ?? "v1";
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint($"/swagger/{swaggerVersion}/swagger.json", $"SmartCanteen API {swaggerVersion}");
+    });
 }
+
+app.UseRequestLogEnrichment();
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 

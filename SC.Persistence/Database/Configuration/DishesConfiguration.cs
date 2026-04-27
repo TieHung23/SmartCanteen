@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SC.Domain.Domain.Product.AggregateRoot;
+using SC.Domain.Domain.Dishes.AggregateRoot;
 
 namespace SC.Persistence.Database.Configuration;
 
-public class ProductConfiguration : IEntityTypeConfiguration<Product>
+public class DishesConfiguration : IEntityTypeConfiguration<Dishes>
 {
-    public void Configure(EntityTypeBuilder<Product> builder)
+    public void Configure(EntityTypeBuilder<Dishes> builder)
     {
-        builder.ToTable("Products");
+        builder.ToTable("Dishes");
 
         builder.HasKey(x => x.Id);
 

@@ -3,9 +3,9 @@ using CategoryAggregate = SC.Domain.Domain.Category.Category;
 using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 using SC.Domain.Domain.User.ValueObject;
 
-namespace SC.Domain.Domain.Product.AggregateRoot;
+namespace SC.Domain.Domain.Dishes.AggregateRoot;
 
-public class Product : Entity<Guid>, IAuditableEntity<Guid>
+public class Dishes : Entity<Guid>, IAuditableEntity<Guid>
 {
     public required string Name { get; set; }
     public required string Description { get; set; }
@@ -24,9 +24,9 @@ public class Product : Entity<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    private Product() { }
+    private Dishes() { }
 
-    public static Product Create(
+    public static Dishes Create(
         string name,
         string description,
         Money price,
@@ -38,7 +38,7 @@ public class Product : Entity<Guid>, IAuditableEntity<Guid>
         if (stockQuantity < 0)
             throw new ArgumentOutOfRangeException(nameof(stockQuantity), "Stock quantity cannot be negative.");
 
-        return new Product
+        return new Dishes
         {
             Id = Guid.NewGuid(),
             Name = name,

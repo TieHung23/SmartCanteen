@@ -18,15 +18,20 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasForeignKey(x => x.MealId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Payment)
+            .WithMany()
+            .HasForeignKey(x => x.PaymentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.OwnsMany(x => x.OrderItems, orderItem =>
         {
             orderItem.ToTable("OrderItems");
 
             orderItem.WithOwner().HasForeignKey(x => x.OrderId);
 
-            orderItem.HasKey(x => new { x.OrderId, x.ProductId });
+            orderItem.HasKey(x => new { x.OrderId, x.DishesId });
 
-            orderItem.Property(x => x.ProductId)
+            orderItem.Property(x => x.DishesId)
                 .IsRequired();
 
             orderItem.Property(x => x.Quantity)
@@ -43,7 +48,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
                     .HasMaxLength(10);
             });
 
-            orderItem.Ignore(x => x.Product);
+            orderItem.Ignore(x => x.Dishes);
             orderItem.Ignore(x => x.Order);
         });
 
