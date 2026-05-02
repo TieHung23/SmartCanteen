@@ -1,10 +1,15 @@
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
 using System.Security.Claims;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Any;
 using NpgsqlTypes;
 using Serilog;
 using Serilog.Context;
 using Serilog.Events;
 using Serilog.Sinks.PostgreSQL;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace SC.Api.DependencyInjection.Configurations;
 
@@ -12,17 +17,26 @@ public static class Configurations
 {
     public static void ConfigureSwagger(this IServiceCollection services, IConfiguration configuration)
     {
-        var swaggerVersion = configuration["Swagger:Version"] ?? "v1";
-        var swaggerTitle = configuration["Swagger:Title"] ?? "SmartCanteen API";
-
         services.AddEndpointsApiExplorer();
+
+        services
+            .AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true;
+                options.ApiVersionReader = new HeaderApiVersionReader("X-Api-Version");
+            })
+            .AddApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = false;
+            });
+
+        services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
         services.AddSwaggerGen(options =>
         {
-            options.SwaggerDoc(swaggerVersion, new OpenApiInfo
-            {
-                Title = swaggerTitle,
-                Version = swaggerVersion
-            });
+            options.OperationFilter<ApiVersionHeaderOperationFilter>();
         });
     }
 
@@ -54,6 +68,7 @@ public static class Configurations
             loggerConfiguration
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.FromLogContext()
+                .WriteTo.Console(restrictedToMinimumLevel: minimumLevel)
                 .WriteTo.Map("LogDate", "unknown-date", (logDate, writeToByDate) =>
                     writeToByDate.Map("UserId", "anonymous", (userId, writeToByUser) =>
                         writeToByUser.File(
@@ -109,5 +124,55 @@ public static class Configurations
         var cleaned = new string(value.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray());
 
         return cleaned.Trim();
+    }
+}
+
+public sealed class ConfigureSwaggerOptions(
+    IApiVersionDescriptionProvider provider,
+    IConfiguration configuration)
+    : IConfigureOptions<SwaggerGenOptions>
+{
+    public void Configure(SwaggerGenOptions options)
+    {
+        var swaggerTitle = configuration["Swagger:Title"] ?? "SmartCanteen API";
+
+        foreach (var description in provider.ApiVersionDescriptions)
+        {
+            options.SwaggerDoc(description.GroupName, new OpenApiInfo
+            {
+                Title = swaggerTitle,
+                Version = description.GroupName,
+                Description = description.IsDeprecated
+                    ? "This API version has been deprecated."
+                    : null
+            });
+        }
+    }
+}
+
+public sealed class ApiVersionHeaderOperationFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        operation.Parameters ??= [];
+
+        if (operation.Parameters.Any(parameter =>
+                string.Equals(parameter.Name, "X-Api-Version", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = "X-Api-Version",
+            In = ParameterLocation.Header,
+            Required = false,
+            Description = "API version. Defaults to 1.0.",
+            Schema = new OpenApiSchema
+            {
+                Type = "string",
+                Default = new OpenApiString("1.0")
+            }
+        });
     }
 }
