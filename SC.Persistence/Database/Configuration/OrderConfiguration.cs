@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SC.Domain.Domain.Order.AggregateRoot;
-using SC.Domain.Domain.Order.ValueObject;
 
 namespace SC.Persistence.Database.Configuration;
 

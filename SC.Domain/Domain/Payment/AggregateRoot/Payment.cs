@@ -6,12 +6,16 @@ namespace SC.Domain.Domain.Payment.AggregateRoot;
 
 public class Payment : Entity<Guid>, IAuditableEntity<Guid>
 {
+    private Payment()
+    {
+    }
+
     public required BalanceSnapshot BalanceSnapshot { get; set; }
     public required string GatewayTransactionId { get; set; }
     public PaymentStatus Status { get; set; }
     public PaymentMethod Method { get; set; }
     public PaymentType Type { get; set; }
-    
+
     public required User.User User { get; set; }
     public Guid UserId { get; set; }
 
@@ -19,16 +23,12 @@ public class Payment : Entity<Guid>, IAuditableEntity<Guid>
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
-    
-    private Payment()
-    {
-    }
-    
+
     public static Payment Create(
-        BalanceSnapshot balanceSnapshot, 
-        string gatewayTransactionId, 
-        PaymentMethod method, 
-        User.User user, 
+        BalanceSnapshot balanceSnapshot,
+        string gatewayTransactionId,
+        PaymentMethod method,
+        User.User user,
         Guid createdBy,
         PaymentType type)
     {
@@ -46,13 +46,13 @@ public class Payment : Entity<Guid>, IAuditableEntity<Guid>
             Type = type
         };
     }
-    
+
     public void MarkAsPending()
     {
         Status = PaymentStatus.Pending;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
-    
+
     public void MarkAsCompleted()
     {
         Status = PaymentStatus.Completed;

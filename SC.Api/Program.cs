@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SC.Api.DependencyInjection.Configurations;
+using SC.Api.Middleware;
+using SC.Application.DependencyInjection.Configurations;
+using SC.Contract.DependencyInjection.Configurations;
 using SC.Persistence.Database;
 using Serilog;
 
@@ -14,6 +17,21 @@ builder.Services.AddDbContext<SmartCanteenDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsql => npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName));
 });
+
+#region Add Application
+
+builder.Services.AddApplicationConfigurations();
+
+#endregion
+
+#region Add Contract
+
+builder.Services.AddContractConfigurations();
+
+#endregion
+
+
+builder.Services.AddFluentValidationConfigurations();
 
 var app = builder.Build();
 
@@ -37,6 +55,7 @@ if (app.Environment.IsDevelopment())
     app.UseAuthorization();
 }
 
+app.UseGlobalExceptionHandler();
 app.UseRequestLogEnrichment();
 app.UseSerilogRequestLogging();
 

@@ -12,14 +12,9 @@ public class HealthCheckController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Get()
     {
         var result = await mediator.Send(new GetHealthCheckQuery());
-        
-        if (result.IsSuccess)
-        {
-            return Ok(result);
-        }
-        else
-        {
-            return StatusCode(500, result.Error);
-        }
+
+        if (result.IsSuccess) return Ok(result);
+
+        return StatusCode(500, result.Error);
     }
 }

@@ -1,12 +1,16 @@
 using SC.Domain.Abstraction.Entities;
+using SC.Domain.Domain.User.ValueObject;
 using CategoryAggregate = SC.Domain.Domain.Category.Category;
 using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
-using SC.Domain.Domain.User.ValueObject;
 
 namespace SC.Domain.Domain.Dishes.AggregateRoot;
 
 public class Dishes : Entity<Guid>, IAuditableEntity<Guid>
 {
+    private Dishes()
+    {
+    }
+
     public required string Name { get; set; }
     public required string Description { get; set; }
     public Money Price { get; set; } = Money.Create(0);
@@ -23,8 +27,6 @@ public class Dishes : Entity<Guid>, IAuditableEntity<Guid>
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
-
-    private Dishes() { }
 
     public static Dishes Create(
         string name,

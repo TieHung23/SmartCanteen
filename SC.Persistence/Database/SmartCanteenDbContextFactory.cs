@@ -8,13 +8,12 @@ public class SmartCanteenDbContextFactory : IDesignTimeDbContextFactory<SmartCan
     public SmartCanteenDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? "Host=localhost;Port=5432;Database=smartcanteen;Username=smartcanteen;Password=smartcanteen;Include Error Detail=true";
+                               ??
+                               "Host=localhost;Port=5432;Database=smartcanteen;Username=smartcanteen;Password=smartcanteen;Include Error Detail=true";
 
         var optionsBuilder = new DbContextOptionsBuilder<SmartCanteenDbContext>();
-        optionsBuilder.UseNpgsql(connectionString, npgsql =>
-        {
-            npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName);
-        });
+        optionsBuilder.UseNpgsql(connectionString,
+            npgsql => { npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName); });
 
         return new SmartCanteenDbContext(optionsBuilder.Options);
     }

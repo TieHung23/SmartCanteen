@@ -2,11 +2,6 @@ namespace SC.Contract.Shared;
 
 public class Result
 {
-    public string? Message { get; private set; }
-    public bool IsSuccess { get; private set; }
-    public bool IsFailure => !IsSuccess;
-    public Error? Error { get; private set; }
-
     protected Result(bool isSuccess, Error error, string? message = "")
     {
         switch (isSuccess)
@@ -23,13 +18,33 @@ public class Result
         }
     }
 
-    public static Result Success(string? message) => new(true, Error.None, message);
-    
-    public static Result Failure(Error error, string? message) => new(false, error, message);
-    
-    public static Result<TValue> Success<TValue>(TValue value, string? message) => new(true, value, Error.None, message);
-    
-    public static Result<TValue> Failure<TValue>(Error error,string? message) => new(false, default(TValue), error, message);
+    public string? Message { get; private set; }
+    public bool IsSuccess { get; }
+    public bool IsFailure => !IsSuccess;
+    public Error? Error { get; private set; }
 
-    protected static Result<TValue> Create<TValue>(TValue? value, string? message) => value is null ? Failure<TValue>(Error.NullValue, message) : Success(value, message);
+    public static Result Success(string? message)
+    {
+        return new Result(true, Error.None, message);
+    }
+
+    public static Result Failure(Error error, string? message)
+    {
+        return new Result(false, error, message);
+    }
+
+    public static Result<TValue> Success<TValue>(TValue value, string? message)
+    {
+        return new Result<TValue>(true, value, Error.None, message);
+    }
+
+    public static Result<TValue> Failure<TValue>(Error error, string? message)
+    {
+        return new Result<TValue>(false, default, error, message);
+    }
+
+    protected static Result<TValue> Create<TValue>(TValue? value, string? message)
+    {
+        return value is null ? Failure<TValue>(Error.NullValue, message) : Success(value, message);
+    }
 }

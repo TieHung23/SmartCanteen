@@ -8,23 +8,24 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-          <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.OpenApi" />
-        <ProjectReference Include="..\SC.Application\SC.Application.csproj" />
-        <ProjectReference Include="..\SC.Persistence\SC.Persistence.csproj" />
-        <PackageReference Include="Serilog.AspNetCore" />
-        <PackageReference Include="Serilog.Sinks.File" />
-        <PackageReference Include="Serilog.Sinks.Map" />
-        <PackageReference Include="Serilog.Sinks.PostgreSQL" />
-        <PackageReference Include="Swashbuckle.AspNetCore" />
+        <PackageReference Include="FluentValidation.AspNetCore" />
+        <PackageReference Include="Microsoft.OpenApi"/>
+        <ProjectReference Include="..\SC.Application\SC.Application.csproj"/>
+        <ProjectReference Include="..\SC.Persistence\SC.Persistence.csproj"/>
+        <PackageReference Include="Serilog.AspNetCore"/>
+        <PackageReference Include="Serilog.Sinks.File"/>
+        <PackageReference Include="Serilog.Sinks.Map"/>
+        <PackageReference Include="Serilog.Sinks.PostgreSQL"/>
+        <PackageReference Include="Swashbuckle.AspNetCore"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="DependencyInjection/" />
-      <Folder Include="DependencyInjection/Configurations/" />
-      <Folder Include="DependencyInjection/Options/" />
+        <Folder Include="DependencyInjection/"/>
+        <Folder Include="DependencyInjection/Configurations/"/>
+        <Folder Include="DependencyInjection/Options/"/>
     </ItemGroup>
 
 </Project>

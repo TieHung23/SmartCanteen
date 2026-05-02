@@ -4,5 +4,5 @@ public enum PaymentType
 {
     TopUp = 1,
     Subscription = 2,
-    Refund = 3,
+    Refund = 3
 }

@@ -6,6 +6,10 @@ namespace SC.Domain.Domain.Order.ValueObject;
 
 public class OrderItem : Abstraction.Aggregates.ValueObject
 {
+    private OrderItem()
+    {
+    }
+
     public Guid DishesId { get; set; }
     public DishesAggregate? Dishes { get; set; }
 
@@ -14,8 +18,6 @@ public class OrderItem : Abstraction.Aggregates.ValueObject
 
     public Guid OrderId { get; set; }
     public OrderAggregate? Order { get; set; }
-
-    private OrderItem() { }
 
     public static OrderItem Create(DishesAggregate dishes, int quantity)
     {

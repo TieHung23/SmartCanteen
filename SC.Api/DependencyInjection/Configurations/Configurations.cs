@@ -29,22 +29,24 @@ public static class Configurations
     public static void ConfigureLogging(this WebApplicationBuilder builder)
     {
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                               ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+                               ?? throw new InvalidOperationException(
+                                   "Connection string 'DefaultConnection' was not found.");
 
         var tableName = builder.Configuration["Logging:Database:TableName"] ?? "ApplicationLogs";
         var minimumLevel = ParseLogLevel(builder.Configuration["Logging:MinimumLevel"]);
 
         var columnWriters = new Dictionary<string, ColumnWriterBase>
         {
-            ["Message"] = new RenderedMessageColumnWriter(NpgsqlDbType.Text),
-            ["MessageTemplate"] = new MessageTemplateColumnWriter(NpgsqlDbType.Text),
+            ["Message"] = new RenderedMessageColumnWriter(),
+            ["MessageTemplate"] = new MessageTemplateColumnWriter(),
             ["Level"] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
             ["TimeStamp"] = new TimestampColumnWriter(NpgsqlDbType.TimestampTz),
-            ["Exception"] = new ExceptionColumnWriter(NpgsqlDbType.Text),
-            ["Properties"] = new LogEventSerializedColumnWriter(NpgsqlDbType.Jsonb),
+            ["Exception"] = new ExceptionColumnWriter(),
+            ["Properties"] = new LogEventSerializedColumnWriter(),
             ["UserId"] = new SinglePropertyColumnWriter("UserId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
-            ["RequestPath"] = new SinglePropertyColumnWriter("RequestPath", PropertyWriteMethod.ToString, NpgsqlDbType.Text),
-            ["HttpMethod"] = new SinglePropertyColumnWriter("HttpMethod", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar)
+            ["RequestPath"] = new SinglePropertyColumnWriter("RequestPath"),
+            ["HttpMethod"] =
+                new SinglePropertyColumnWriter("HttpMethod", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar)
         };
 
         builder.Host.UseSerilog((_, _, loggerConfiguration) =>
@@ -55,15 +57,15 @@ public static class Configurations
                 .WriteTo.Map("LogDate", "unknown-date", (logDate, writeToByDate) =>
                     writeToByDate.Map("UserId", "anonymous", (userId, writeToByUser) =>
                         writeToByUser.File(
-                            path: $"Logs/{SanitizePathSegment(logDate)}/{SanitizePathSegment(userId)}/log-.txt",
+                            $"Logs/{SanitizePathSegment(logDate)}/{SanitizePathSegment(userId)}/log-.txt",
                             rollingInterval: RollingInterval.Day,
                             retainedFileCountLimit: 30,
                             shared: true,
                             restrictedToMinimumLevel: minimumLevel)))
                 .WriteTo.PostgreSQL(
-                    connectionString: connectionString,
-                    tableName: tableName,
-                    columnOptions: columnWriters,
+                    connectionString,
+                    tableName,
+                    columnWriters,
                     needAutoCreateTable: false);
         });
     }
