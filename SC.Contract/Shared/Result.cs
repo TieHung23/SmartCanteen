@@ -2,11 +2,7 @@ namespace SC.Contract.Shared;
 
 public class Result
 {
-    public bool IsSuccess { get; private set; }
-    public bool IsFailure => !IsSuccess;
-    public Error? Error { get; private set; }
-
-    protected Result(bool isSuccess, Error error)
+    protected Result(bool isSuccess, Error error, string? message = "")
     {
         switch (isSuccess)
         {
@@ -15,19 +11,40 @@ public class Result
             case false when error == Error.None:
                 throw new InvalidOperationException("A failure result must have an error.");
             default:
+                Message = message;
                 IsSuccess = isSuccess;
                 Error = error;
                 break;
         }
     }
 
-    public static Result Success() => new(true, Error.None);
-    
-    public static Result Failure(Error error) => new(false, error);
-    
-    public static Result<TValue> Success<TValue>(TValue value) => new(true, value, Error.None);
-    
-    public static Result<TValue> Failure<TValue>(Error error) => new(false, default(TValue), error);
+    public string? Message { get; private set; }
+    public bool IsSuccess { get; }
+    public bool IsFailure => !IsSuccess;
+    public Error? Error { get; private set; }
 
-    protected static Result<TValue> Create<TValue>(TValue? value) => value is null ? Failure<TValue>(Error.NullValue) : Success(value);
+    public static Result Success(string? message)
+    {
+        return new Result(true, Error.None, message);
+    }
+
+    public static Result Failure(Error error, string? message)
+    {
+        return new Result(false, error, message);
+    }
+
+    public static Result<TValue> Success<TValue>(TValue value, string? message)
+    {
+        return new Result<TValue>(true, value, Error.None, message);
+    }
+
+    public static Result<TValue> Failure<TValue>(Error error, string? message)
+    {
+        return new Result<TValue>(false, default, error, message);
+    }
+
+    protected static Result<TValue> Create<TValue>(TValue? value, string? message)
+    {
+        return value is null ? Failure<TValue>(Error.NullValue, message) : Success(value, message);
+    }
 }

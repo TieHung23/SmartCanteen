@@ -18,6 +18,13 @@ public abstract class ValueObject
             .Aggregate((x, y) => x ^ y);
     }
 
-    public static bool operator ==(ValueObject a, ValueObject b) => Equals(a, b);
-    public static bool operator !=(ValueObject a, ValueObject b) => !Equals(a, b);
+    public static bool operator ==(ValueObject a, ValueObject b)
+    {
+        return Equals(a, b);
+    }
+
+    public static bool operator !=(ValueObject a, ValueObject b)
+    {
+        return !Equals(a, b);
+    }
 }

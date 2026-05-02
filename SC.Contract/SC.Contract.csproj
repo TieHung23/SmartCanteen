@@ -7,11 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="MediatR" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Services\" />
+        <PackageReference Include="MediatR"/>
     </ItemGroup>
 
 </Project>

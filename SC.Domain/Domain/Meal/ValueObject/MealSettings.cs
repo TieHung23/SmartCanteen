@@ -2,20 +2,22 @@ namespace SC.Domain.Domain.Meal.ValueObject;
 
 public class MealSettings : Abstraction.Aggregates.ValueObject
 {
+    private MealSettings()
+    {
+    }
+
     public Guid CategoryId { get; set; }
     public Category.Category? Category { get; set; }
-    
+
     public int Quantity { get; init; }
     public bool IsDeleted { get; init; }
-    
-    public Guid MealId { get; set; }
-    public Meal.AggregateRoot.Meal? Meal { get; set; }
-    
-    private MealSettings() { }
 
-    public static MealSettings Create(Category.Category category, int quantity, Meal.AggregateRoot.Meal meal)
+    public Guid MealId { get; set; }
+    public AggregateRoot.Meal? Meal { get; set; }
+
+    public static MealSettings Create(Category.Category category, int quantity, AggregateRoot.Meal meal)
     {
-        if ( quantity <= 0)
+        if (quantity <= 0)
             throw new ArgumentException("Quantity must be greater than zero.", nameof(quantity));
         return new MealSettings
         {
@@ -25,7 +27,7 @@ public class MealSettings : Abstraction.Aggregates.ValueObject
             Meal = meal
         };
     }
-    
+
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return CategoryId;
