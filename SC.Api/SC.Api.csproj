@@ -12,6 +12,7 @@
           <PrivateAssets>all</PrivateAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.OpenApi" />
+        <ProjectReference Include="..\SC.Application\SC.Application.csproj" />
         <ProjectReference Include="..\SC.Persistence\SC.Persistence.csproj" />
         <PackageReference Include="Serilog.AspNetCore" />
         <PackageReference Include="Serilog.Sinks.File" />
