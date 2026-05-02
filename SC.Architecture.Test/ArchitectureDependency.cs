@@ -90,7 +90,7 @@ public class ArchitectureDependency
         var required = new[] { _domainAssembly.GetName().Name! };
 
         var result = Types.InAssembly(_applicationAssembly)
-            .Should()
+            .ShouldNot()
             .HaveDependencyOnAny(required)
             .GetResult();
 
