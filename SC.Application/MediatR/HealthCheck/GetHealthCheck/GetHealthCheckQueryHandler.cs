@@ -4,7 +4,7 @@ using SC.Contract.Shared;
 
 namespace SC.Application.MediatR.HealthCheck.GetHealthCheck;
 
-public class GetHealthCheckHandler(IHealthCheckService healthCheckService) : IQueryHandler<GetHealthCheckQuery>
+internal class GetHealthCheckQueryHandler(IHealthCheckService healthCheckService) : IQueryHandler<GetHealthCheckQuery>
 {
     public async Task<Result> Handle(GetHealthCheckQuery request, CancellationToken cancellationToken)
     {
