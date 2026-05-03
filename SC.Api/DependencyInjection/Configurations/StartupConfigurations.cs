@@ -26,7 +26,7 @@ public static class StartupConfigurations
                                ?? throw new InvalidOperationException(
                                    "Connection string 'DefaultConnection' was not found.");
 
-        builder.ConfigureLogging(loggingOptions, connectionString);
+        builder.ConfigureSerilog(loggingOptions, connectionString);
 
         builder.Services.ConfigureSwagger(builder.Configuration);
         builder.Services.AddControllers();
@@ -67,7 +67,6 @@ public static class StartupConfigurations
 
         app.UseGlobalExceptionHandler();
         app.UseRequestLogEnrichment();
-        app.UseRequestResponseBodyLogging();
         app.UseSerilogRequestLogging(options =>
         {
             options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -96,6 +95,7 @@ public static class StartupConfigurations
                 return Serilog.Events.LogEventLevel.Information;
             };
         });
+        app.UseRequestResponseBodyLogging();
 
         app.UseHttpsRedirection();
         app.MapControllers();

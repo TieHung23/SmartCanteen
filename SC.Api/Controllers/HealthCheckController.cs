@@ -12,7 +12,6 @@ namespace SC.Api.Controllers;
 public class HealthCheckController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    [ApiVersion("3.0")]
     public async Task<IActionResult> Get()
     {
         var result = await mediator.Send(new GetHealthCheckQuery());
@@ -32,14 +31,33 @@ public class HealthCheckController(IMediator mediator) : ControllerBase
         return StatusCode(500, result.Error);
     }
 
-    [HttpPost("have-body-test")]
-    [ApiVersion("3.0")]
-    public async Task<IActionResult> PostHaveBodyTest([FromBody] object body)
+    [HttpGet("test-logging-database-store-parameter")]
+    public async Task<IActionResult> TestLoggingDatabaseStoreParameter(
+            [FromQuery] string parameter)
     {
         var result = await mediator.Send(new GetHealthCheckQuery());
 
         if (result.IsSuccess) return Ok(result);
 
         return StatusCode(500, result.Error);
+    }
+
+    [HttpPost("test-logging-database-store-body")]
+    public async Task<IActionResult> TestLoggingDatabaseStoreBody(
+        [FromBody] WeatherForecast weatherForecast)
+    {
+        var result = await mediator.Send(new GetHealthCheckQuery());
+
+        if (result.IsSuccess) return Ok(result);
+
+        return StatusCode(500, result.Error);
+    }
+
+
+    public class WeatherForecast
+    {
+        public DateTime Date { get; set; }
+        public int TemperatureC { get; set; }
+        public string Summary { get; set; } = string.Empty;
     }
 }

@@ -21,6 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Database/Interceptor/" />
       <Folder Include="DependencyInjection/" />
       <Folder Include="DependencyInjection/Configurations/" />
       <Folder Include="DependencyInjection/Options/" />
