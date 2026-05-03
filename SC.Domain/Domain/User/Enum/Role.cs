@@ -1,4 +1,4 @@
-namespace SC.Domain.Domain.User;
+namespace SC.Domain.Domain.User.Enum;
 
 public enum Role
 {

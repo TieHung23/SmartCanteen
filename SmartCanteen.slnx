@@ -1,24 +1,24 @@
 <Solution>
-  <Folder Name="/solution folder/">
-    <File Path="Directory.Packages.props" />
-  </Folder>
-  <Folder Name="/solution folder/ai/">
-    <File Path="AI\controller-api-extractor-prompt.md" />
-    <File Path="AI\system-prompt.md" />
-  </Folder>
-  <Folder Name="/solution folder/docker/">
-    <File Path="Docker\docker-compose.yml" />
-    <File Path="Docker\README.md" />
-  </Folder>
-  <Folder Name="/src/">
-    <Project Path="SC.Api/SC.Api.csproj" />
-    <Project Path="SC.Application\SC.Application.csproj" />
-    <Project Path="SC.Contract/SC.Contract.csproj" />
-    <Project Path="SC.Domain/SC.Domain.csproj" />
-    <Project Path="SC.Infrastructure/SC.Infrastructure.csproj" />
-    <Project Path="SC.Persistence/SC.Persistence.csproj" />
-  </Folder>
-  <Folder Name="/test/">
-    <Project Path="SC.Architecture.Test/SC.Architecture.Test.csproj" />
-  </Folder>
+    <Folder Name="/solution folder/">
+        <File Path="Directory.Packages.props"/>
+    </Folder>
+    <Folder Name="/solution folder/ai/">
+        <File Path="AI\controller-api-extractor-prompt.md"/>
+        <File Path="AI\system-prompt.md"/>
+    </Folder>
+    <Folder Name="/solution folder/docker/">
+        <File Path="Docker\docker-compose.yml"/>
+        <File Path="Docker\README.md"/>
+    </Folder>
+    <Folder Name="/src/">
+        <Project Path="SC.Api/SC.Api.csproj"/>
+        <Project Path="SC.Application\SC.Application.csproj"/>
+        <Project Path="SC.Contract/SC.Contract.csproj"/>
+        <Project Path="SC.Domain/SC.Domain.csproj"/>
+        <Project Path="SC.Infrastructure/SC.Infrastructure.csproj"/>
+        <Project Path="SC.Persistence/SC.Persistence.csproj"/>
+    </Folder>
+    <Folder Name="/test/">
+        <Project Path="SC.Architecture.Test/SC.Architecture.Test.csproj"/>
+    </Folder>
 </Solution>

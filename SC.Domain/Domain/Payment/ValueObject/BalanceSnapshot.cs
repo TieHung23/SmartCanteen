@@ -1,13 +1,7 @@
-using SC.Domain.Abstraction.Aggregates;
+namespace SC.Domain.Domain.Payment.ValueObject;
 
-namespace SC.Domain.Domain.Payment;
-
-public class BalanceSnapshot : ValueObject
+public class BalanceSnapshot : Abstraction.Aggregates.ValueObject
 {
-    public decimal DeltaAmount { get; }
-    public decimal BalanceBefore { get; }
-    public decimal BalanceAfter { get; }
-
     private BalanceSnapshot(decimal deltaAmount, decimal balanceBefore, decimal balanceAfter)
     {
         DeltaAmount = deltaAmount;
@@ -15,9 +9,15 @@ public class BalanceSnapshot : ValueObject
         BalanceAfter = balanceAfter;
     }
 
+    public decimal DeltaAmount { get; }
+    public decimal BalanceBefore { get; }
+    public decimal BalanceAfter { get; }
+
     public static BalanceSnapshot Create(decimal deltaAmount, decimal balanceBefore, decimal balanceAfter)
-        => new(deltaAmount, balanceBefore, balanceAfter);
-    
+    {
+        return new BalanceSnapshot(deltaAmount, balanceBefore, balanceAfter);
+    }
+
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return DeltaAmount;
@@ -25,4 +25,3 @@ public class BalanceSnapshot : ValueObject
         yield return BalanceAfter;
     }
 }
-

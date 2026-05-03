@@ -8,14 +8,25 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="coverlet.collector"/>
-        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
-        <PackageReference Include="xunit"/>
-        <PackageReference Include="xunit.runner.visualstudio"/>
+        <PackageReference Include="coverlet.collector" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.runner.visualstudio" />
+        <PackageReference Include="NetArchTest.Rules" />
     </ItemGroup>
 
     <ItemGroup>
-        <Using Include="Xunit"/>
+      <ProjectReference Include="../SC.Api/SC.Api.csproj" />
+      <ProjectReference Include="../SC.Application/SC.Application.csproj" />
+      <ProjectReference Include="../SC.Contract/SC.Contract.csproj" />
+      <ProjectReference Include="../SC.Domain/SC.Domain.csproj" />
+      <ProjectReference Include="../SC.Infrastructure/SC.Infrastructure.csproj" />
+      <ProjectReference Include="../SC.Persistence/SC.Persistence.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
     </ItemGroup>
 
 </Project>
