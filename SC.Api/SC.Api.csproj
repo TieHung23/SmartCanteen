@@ -16,6 +16,7 @@
         <PackageReference Include="FluentValidation.AspNetCore" />
         <PackageReference Include="Microsoft.OpenApi"/>
         <ProjectReference Include="..\SC.Application\SC.Application.csproj"/>
+        <ProjectReference Include="..\SC.Infrastructure\SC.Infrastructure.csproj"/>
         <ProjectReference Include="..\SC.Persistence\SC.Persistence.csproj"/>
         <PackageReference Include="Serilog.AspNetCore"/>
         <PackageReference Include="Serilog.Sinks.Console"/>

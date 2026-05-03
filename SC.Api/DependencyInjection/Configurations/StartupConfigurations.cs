@@ -5,8 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using SC.Api.Middleware;
 using SC.Application.DependencyInjection.Configurations;
 using SC.Contract.DependencyInjection.Configurations;
+using SC.Infrastructure.DependencyInjection.Configurations;
 using SC.Persistence.Database;
 using Serilog;
+using SC.Api.DependencyInjection.Options;
 
 namespace SC.Api.DependencyInjection.Configurations;
 
@@ -14,7 +16,17 @@ public static class StartupConfigurations
 {
     public static void AddApiConfigurations(this WebApplicationBuilder builder)
     {
-        builder.ConfigureLogging();
+        var loggingOptions = builder.Configuration
+            .GetSection(LoggingOptions.SectionName)
+            .Get<LoggingOptions>() ?? new LoggingOptions();
+
+        builder.Services.Configure<LoggingOptions>(builder.Configuration.GetSection(LoggingOptions.SectionName));
+
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                               ?? throw new InvalidOperationException(
+                                   "Connection string 'DefaultConnection' was not found.");
+
+        builder.ConfigureLogging(loggingOptions, connectionString);
 
         builder.Services.ConfigureSwagger(builder.Configuration);
         builder.Services.AddControllers();
@@ -25,9 +37,10 @@ public static class StartupConfigurations
                 npgsql => npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName));
         });
 
-        builder.Services.AddApplicationConfigurations();
+        builder.Services.AddApplicationConfigurations(builder.Configuration);
         builder.Services.AddContractConfigurations();
         builder.Services.AddFluentValidationConfigurations();
+        builder.Services.AddInfrastructureConfigurations(builder.Configuration);
     }
 
     public static void UseApiConfigurations(this WebApplication app)
@@ -54,7 +67,35 @@ public static class StartupConfigurations
 
         app.UseGlobalExceptionHandler();
         app.UseRequestLogEnrichment();
-        app.UseSerilogRequestLogging();
+        app.UseRequestResponseBodyLogging();
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+            {
+                if (httpContext.Items.TryGetValue("RequestBody", out var requestBody))
+                {
+                    diagnosticContext.Set("RequestBody", requestBody);
+                }
+
+                if (httpContext.Items.TryGetValue("ResponseBody", out var responseBody))
+                {
+                    diagnosticContext.Set("ResponseBody", responseBody);
+                }
+            };
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                var path = httpContext.Request.Path.Value;
+                if (ex != null || httpContext.Response.StatusCode > 499)
+                {
+                    return Serilog.Events.LogEventLevel.Error;
+                }
+                if (path != null && path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Serilog.Events.LogEventLevel.Debug;
+                }
+                return Serilog.Events.LogEventLevel.Information;
+            };
+        });
 
         app.UseHttpsRedirection();
         app.MapControllers();
