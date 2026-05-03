@@ -7,6 +7,4 @@ riderModule.iml
 SC.Architecture.Test/TestResults
 Logs/
 .idea/
-appsettings.Development.json
-appsettings.Production.json
-appsettings.json
+.vscode/
