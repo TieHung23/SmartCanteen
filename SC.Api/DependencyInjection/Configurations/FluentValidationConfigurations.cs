@@ -1,7 +1,5 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Microsoft.Extensions.DependencyInjection;
-using SC.Application.DependencyInjection.Configurations;
 
 namespace SC.Api.DependencyInjection.Configurations;
 
