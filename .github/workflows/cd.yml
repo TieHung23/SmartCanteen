@@ -46,7 +46,7 @@ jobs:
       - name: Deploy via SSH (simulate supported)
         uses: appleboy/ssh-action@v1.0.3
         env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_API }}
           DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -69,4 +69,3 @@ jobs:
               sudo systemctl restart smartcanteen-api
               sudo systemctl status smartcanteen-api --no-pager
             fi
-
