@@ -19,6 +19,12 @@ erDiagram
         Guid UpdatedBy
     }
 
+    SETTING {
+        Guid Id PK
+        string Key
+        string Value
+    }
+
     CATEGORY {
         Guid Id PK
         string Name
@@ -69,6 +75,7 @@ erDiagram
         Guid Id PK
         Guid MealId FK
         Guid PaymentId FK "nullable"
+        int Status "Enum: Pending(0) ReadyForPickup(1) Completed(2) Cancelled(3)"
         DateTimeOffset CreatedAtUtc
         DateTimeOffset UpdatedAtUtc "nullable"
         Guid CreatedBy FK "references User"
@@ -147,6 +154,7 @@ erDiagram
 | Enum | Values | Used In |
 |------|--------|---------|
 | **Role** | Admin (1), Manager (2), User (3) | User.Role |
+| **OrderStatus** | Pending (0), ReadyForPickup (1), Completed (2), Cancelled (3) | Order.Status |
 | **PaymentStatus** | Pending (1), Completed (2), Failed (3) | Payment.Status |
 | **PaymentMethod** | Momo (1), ZaloPay (2), VnPay (3) | Payment.Method |
 | **PaymentType** | TopUp (1), Subscription (2), Refund (3) | Payment.Type |

@@ -18,6 +18,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.PaymentId);
         builder.HasIndex(x => x.PaymentId);
 
+        builder.Property(x => x.Status).IsRequired();
+
         builder.OwnsMany(x => x.OrderItems, orderItem =>
         {
             orderItem.ToTable("OrderItems");

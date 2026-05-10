@@ -37,6 +37,11 @@ graph TB
     subgraph Order Bounded Context
         ORDER["🟦 Order<br/><i>Aggregate Root</i>"]
         OITEM["🟨 OrderItem<br/><i>Value Object</i>"]
+        OSTATUS["🟪 OrderStatus<br/><i>Enum</i>"]
+    end
+
+    subgraph Setting Bounded Context
+        SETTING["🟦 Setting<br/><i>Aggregate Root</i>"]
     end
 
     subgraph Payment Bounded Context
@@ -63,6 +68,7 @@ graph TB
 
     ORDER -. "for by ID" .-> MEAL
     ORDER -- "contains 1..*" --> OITEM
+    ORDER -- "status" --> OSTATUS
     ORDER -. "paid via by ID 0..1" .-> PAYMENT
     OITEM -. "references by ID" .-> DISH
     OITEM -- "priced with" --> MONEY
@@ -84,11 +90,13 @@ graph TB
     style ORDER fill:#4A90D9,color:#fff
     style PAYMENT fill:#4A90D9,color:#fff
     style CATEGORY fill:#4A90D9,color:#fff
+    style SETTING fill:#4A90D9,color:#fff
     style MONEY fill:#FFD700,color:#333
     style MSETTINGS fill:#FFD700,color:#333
     style OITEM fill:#FFD700,color:#333
     style BSNAPSHOT fill:#FFD700,color:#333
     style ROLE fill:#9B59B6,color:#fff
+    style OSTATUS fill:#9B59B6,color:#fff
     style PSTATUS fill:#9B59B6,color:#fff
     style PMETHOD fill:#9B59B6,color:#fff
     style PTYPE fill:#9B59B6,color:#fff
@@ -104,11 +112,13 @@ graph TB
 | **Order** | Aggregate Root | Customer order linked to a meal and its line items |
 | **Payment** | Aggregate Root | Tracks financial transactions and balance changes |
 | **Category** | Aggregate Root | Classification for dishes and meal settings |
+| **Setting** | Aggregate Root | Application-wide configuration key-value pairs |
 | **Money** | Value Object | (Shared Kernel) Immutable monetary amount with currency |
 | **MealSettings** | Value Object | Category-quantity rules within a meal |
 | **OrderItem** | Value Object | Line item: dish + quantity + unit price |
 | **BalanceSnapshot** | Value Object | Before/after balance for a payment |
 | **Role** | Enum | Admin · Manager · User |
+| **OrderStatus** | Enum | Pending · ReadyForPickup · Completed · Cancelled |
 | **PaymentStatus** | Enum | Pending · Completed · Failed |
 | **PaymentMethod** | Enum | Momo · ZaloPay · VnPay |
 | **PaymentType** | Enum | TopUp · Subscription · Refund |

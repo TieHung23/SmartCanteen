@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SC.Domain.Domain.Category;
+using SC.Domain.Domain.Category.AggregateRoot;
 
 namespace SC.Persistence.Database.Configuration;
 
