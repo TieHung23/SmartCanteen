@@ -1,12 +1,13 @@
+using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.Meal.ValueObject;
-using SC.Domain.Domain.User.ValueObject;
+using SC.Domain.SharedKernel.ValueObjects;
 
 // ReSharper disable All
 
 namespace SC.Domain.Domain.Meal.AggregateRoot;
 
-public class Meal : Entity<Guid>, IAuditableEntity<Guid>
+public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
     private Meal()
     {
@@ -15,7 +16,7 @@ public class Meal : Entity<Guid>, IAuditableEntity<Guid>
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
 
-    public Money Money { get; set; } = Money.Create(0);
+    public Money Price { get; set; } = Money.Create(0);
 
     public bool IsActive { get; set; } = true;
 
@@ -25,24 +26,24 @@ public class Meal : Entity<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Meal Create(string name, string description, Money money, Guid createdBy)
+    public static Meal Create(string name, string description, Money price, Guid createdBy)
     {
         return new Meal
         {
             Id = Guid.NewGuid(),
             Name = name,
             Description = description,
-            Money = money,
+            Price = price,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy
         };
     }
 
-    public void Update(string name, string description, Money money, bool isActive, Guid updatedBy)
+    public void Update(string name, string description, Money price, bool isActive, Guid updatedBy)
     {
         Name = name;
         Description = description;
-        Money = money;
+        Price = price;
         IsActive = isActive;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;

@@ -1,8 +1,9 @@
+using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 
 namespace SC.Domain.Domain.Category;
 
-public class Category : Entity<Guid>, IAuditableEntity<Guid>
+public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
     private Category()
     {

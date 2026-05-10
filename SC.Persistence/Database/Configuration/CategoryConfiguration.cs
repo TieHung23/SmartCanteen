@@ -22,5 +22,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }

@@ -28,10 +28,8 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .IsRequired()
             .HasConversion<int>();
 
-        builder.HasOne(x => x.User)
-            .WithMany()
-            .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.UserId).IsRequired();
+        builder.HasIndex(x => x.UserId);
 
         builder.OwnsOne(x => x.BalanceSnapshot, snapshot =>
         {
@@ -50,5 +48,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }

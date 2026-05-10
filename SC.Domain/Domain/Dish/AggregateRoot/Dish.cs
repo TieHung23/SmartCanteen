@@ -1,13 +1,12 @@
+using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
-using SC.Domain.Domain.User.ValueObject;
-using CategoryAggregate = SC.Domain.Domain.Category.Category;
-using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
+using SC.Domain.SharedKernel.ValueObjects;
 
-namespace SC.Domain.Domain.Dishes.AggregateRoot;
+namespace SC.Domain.Domain.Dish.AggregateRoot;
 
-public class Dishes : Entity<Guid>, IAuditableEntity<Guid>
+public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
-    private Dishes()
+    private Dish()
     {
     }
 
@@ -18,39 +17,34 @@ public class Dishes : Entity<Guid>, IAuditableEntity<Guid>
     public bool IsActive { get; set; } = true;
 
     public Guid MealId { get; set; }
-    public MealAggregate? Meal { get; set; }
-
     public Guid CategoryId { get; set; }
-    public CategoryAggregate? Category { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Dishes Create(
+    public static Dish Create(
         string name,
         string description,
         Money price,
         int stockQuantity,
-        MealAggregate meal,
-        CategoryAggregate category,
+        Guid mealId,
+        Guid categoryId,
         Guid createdBy)
     {
         if (stockQuantity < 0)
             throw new ArgumentOutOfRangeException(nameof(stockQuantity), "Stock quantity cannot be negative.");
 
-        return new Dishes
+        return new Dish
         {
             Id = Guid.NewGuid(),
             Name = name,
             Description = description,
             Price = price,
             StockQuantity = stockQuantity,
-            Meal = meal,
-            MealId = meal.Id,
-            Category = category,
-            CategoryId = category.Id,
+            MealId = mealId,
+            CategoryId = categoryId,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy
         };

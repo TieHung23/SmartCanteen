@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SC.Domain.Domain.Dishes.AggregateRoot;
+using SC.Domain.Domain.Dish.AggregateRoot;
 
 namespace SC.Persistence.Database.Configuration;
 
-public class DishesConfiguration : IEntityTypeConfiguration<Dishes>
+public class DishConfiguration : IEntityTypeConfiguration<Dish>
 {
-    public void Configure(EntityTypeBuilder<Dishes> builder)
+    public void Configure(EntityTypeBuilder<Dish> builder)
     {
         builder.ToTable("Dishes");
 
@@ -37,17 +37,15 @@ public class DishesConfiguration : IEntityTypeConfiguration<Dishes>
                 .HasMaxLength(10);
         });
 
-        builder.HasOne(x => x.Meal)
-            .WithMany()
-            .HasForeignKey(x => x.MealId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.MealId).IsRequired();
+        builder.Property(x => x.CategoryId).IsRequired();
 
-        builder.HasOne(x => x.Category)
-            .WithMany()
-            .HasForeignKey(x => x.CategoryId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.MealId);
+        builder.HasIndex(x => x.CategoryId);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }

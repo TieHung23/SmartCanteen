@@ -1,6 +1,4 @@
-using SC.Domain.Domain.User.ValueObject;
-using DishesAggregate = SC.Domain.Domain.Dishes.AggregateRoot.Dishes;
-using OrderAggregate = SC.Domain.Domain.Order.AggregateRoot.Order;
+using SC.Domain.SharedKernel.ValueObjects;
 
 namespace SC.Domain.Domain.Order.ValueObject;
 
@@ -10,32 +8,29 @@ public class OrderItem : Abstraction.Aggregates.ValueObject
     {
     }
 
-    public Guid DishesId { get; set; }
-    public DishesAggregate? Dishes { get; set; }
+    public Guid DishId { get; set; }
 
     public int Quantity { get; init; }
     public Money UnitPrice { get; init; } = Money.Create(0);
 
     public Guid OrderId { get; set; }
-    public OrderAggregate? Order { get; set; }
 
-    public static OrderItem Create(DishesAggregate dishes, int quantity)
+    public static OrderItem Create(Guid dishId, int quantity, decimal unitPriceAmount, string unitPriceCurrency = "VND")
     {
         if (quantity <= 0)
             throw new ArgumentException("Quantity must be greater than zero.", nameof(quantity));
 
         return new OrderItem
         {
-            Dishes = dishes,
-            DishesId = dishes.Id,
+            DishId = dishId,
             Quantity = quantity,
-            UnitPrice = dishes.Price
+            UnitPrice = Money.Create(unitPriceAmount, unitPriceCurrency)
         };
     }
 
     protected override IEnumerable<object> GetEqualityComponents()
     {
-        yield return DishesId;
+        yield return DishId;
         yield return Quantity;
         yield return UnitPrice;
         yield return OrderId;
