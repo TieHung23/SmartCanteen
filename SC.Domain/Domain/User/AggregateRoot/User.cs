@@ -1,11 +1,12 @@
 using System.Net.Mail;
+using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.User.Enum;
-using SC.Domain.Domain.User.ValueObject;
+using SC.Domain.SharedKernel.ValueObjects;
 
 namespace SC.Domain.Domain.User;
 
-public class User : Entity<Guid>, IAuditableEntity<Guid>
+public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
     private User()
     {

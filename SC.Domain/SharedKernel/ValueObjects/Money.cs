@@ -1,4 +1,4 @@
-namespace SC.Domain.Domain.User.ValueObject;
+namespace SC.Domain.SharedKernel.ValueObjects;
 
 public class Money : Abstraction.Aggregates.ValueObject
 {

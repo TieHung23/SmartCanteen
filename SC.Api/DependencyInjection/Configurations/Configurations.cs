@@ -70,8 +70,6 @@ public static class Configurations
                 .WriteTo.Console(restrictedToMinimumLevel: minimumLevel)
                 .WriteTo.Logger(logger =>
                     logger
-                        .Filter.ByIncludingOnly(logEvent =>
-                            logEvent.Properties.ContainsKey("StatusCode") || IsEfCommand(logEvent))
                         .WriteTo.Map("LogDate", "unknown-date", (logDate, writeToByDate) =>
                             writeToByDate.Map("UserId", "anonymous", (userId, writeToByUser) =>
                                 writeToByUser.File(
@@ -82,7 +80,7 @@ public static class Configurations
                                     restrictedToMinimumLevel: minimumLevel))))
                 .WriteTo.Logger(logger =>
                     logger
-                        .Filter.ByIncludingOnly(logEvent => logEvent.Properties.ContainsKey("StatusCode"))
+                        .Filter.ByIncludingOnly(IsRequestResponseLog)
                         .WriteTo.PostgreSQL(
                             connectionString,
                             tableName,
@@ -219,7 +217,7 @@ public static class Configurations
             : tableName;
     }
 
-    private static bool IsEfCommand(LogEvent logEvent)
+    private static bool IsRequestResponseLog(LogEvent logEvent)
     {
         if (!logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
         {
@@ -228,7 +226,7 @@ public static class Configurations
 
         if (sourceContext is ScalarValue scalar && scalar.Value is string source)
         {
-            return source.Contains("Microsoft.EntityFrameworkCore.Database.Command", StringComparison.Ordinal);
+            return source.Contains("Serilog.AspNetCore.RequestLoggingMiddleware", StringComparison.Ordinal);
         }
 
         return false;

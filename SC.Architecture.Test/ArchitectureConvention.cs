@@ -300,12 +300,10 @@ public class ArchitectureConvention
     }
 
     [Fact]
-    public void AggregateRoots_Should_Inherit_Entity()
+    public void AggregateRoots_Should_Inherit_AggregateRoot()
     {
-        // In this project the aggregate namespaces are named "AggregateRoot" but the
-        // classes extend Entity<T> directly (not AggregateRoot<T>).  The test
-        // therefore verifies that every concrete type in such a namespace at least
-        // inherits from Entity<T>.
+        // Every concrete type in an "AggregateRoot" namespace must inherit
+        // from AggregateRoot<T> to gain domain event support.
         var offenders = Types.InAssembly(_domainAssembly)
             .That()
             .ResideInNamespaceContaining(".AggregateRoot")
@@ -314,7 +312,7 @@ public class ArchitectureConvention
             .And()
             .AreNotAbstract()
             .GetTypes()
-            .Where(t => !InheritsFromGenericType(t, typeof(Entity<>)))
+            .Where(t => !InheritsFromGenericType(t, typeof(AggregateRoot<>)))
             .ToList();
 
         Assert.Empty(offenders);

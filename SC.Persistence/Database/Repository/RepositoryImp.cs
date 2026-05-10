@@ -17,10 +17,14 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
     public async Task<TEntity?> FindByIdAsync(TKey id, CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[]? includeProperties)
     {
+        _logger.LogInformation("Finding entity {EntityType} by id {Id}", typeof(TEntity).Name, id.Id);
+
         var query = _context.Set<TEntity>().AsQueryable();
 
         if (includeProperties != null)
             query = includeProperties.Aggregate(query, (current, includeProperty) => current.Include(includeProperty));
+
+        _logger.LogInformation("Executing SQL Script:\n{Sql}", query.ToQueryString());
 
         var result = await query.FirstOrDefaultAsync(e => e.GetType().GetProperty("Id")!.GetValue(e)!.Equals(id.Id), cancellationToken);
 
@@ -31,12 +35,16 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
         CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[]? includeProperties)
     {
+        _logger.LogInformation("Finding single entity {EntityType}", typeof(TEntity).Name);
+
         var query = _context.Set<TEntity>().AsQueryable();
 
         if (predicate != null) query = query.Where(predicate);
 
         if (includeProperties != null)
             query = includeProperties.Aggregate(query, (current, includeProperty) => current.Include(includeProperty));
+
+        _logger.LogInformation("Executing SQL Script:\n{Sql}", query.ToQueryString());
 
         return query.FirstOrDefaultAsync(cancellationToken);
     }
@@ -45,6 +53,8 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
         CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[]? includeProperties)
     {
+        _logger.LogInformation("Finding all entities {EntityType}", typeof(TEntity).Name);
+
         var query = _context.Set<TEntity>().AsQueryable();
 
         if (predicate != null) query = query.Where(predicate);
@@ -52,12 +62,15 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
         if (includeProperties != null)
             query = includeProperties.Aggregate(query, (current, includeProperty) => current.Include(includeProperty));
 
+        _logger.LogInformation("Executing SQL Script:\n{Sql}", query.ToQueryString());
+
         return query;
     }
     public async Task<Result> AddAsync(TEntity entity)
     {
         try
         {
+            _logger.LogInformation("Adding new entity {EntityType}", typeof(TEntity).Name);
             _context.Set<TEntity>().Add(entity);
             await _context.SaveChangesAsync();
             return Result.Success("Entity added successfully.");
@@ -73,6 +86,7 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
     {
         try
         {
+            _logger.LogInformation("Updating entity {EntityType}", typeof(TEntity).Name);
             _context.Set<TEntity>().Update(entity);
             await _context.SaveChangesAsync();
             return Result.Success("Entity updated successfully.");
@@ -88,6 +102,7 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
     {
         try
         {
+            _logger.LogInformation("Deleting entity {EntityType}", typeof(TEntity).Name);
             _context.Set<TEntity>().Remove(entity);
             await _context.SaveChangesAsync();
             return Result.Success("Entity deleted successfully.");
@@ -103,6 +118,7 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
     {
         try
         {
+            _logger.LogInformation("Deleting multiple entities {EntityType}, count: {Count}", typeof(TEntity).Name, entities.Count);
             _context.Set<TEntity>().RemoveRange(entities);
             await _context.SaveChangesAsync();
             return Result.Success("Entities deleted successfully.");

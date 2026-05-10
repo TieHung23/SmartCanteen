@@ -12,15 +12,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.HasKey(x => x.Id);
 
-        builder.HasOne(x => x.Meal)
-            .WithMany()
-            .HasForeignKey(x => x.MealId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.MealId).IsRequired();
+        builder.HasIndex(x => x.MealId);
 
-        builder.HasOne(x => x.Payment)
-            .WithMany()
-            .HasForeignKey(x => x.PaymentId)
-            .OnDelete(DeleteBehavior.SetNull);
+        builder.Property(x => x.PaymentId);
+        builder.HasIndex(x => x.PaymentId);
 
         builder.OwnsMany(x => x.OrderItems, orderItem =>
         {
@@ -28,9 +24,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
             orderItem.WithOwner().HasForeignKey(x => x.OrderId);
 
-            orderItem.HasKey(x => new { x.OrderId, x.DishesId });
+            orderItem.HasKey(x => new { x.OrderId, x.DishId });
 
-            orderItem.Property(x => x.DishesId)
+            orderItem.Property(x => x.DishId)
                 .IsRequired();
 
             orderItem.Property(x => x.Quantity)
@@ -46,12 +42,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
                     .HasColumnName("UnitPriceCurrency")
                     .HasMaxLength(10);
             });
-
-            orderItem.Ignore(x => x.Dishes);
-            orderItem.Ignore(x => x.Order);
         });
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }
