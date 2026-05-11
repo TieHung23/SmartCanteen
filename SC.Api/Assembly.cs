@@ -1,5 +1,3 @@
-using System;
-
 namespace SC.Api;
 
 public static class Assembly
