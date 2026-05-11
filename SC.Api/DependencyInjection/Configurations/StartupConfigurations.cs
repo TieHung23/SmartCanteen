@@ -38,7 +38,6 @@ public static class StartupConfigurations
             options.UseNpgsql(
                 builder.Configuration.GetConnectionString("DefaultConnection"),
                 npgsql => npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName))
-                .UseSnakeCaseNamingConvention()
                 .AddInterceptors(sp.GetRequiredService<SC.Persistence.Database.Interceptors.AuditableEntityInterceptor>());
         });
 
