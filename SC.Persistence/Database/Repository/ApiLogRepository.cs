@@ -16,6 +16,7 @@ public class ApiLogRepository : IApiLogRepository
 
     public async Task SaveAsync(ApiLog apiLog, AppLogLevel logLevel = AppLogLevel.DEBUG)
     {
+        apiLog.Id = Guid.NewGuid();
         apiLog.LogLevel = ToStr(logLevel);
 
         apiLog.ErrorTrace = Escape(apiLog.ErrorTrace);

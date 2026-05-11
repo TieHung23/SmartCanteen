@@ -2,7 +2,7 @@ namespace SC.Domain.Domain.Logging.AggregateRoot;
 
 public class ApiLog
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string? LoginId { get; set; }
     public string LogLevel { get; set; } = string.Empty;
     public string ApiUrl { get; set; } = string.Empty;
