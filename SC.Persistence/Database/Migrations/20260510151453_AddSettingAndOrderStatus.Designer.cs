@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SC.Persistence.Database;
@@ -11,9 +12,11 @@ using SC.Persistence.Database;
 namespace SC.Persistence.Database.Migrations
 {
     [DbContext(typeof(SmartCanteenDbContext))]
-    partial class SmartCanteenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260510151453_AddSettingAndOrderStatus")]
+    partial class AddSettingAndOrderStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -55,7 +58,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
@@ -107,75 +110,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("MealId");
 
-                    b.ToTable("Dishes");
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.Logging.AggregateRoot.ApiLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApiBody")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ApiDesc")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ApiMethod")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ApiResponse")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ApiUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ApiVer")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ErrorTrace")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LocalHostPC")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LocalIpAddress")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LogApp")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LogLevel")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("LogVersion")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LoginId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Memo")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RequestId")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ApiLogs");
+                    b.ToTable("Dishes", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Meal.AggregateRoot.Meal", b =>
@@ -223,7 +158,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Meals");
+                    b.ToTable("Meals", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
@@ -262,7 +197,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("PaymentId");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Payment.AggregateRoot.Payment", b =>
@@ -307,7 +242,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Setting.AggregateRoot.Setting", b =>
@@ -316,45 +251,13 @@ namespace SC.Persistence.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Group")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UpdatedBy")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Value")
                         .IsRequired()
@@ -362,7 +265,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Settings");
+                    b.ToTable("Settings", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.User", b =>
@@ -413,7 +316,53 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("SC.Persistence.Database.Logging.ApplicationLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Exception")
+                        .HasColumnType("text");
+
+                    b.Property<string>("HttpMethod")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MessageTemplate")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("RequestPath")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("TimeStamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ApplicationLogs", (string)null);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
@@ -425,12 +374,14 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.Property<decimal>("Amount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("PriceAmount");
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("character varying(10)");
+                                .HasColumnType("character varying(10)")
+                                .HasColumnName("PriceCurrency");
 
                             b1.HasKey("DishId");
 
@@ -453,12 +404,14 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.Property<decimal>("Amount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("PriceAmount");
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("character varying(10)");
+                                .HasColumnType("character varying(10)")
+                                .HasColumnName("PriceCurrency");
 
                             b1.HasKey("MealId");
 
@@ -485,7 +438,7 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.HasKey("MealId", "CategoryId");
 
-                            b1.ToTable("MealSettings");
+                            b1.ToTable("MealSettings", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("MealId");
@@ -513,7 +466,7 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.HasKey("OrderId", "DishId");
 
-                            b1.ToTable("OrderItem");
+                            b1.ToTable("OrderItems", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
@@ -528,16 +481,18 @@ namespace SC.Persistence.Database.Migrations
 
                                     b2.Property<decimal>("Amount")
                                         .HasPrecision(18, 2)
-                                        .HasColumnType("numeric(18,2)");
+                                        .HasColumnType("numeric(18,2)")
+                                        .HasColumnName("UnitPriceAmount");
 
                                     b2.Property<string>("Currency")
                                         .IsRequired()
                                         .HasMaxLength(10)
-                                        .HasColumnType("character varying(10)");
+                                        .HasColumnType("character varying(10)")
+                                        .HasColumnName("UnitPriceCurrency");
 
                                     b2.HasKey("OrderItemOrderId", "OrderItemDishId");
 
-                                    b2.ToTable("OrderItem");
+                                    b2.ToTable("OrderItems");
 
                                     b2.WithOwner()
                                         .HasForeignKey("OrderItemOrderId", "OrderItemDishId");
@@ -559,15 +514,18 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.Property<decimal>("BalanceAfter")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("BalanceSnapshotBalanceAfter");
 
                             b1.Property<decimal>("BalanceBefore")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("BalanceSnapshotBalanceBefore");
 
                             b1.Property<decimal>("DeltaAmount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("BalanceSnapshotDeltaAmount");
 
                             b1.HasKey("PaymentId");
 
@@ -590,12 +548,14 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.Property<decimal>("Amount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("BalanceAmount");
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("character varying(10)");
+                                .HasColumnType("character varying(10)")
+                                .HasColumnName("BalanceCurrency");
 
                             b1.HasKey("UserId");
 

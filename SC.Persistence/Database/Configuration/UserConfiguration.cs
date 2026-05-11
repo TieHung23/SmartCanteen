@@ -8,7 +8,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("Users");
 
         builder.HasKey(x => x.Id);
 
@@ -36,11 +35,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.OwnsOne(x => x.Balance, money =>
         {
             money.Property(x => x.Amount)
-                .HasColumnName("BalanceAmount")
                 .HasPrecision(18, 2);
 
             money.Property(x => x.Currency)
-                .HasColumnName("BalanceCurrency")
                 .HasMaxLength(10);
         });
 

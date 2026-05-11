@@ -33,6 +33,8 @@ public static class Configurations
         }
 
         services.AddHostedService<DailyLogUploadBackgroundService>();
+        
+        services.AddScoped<SC.Infrastructure.Services.ApiLog.IApiLogService, SC.Infrastructure.Services.ApiLog.ApiLogService>();
 
         return services;
     }

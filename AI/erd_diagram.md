@@ -19,6 +19,42 @@ erDiagram
         Guid UpdatedBy
     }
 
+    SETTING {
+        Guid Id PK
+        string Code
+        string Name
+        string Description "nullable"
+        string Group
+        string Value
+        string Type
+        DateTimeOffset CreatedAtUtc
+        DateTimeOffset UpdatedAtUtc "nullable"
+        Guid CreatedBy
+        Guid UpdatedBy
+    }
+
+    API_LOG {
+        long Id PK
+        string LoginId "nullable"
+        string LogLevel
+        string ApiUrl
+        string ApiMethod
+        string Message "nullable"
+        string ErrorTrace "nullable"
+        string ApiBody "nullable"
+        string ApiResponse "nullable"
+        string LocalIpAddress "nullable"
+        string LocalHostPC "nullable"
+        string LogApp "nullable"
+        string LogVersion "nullable"
+        string Memo "nullable"
+        string RequestId "nullable"
+        string ApiDesc "nullable"
+        string ApiVer "nullable"
+        DateTimeOffset CreatedDate
+        DateTimeOffset EndDate "nullable"
+    }
+
     CATEGORY {
         Guid Id PK
         string Name
@@ -69,6 +105,7 @@ erDiagram
         Guid Id PK
         Guid MealId FK
         Guid PaymentId FK "nullable"
+        int Status "Enum: Pending(0) ReadyForPickup(1) Completed(2) Cancelled(3)"
         DateTimeOffset CreatedAtUtc
         DateTimeOffset UpdatedAtUtc "nullable"
         Guid CreatedBy FK "references User"
@@ -147,6 +184,7 @@ erDiagram
 | Enum | Values | Used In |
 |------|--------|---------|
 | **Role** | Admin (1), Manager (2), User (3) | User.Role |
+| **OrderStatus** | Pending (0), ReadyForPickup (1), Completed (2), Cancelled (3) | Order.Status |
 | **PaymentStatus** | Pending (1), Completed (2), Failed (3) | Payment.Status |
 | **PaymentMethod** | Momo (1), ZaloPay (2), VnPay (3) | Payment.Method |
 | **PaymentType** | TopUp (1), Subscription (2), Refund (3) | Payment.Type |

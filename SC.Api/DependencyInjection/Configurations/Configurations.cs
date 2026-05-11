@@ -49,15 +49,24 @@ public static class Configurations
         var minimumLevel = ParseLogLevel(loggingOptions.MinimumLevel);
         var columnWriters = new Dictionary<string, ColumnWriterBase>
         {
+            ["\"LoginId\""] = new SinglePropertyColumnWriter("LoginId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LogLevel\""] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
+            ["\"ApiUrl\""] = new SinglePropertyColumnWriter("ApiUrl", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiMethod\""] = new SinglePropertyColumnWriter("ApiMethod", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
             ["\"Message\""] = new RenderedMessageColumnWriter(),
-            ["\"MessageTemplate\""] = new MessageTemplateColumnWriter(),
-            ["\"Level\""] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
-            ["\"TimeStamp\""] = new TimestampColumnWriter(NpgsqlDbType.TimestampTz),
-            ["\"Exception\""] = new ExceptionColumnWriter(),
-            ["\"Properties\""] = new LogEventSerializedColumnWriter(),
-            ["\"UserId\""] = new SinglePropertyColumnWriter("UserId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
-            ["\"RequestPath\""] = new SinglePropertyColumnWriter("RequestPath"),
-            ["\"HttpMethod\""] = new SinglePropertyColumnWriter("HttpMethod", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar)
+            ["\"ErrorTrace\""] = new ExceptionColumnWriter(),
+            ["\"ApiBody\""] = new SinglePropertyColumnWriter("ApiBody", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiResponse\""] = new SinglePropertyColumnWriter("ApiResponse", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LocalIpAddress\""] = new SinglePropertyColumnWriter("LocalIpAddress", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LocalHostPC\""] = new SinglePropertyColumnWriter("LocalHostPC", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LogApp\""] = new SinglePropertyColumnWriter("LogApp", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LogVersion\""] = new SinglePropertyColumnWriter("LogVersion", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"Memo\""] = new SinglePropertyColumnWriter("Memo", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"RequestId\""] = new SinglePropertyColumnWriter("RequestId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiDesc\""] = new SinglePropertyColumnWriter("ApiDesc", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiVer\""] = new SinglePropertyColumnWriter("ApiVer", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"CreatedDate\""] = new TimestampColumnWriter(NpgsqlDbType.TimestampTz),
+            ["\"EndDate\""] = new SinglePropertyColumnWriter("EndDate", PropertyWriteMethod.ToString, NpgsqlDbType.TimestampTz)
         };
 
         builder.Host.UseSerilog((_, _, loggerConfiguration) =>
@@ -77,15 +86,7 @@ public static class Configurations
                                     rollingInterval: RollingInterval.Day,
                                     retainedFileCountLimit: 30,
                                     shared: true,
-                                    restrictedToMinimumLevel: minimumLevel))))
-                .WriteTo.Logger(logger =>
-                    logger
-                        .Filter.ByIncludingOnly(IsRequestResponseLog)
-                        .WriteTo.PostgreSQL(
-                            connectionString,
-                            tableName,
-                            columnWriters,
-                            needAutoCreateTable: false));
+                                    restrictedToMinimumLevel: minimumLevel))));
         });
     }
 
@@ -215,21 +216,6 @@ public static class Configurations
         return hasUppercase
             ? $"\"{tableName}\""
             : tableName;
-    }
-
-    private static bool IsRequestResponseLog(LogEvent logEvent)
-    {
-        if (!logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
-        {
-            return false;
-        }
-
-        if (sourceContext is ScalarValue scalar && scalar.Value is string source)
-        {
-            return source.Contains("Serilog.AspNetCore.RequestLoggingMiddleware", StringComparison.Ordinal);
-        }
-
-        return false;
     }
 }
 

@@ -8,7 +8,6 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
 {
     public void Configure(EntityTypeBuilder<Meal> builder)
     {
-        builder.ToTable("Meals");
 
         builder.HasKey(x => x.Id);
 
@@ -25,17 +24,14 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
         builder.OwnsOne(x => x.Price, price =>
         {
             price.Property(x => x.Amount)
-                .HasColumnName("PriceAmount")
                 .HasPrecision(18, 2);
 
             price.Property(x => x.Currency)
-                .HasColumnName("PriceCurrency")
                 .HasMaxLength(10);
         });
 
         builder.OwnsMany(x => x.MealSettingsList, mealSettings =>
         {
-            mealSettings.ToTable("MealSettings");
 
             mealSettings.WithOwner().HasForeignKey(x => x.MealId);
 

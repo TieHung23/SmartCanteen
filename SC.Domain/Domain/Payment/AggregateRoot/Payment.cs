@@ -16,9 +16,7 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public PaymentStatus Status { get; set; }
     public PaymentMethod Method { get; set; }
     public PaymentType Type { get; set; }
-
     public Guid UserId { get; set; }
-
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }

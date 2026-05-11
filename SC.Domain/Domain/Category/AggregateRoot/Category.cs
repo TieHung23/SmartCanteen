@@ -1,17 +1,15 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 
-namespace SC.Domain.Domain.Category;
+namespace SC.Domain.Domain.Category.AggregateRoot;
 
 public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
     private Category()
     {
     }
-
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }
