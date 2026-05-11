@@ -8,7 +8,6 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
 {
     public void Configure(EntityTypeBuilder<Dish> builder)
     {
-        builder.ToTable("Dishes");
 
         builder.HasKey(x => x.Id);
 
@@ -29,11 +28,9 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
         builder.OwnsOne(x => x.Price, price =>
         {
             price.Property(x => x.Amount)
-                .HasColumnName("PriceAmount")
                 .HasPrecision(18, 2);
 
             price.Property(x => x.Currency)
-                .HasColumnName("PriceCurrency")
                 .HasMaxLength(10);
         });
 

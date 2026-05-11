@@ -7,6 +7,7 @@ using SC.Application.DependencyInjection.Configurations;
 using SC.Contract.DependencyInjection.Configurations;
 using SC.Infrastructure.DependencyInjection.Configurations;
 using SC.Persistence.Database;
+using SC.Persistence.DependencyInjection.Configurations;
 using Serilog;
 using SC.Api.DependencyInjection.Options;
 
@@ -30,17 +31,25 @@ public static class StartupConfigurations
 
         builder.Services.ConfigureSwagger(builder.Configuration);
         builder.Services.AddControllers();
-        builder.Services.AddDbContext<SmartCanteenDbContext>(options =>
+        builder.Services.AddScoped<SC.Persistence.Database.Interceptors.AuditableEntityInterceptor>();
+
+        builder.Services.AddDbContext<SmartCanteenDbContext>((sp, options) =>
         {
             options.UseNpgsql(
                 builder.Configuration.GetConnectionString("DefaultConnection"),
-                npgsql => npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName));
+                npgsql => npgsql.MigrationsAssembly(typeof(SmartCanteenDbContext).Assembly.FullName))
+                .UseSnakeCaseNamingConvention()
+                .AddInterceptors(sp.GetRequiredService<SC.Persistence.Database.Interceptors.AuditableEntityInterceptor>());
         });
+
+        builder.Services.AddScoped<SC.Domain.Abstraction.Services.ICurrentUserService, SC.Api.Services.CurrentUserService>();
+        builder.Services.AddHttpContextAccessor();
 
         builder.Services.AddApplicationConfigurations(builder.Configuration);
         builder.Services.AddContractConfigurations();
         builder.Services.AddFluentValidationConfigurations();
         builder.Services.AddInfrastructureConfigurations(builder.Configuration);
+        builder.Services.AddPersistenceConfigurations();
     }
 
     public static void UseApiConfigurations(this WebApplication app)
@@ -66,6 +75,7 @@ public static class StartupConfigurations
         });
 
         app.UseGlobalExceptionHandler();
+        app.UseMiddleware<ApiLoggerMiddleware>();
         app.UseRequestLogEnrichment();
         app.UseRequestResponseBodyLogging();
         app.UseSerilogRequestLogging(options =>

@@ -8,7 +8,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
     {
-        builder.ToTable("Orders");
 
         builder.HasKey(x => x.Id);
 
@@ -22,7 +21,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.OwnsMany(x => x.OrderItems, orderItem =>
         {
-            orderItem.ToTable("OrderItems");
 
             orderItem.WithOwner().HasForeignKey(x => x.OrderId);
 
@@ -37,11 +35,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             orderItem.OwnsOne(x => x.UnitPrice, price =>
             {
                 price.Property(x => x.Amount)
-                    .HasColumnName("UnitPriceAmount")
                     .HasPrecision(18, 2);
 
                 price.Property(x => x.Currency)
-                    .HasColumnName("UnitPriceCurrency")
                     .HasMaxLength(10);
             });
         });

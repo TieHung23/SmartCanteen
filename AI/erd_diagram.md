@@ -21,8 +21,38 @@ erDiagram
 
     SETTING {
         Guid Id PK
-        string Key
+        string Code
+        string Name
+        string Description "nullable"
+        string Group
         string Value
+        string Type
+        DateTimeOffset CreatedAtUtc
+        DateTimeOffset UpdatedAtUtc "nullable"
+        Guid CreatedBy
+        Guid UpdatedBy
+    }
+
+    API_LOG {
+        long Id PK
+        string LoginId "nullable"
+        string LogLevel
+        string ApiUrl
+        string ApiMethod
+        string Message "nullable"
+        string ErrorTrace "nullable"
+        string ApiBody "nullable"
+        string ApiResponse "nullable"
+        string LocalIpAddress "nullable"
+        string LocalHostPC "nullable"
+        string LogApp "nullable"
+        string LogVersion "nullable"
+        string Memo "nullable"
+        string RequestId "nullable"
+        string ApiDesc "nullable"
+        string ApiVer "nullable"
+        DateTimeOffset CreatedDate
+        DateTimeOffset EndDate "nullable"
     }
 
     CATEGORY {

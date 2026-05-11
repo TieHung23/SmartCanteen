@@ -6,7 +6,7 @@ using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Payment.AggregateRoot;
 using SC.Domain.Domain.User;
 using SC.Domain.Domain.Setting.AggregateRoot;
-using SC.Persistence.Database.Logging;
+using SC.Domain.Domain.Logging.AggregateRoot;
 
 namespace SC.Persistence.Database;
 
@@ -24,7 +24,7 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Setting> Settings => Set<Setting>();
-    public DbSet<ApplicationLog> ApplicationLogs => Set<ApplicationLog>();
+    public DbSet<ApiLog> ApiLogs => Set<ApiLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

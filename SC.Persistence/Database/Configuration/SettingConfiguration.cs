@@ -8,13 +8,27 @@ public class SettingConfiguration : IEntityTypeConfiguration<Setting>
 {
     public void Configure(EntityTypeBuilder<Setting> builder)
     {
-        builder.ToTable("Settings");
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.Key)
+        builder.Property(x => x.Code)
             .IsRequired()
             .HasMaxLength(255);
+            
+        builder.Property(x => x.Name)
+            .IsRequired()
+            .HasMaxLength(255);
+            
+        builder.Property(x => x.Description)
+            .HasMaxLength(500);
+            
+        builder.Property(x => x.Group)
+            .IsRequired()
+            .HasMaxLength(100);
+            
+        builder.Property(x => x.Type)
+            .IsRequired()
+            .HasMaxLength(50);
 
         builder.Property(x => x.Value)
             .IsRequired();

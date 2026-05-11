@@ -8,7 +8,6 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 {
     public void Configure(EntityTypeBuilder<Payment> builder)
     {
-        builder.ToTable("Payments");
 
         builder.HasKey(x => x.Id);
 
@@ -34,15 +33,12 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.OwnsOne(x => x.BalanceSnapshot, snapshot =>
         {
             snapshot.Property(x => x.DeltaAmount)
-                .HasColumnName("BalanceSnapshotDeltaAmount")
                 .HasPrecision(18, 2);
 
             snapshot.Property(x => x.BalanceBefore)
-                .HasColumnName("BalanceSnapshotBalanceBefore")
                 .HasPrecision(18, 2);
 
             snapshot.Property(x => x.BalanceAfter)
-                .HasColumnName("BalanceSnapshotBalanceAfter")
                 .HasPrecision(18, 2);
         });
 

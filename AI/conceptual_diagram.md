@@ -4,102 +4,20 @@
 
 ```mermaid
 graph TB
-    subgraph Legend
-        direction LR
-        L1["🟦 Aggregate Root"]
-        L2["🟩 Entity"]
-        L3["🟨 Value Object"]
-        L4["🟪 Enum"]
-    end
-
-    subgraph Shared Kernel
-        MONEY["🟨 Money<br/><i>Value Object</i>"]
-    end
-
-    subgraph User Bounded Context
-        USER["🟦 User<br/><i>Aggregate Root</i>"]
-        ROLE["🟪 Role<br/><i>Enum</i>"]
-    end
-
-    subgraph Meal Bounded Context
-        MEAL["🟦 Meal<br/><i>Aggregate Root</i>"]
-        MSETTINGS["🟨 MealSettings<br/><i>Value Object</i>"]
-    end
-
-    subgraph Category Bounded Context
-        CATEGORY["🟦 Category<br/><i>Aggregate Root</i>"]
-    end
-
-    subgraph Dish Bounded Context
-        DISH["🟦 Dish<br/><i>Aggregate Root</i>"]
-    end
-
-    subgraph Order Bounded Context
-        ORDER["🟦 Order<br/><i>Aggregate Root</i>"]
-        OITEM["🟨 OrderItem<br/><i>Value Object</i>"]
-        OSTATUS["🟪 OrderStatus<br/><i>Enum</i>"]
-    end
-
-    subgraph Setting Bounded Context
-        SETTING["🟦 Setting<br/><i>Aggregate Root</i>"]
-    end
-
-    subgraph Payment Bounded Context
-        PAYMENT["🟦 Payment<br/><i>Aggregate Root</i>"]
-        BSNAPSHOT["🟨 BalanceSnapshot<br/><i>Value Object</i>"]
-        PSTATUS["🟪 PaymentStatus<br/><i>Enum</i>"]
-        PMETHOD["🟪 PaymentMethod<br/><i>Enum</i>"]
-        PTYPE["🟪 PaymentType<br/><i>Enum</i>"]
-    end
-
-    %% ── Relationships ──
-
-    USER -- "uses" --> MONEY
-    USER -- "assigned" --> ROLE
-
-    MEAL -- "contains 1..*" --> MSETTINGS
-    MSETTINGS -. "references by ID" .-> CATEGORY
-    MSETTINGS -- "belongs to" --> MEAL
-    MEAL -- "priced with" --> MONEY
-
-    DISH -. "belongs to by ID" .-> MEAL
-    DISH -. "categorised by ID" .-> CATEGORY
-    DISH -- "priced with" --> MONEY
-
-    ORDER -. "for by ID" .-> MEAL
-    ORDER -- "contains 1..*" --> OITEM
-    ORDER -- "status" --> OSTATUS
-    ORDER -. "paid via by ID 0..1" .-> PAYMENT
-    OITEM -. "references by ID" .-> DISH
-    OITEM -- "priced with" --> MONEY
-
-    PAYMENT -. "made by ID" .-> USER
-    PAYMENT -- "tracks" --> BSNAPSHOT
-    PAYMENT -- "status" --> PSTATUS
-    PAYMENT -- "method" --> PMETHOD
-    PAYMENT -- "type" --> PTYPE
-
-    USER -. "creates" .-> ORDER
-    USER -. "creates" .-> MEAL
-    USER -. "creates" .-> DISH
-    USER -. "creates" .-> CATEGORY
-
-    style USER fill:#4A90D9,color:#fff
-    style MEAL fill:#4A90D9,color:#fff
-    style DISH fill:#4A90D9,color:#fff
-    style ORDER fill:#4A90D9,color:#fff
-    style PAYMENT fill:#4A90D9,color:#fff
-    style CATEGORY fill:#4A90D9,color:#fff
-    style SETTING fill:#4A90D9,color:#fff
-    style MONEY fill:#FFD700,color:#333
-    style MSETTINGS fill:#FFD700,color:#333
-    style OITEM fill:#FFD700,color:#333
-    style BSNAPSHOT fill:#FFD700,color:#333
-    style ROLE fill:#9B59B6,color:#fff
-    style OSTATUS fill:#9B59B6,color:#fff
-    style PSTATUS fill:#9B59B6,color:#fff
-    style PMETHOD fill:#9B59B6,color:#fff
-    style PTYPE fill:#9B59B6,color:#fff
+    Meal -. "uses" .-> Category
+    Dish -. "belongs to" .-> Meal
+    Dish -. "categorised by" .-> Category
+    
+    Order -. "for" .-> Meal
+    Order -. "paid via" .-> Payment
+    
+    Payment -. "made by" .-> User
+    
+    User -. "creates/manages" .-> Order
+    User -. "creates/manages" .-> Meal
+    User -. "creates/manages" .-> Dish
+    User -. "creates/manages" .-> Category
+    User -. "configures" .-> Setting
 ```
 
 ## Domain Summary
@@ -113,6 +31,7 @@ graph TB
 | **Payment** | Aggregate Root | Tracks financial transactions and balance changes |
 | **Category** | Aggregate Root | Classification for dishes and meal settings |
 | **Setting** | Aggregate Root | Application-wide configuration key-value pairs |
+| **ApiLog** | Aggregate Root | System logs for HTTP API requests and responses |
 | **Money** | Value Object | (Shared Kernel) Immutable monetary amount with currency |
 | **MealSettings** | Value Object | Category-quantity rules within a meal |
 | **OrderItem** | Value Object | Line item: dish + quantity + unit price |
@@ -122,3 +41,4 @@ graph TB
 | **PaymentStatus** | Enum | Pending · Completed · Failed |
 | **PaymentMethod** | Enum | Momo · ZaloPay · VnPay |
 | **PaymentType** | Enum | TopUp · Subscription · Refund |
+| **AppLogLevel** | Enum | System logging severity levels |
