@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SC.Infrastructure.BackgroundServices;
 using SC.Infrastructure.DependencyInjection.Options;
 using SC.Infrastructure.Services.Cloudinary;
+using SC.Infrastructure.Services.Cache;
 
 namespace SC.Infrastructure.DependencyInjection.Configurations;
 
@@ -35,6 +36,17 @@ public static class Configurations
         services.AddHostedService<DailyLogUploadBackgroundService>();
         
         services.AddScoped<SC.Infrastructure.Services.ApiLog.IApiLogService, SC.Infrastructure.Services.ApiLog.ApiLogService>();
+
+        var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
+        services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
+
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisOptions.ConnectionString;
+            options.InstanceName = redisOptions.InstanceName;
+        });
+
+        services.AddSingleton<ICacheService, CacheService>();
 
         return services;
     }

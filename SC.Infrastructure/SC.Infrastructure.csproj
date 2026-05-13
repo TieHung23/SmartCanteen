@@ -9,6 +9,7 @@
         <PackageReference Include="CloudinaryDotNet" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
         <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\SC.Domain\SC.Domain.csproj" />

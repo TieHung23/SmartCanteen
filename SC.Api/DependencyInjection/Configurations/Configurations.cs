@@ -18,6 +18,72 @@ namespace SC.Api.DependencyInjection.Configurations;
 
 public static class Configurations
 {
+    public static void ConfigureCors(this IServiceCollection services, CorsOptions corsOptions)
+    {
+        services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(builder =>
+            {
+                if (corsOptions.AllowedOrigins is { Length: > 0 })
+                {
+                    builder.WithOrigins(corsOptions.AllowedOrigins);
+                }
+                else
+                {
+                    builder.AllowAnyOrigin();
+                }
+
+                if (corsOptions.AllowedMethods is { Length: > 0 })
+                {
+                    builder.WithMethods(corsOptions.AllowedMethods);
+                }
+                else
+                {
+                    builder.AllowAnyMethod();
+                }
+
+                if (corsOptions.AllowedHeaders is { Length: > 0 })
+                {
+                    builder.WithHeaders(corsOptions.AllowedHeaders);
+                }
+                else
+                {
+                    builder.AllowAnyHeader();
+                }
+            });
+        });
+    }
+
+    public static void ConfigureRateLimiter(this IServiceCollection services, RateLimitOptions rateLimitOptions)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddPolicy("FixedWindowPolicy", httpContext =>
+                System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                    factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.Window),
+                        QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                        QueueLimit = rateLimitOptions.QueueLimit
+                    }));
+            
+            // Set the default policy to the fixed window policy
+            options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                    factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.Window),
+                        QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                        QueueLimit = rateLimitOptions.QueueLimit
+                    }));
+        });
+    }
     public static void ConfigureSwagger(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddEndpointsApiExplorer();
