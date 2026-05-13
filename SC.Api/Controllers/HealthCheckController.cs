@@ -15,6 +15,8 @@ public class HealthCheckController(IMediator mediator) : ControllerBase
     [ApiVersion("3.0")]
     public async Task<IActionResult> Get()
     {
+        // Create bug
+        int testKodus = null
         var result = await mediator.Send(new GetHealthCheckQuery());
 
         if (result.IsSuccess) return Ok(result);
