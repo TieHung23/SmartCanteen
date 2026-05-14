@@ -2,14 +2,14 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Shared;
-using SC.Domain.Abstraction.Aggregates;
+using SC.Domain.Abstraction.Entities;
 using SC.Domain.Abstraction.Repositories;
 
 namespace SC.Persistence.Database.Repository;
 
 public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger<RepositoryImp<TEntity, TKey>> logger) : IRepositoryBase<TEntity, TKey>
-    where TEntity : class
-    where TKey : AggregateRoot<Guid>
+    where TEntity : Entity<TKey>
+    where TKey : notnull
 {
     private readonly SmartCanteenDbContext _context = context;
     private readonly ILogger<RepositoryImp<TEntity, TKey>> _logger = logger;
@@ -17,7 +17,7 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
     public async Task<TEntity?> FindByIdAsync(TKey id, CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[]? includeProperties)
     {
-        _logger.LogInformation("Finding entity {EntityType} by id {Id}", typeof(TEntity).Name, id.Id);
+        _logger.LogInformation("Finding entity {EntityType} by id {Id}", typeof(TEntity).Name, id);
 
         var query = _context.Set<TEntity>().AsQueryable();
 
@@ -26,7 +26,7 @@ public class RepositoryImp<TEntity, TKey>(SmartCanteenDbContext context, ILogger
 
         _logger.LogInformation("Executing SQL Script:\n{Sql}", query.ToQueryString());
 
-        var result = await query.FirstOrDefaultAsync(e => e.GetType().GetProperty("Id")!.GetValue(e)!.Equals(id.Id), cancellationToken);
+        var result = await query.FirstOrDefaultAsync(e => e.Id.Equals(id), cancellationToken);
 
         return result!;
     }

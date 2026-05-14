@@ -23,6 +23,14 @@ public static class StartupConfigurations
 
         builder.Services.Configure<LoggingOptions>(builder.Configuration.GetSection(LoggingOptions.SectionName));
 
+        var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
+        builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
+        builder.Services.ConfigureCors(corsOptions);
+
+        var rateLimitOptions = builder.Configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>() ?? new RateLimitOptions();
+        builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
+        builder.Services.ConfigureRateLimiter(rateLimitOptions);
+
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                                ?? throw new InvalidOperationException(
                                    "Connection string 'DefaultConnection' was not found.");
@@ -107,6 +115,8 @@ public static class StartupConfigurations
         });
 
         app.UseHttpsRedirection();
+        app.UseCors();
+        app.UseRateLimiter();
         app.MapControllers();
 
         app.Lifetime.ApplicationStarted.Register(() =>
