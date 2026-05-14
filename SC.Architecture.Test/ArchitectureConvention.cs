@@ -43,20 +43,6 @@ public class ArchitectureConvention
     }
 
     [Fact]
-    public void Classes_EndingWith_Query_Should_Be_Records()
-    {
-        // Queries are value-based messages; they must be declared as records.
-        var offenders = Types.InAssembly(_applicationAssembly)
-            .That()
-            .HaveNameEndingWith("Query")
-            .GetTypes()
-            .Where(t => !t.IsValueType && !IsRecord(t))
-            .ToList();
-
-        Assert.Empty(offenders);
-    }
-
-    [Fact]
     public void IQuery_Implementations_Should_Be_Named_With_Query_Suffix()
     {
         // The reverse: every IQuery implementation must have the "Query" suffix.

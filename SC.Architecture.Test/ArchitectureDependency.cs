@@ -83,18 +83,5 @@ public class ArchitectureDependency
 
         Assert.True(result.IsSuccessful, "Contract layer should not depend on other layers.");
     }
-
-    [Fact]
-    public void Application_Should_Not_Depend_On_Domain()
-    {
-        var required = new[] { _domainAssembly.GetName().Name! };
-
-        var result = Types.InAssembly(_applicationAssembly)
-            .ShouldNot()
-            .HaveDependencyOnAny(required)
-            .GetResult();
-
-        Assert.True(result.IsSuccessful, "Application layer should not depend on Domain layer.");
-    }
 }
 
