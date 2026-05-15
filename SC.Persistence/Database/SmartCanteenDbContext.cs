@@ -7,6 +7,7 @@ using SC.Domain.Domain.Payment.AggregateRoot;
 using SC.Domain.Domain.User;
 using SC.Domain.Domain.Setting.AggregateRoot;
 using SC.Domain.Domain.Logging.AggregateRoot;
+using SC.Domain.Domain.Verification.AggregateRoot;
 
 namespace SC.Persistence.Database;
 
@@ -25,6 +26,9 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<ApiLog> ApiLogs => Set<ApiLog>();
+    public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
