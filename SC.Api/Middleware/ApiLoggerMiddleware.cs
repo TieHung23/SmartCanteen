@@ -77,18 +77,47 @@ public class ApiLoggerMiddleware
 
     private static async Task<string> ReadRequestBody(HttpRequest request)
     {
+        if (IsBinaryContent(request.ContentType))
+        {
+            return $"[binary content - {request.ContentLength ?? 0} bytes - {request.ContentType}]";
+        }
+
         request.EnableBuffering();
         using var reader = new StreamReader(request.Body, leaveOpen: true);
         var body = await reader.ReadToEndAsync();
         request.Body.Position = 0;
-        return body;
+        return Sanitize(body);
     }
 
     private static async Task<string> ReadResponseBody(HttpResponse response)
     {
+        if (IsBinaryContent(response.ContentType))
+        {
+            return $"[binary content - {response.ContentLength ?? 0} bytes - {response.ContentType}]";
+        }
+
         response.Body.Seek(0, SeekOrigin.Begin);
         var text = await new StreamReader(response.Body, leaveOpen: true).ReadToEndAsync();
         response.Body.Seek(0, SeekOrigin.Begin);
-        return text;
+        return Sanitize(text);
+    }
+
+    private static bool IsBinaryContent(string? contentType)
+    {
+        if (string.IsNullOrEmpty(contentType)) return false;
+        var ct = contentType.ToLowerInvariant();
+        return ct.StartsWith("multipart/")
+            || ct.StartsWith("image/")
+            || ct.StartsWith("video/")
+            || ct.StartsWith("audio/")
+            || ct.StartsWith("application/octet-stream")
+            || ct.StartsWith("application/pdf")
+            || ct.StartsWith("application/zip");
+    }
+
+    private static string Sanitize(string body)
+    {
+        // PostgreSQL text columns reject the null byte; strip just in case.
+        return string.IsNullOrEmpty(body) ? body : body.Replace("\0", string.Empty);
     }
 }
