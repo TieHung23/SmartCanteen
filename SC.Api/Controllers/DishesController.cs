@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Dish.GetAllDishes;
+using SC.Application.MediatR.Dish.GetDishById;
 
 namespace SC.Api.Controllers;
 
@@ -19,6 +20,19 @@ public class DishesController(IMediator mediator) : ControllerBase
         if (result.IsFailure)
         {
             return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetDishById([FromRoute] Guid id)
+    {
+        var result = await mediator.Send(new GetDishByIdQuery(id));
+
+        if (result.IsFailure)
+        {
+            return NotFound(result);
         }
 
         return Ok(result);
