@@ -8,3 +8,8 @@ SC.Architecture.Test/TestResults
 Logs/
 .idea/
 .vscode/
+
+# Visual Studio local workspace/cache files
+.vs/
+*.csproj.lscache
+*.csproj.user
