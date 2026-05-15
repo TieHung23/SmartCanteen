@@ -65,4 +65,9 @@ public class Error(string code, string message) : IEquatable<Error>
     {
         return HashCode.Combine(Code, Message);
     }
+
+    public override string ToString()
+    {
+        return Code;
+    }
 }
