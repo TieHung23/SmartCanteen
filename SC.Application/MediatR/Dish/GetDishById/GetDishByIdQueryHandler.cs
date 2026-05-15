@@ -19,7 +19,7 @@ internal class GetDishByIdQueryHandler(
         {
             var dish = await dishRepository.FindByIdAsync(request.Id, cancellationToken);
 
-            if (dish is null)
+            if (dish is null || dish.IsDeleted)
             {
                 return Result.Failure<GetDishByIdResponse>(
                     Error.NullValue,

@@ -66,4 +66,12 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }
+
+    public void SoftDelete(Guid updatedBy)
+    {
+        IsDeleted = true;
+        IsActive = false;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+    }
 }

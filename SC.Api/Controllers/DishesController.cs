@@ -1,6 +1,8 @@
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using SC.Application.MediatR.Dish.CreateDish;
+using SC.Application.MediatR.Dish.DeleteDish;
 using SC.Application.MediatR.Dish.GetAllDishes;
 using SC.Application.MediatR.Dish.GetDishById;
 
@@ -29,6 +31,19 @@ public class DishesController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetDishById([FromRoute] Guid id)
     {
         var result = await mediator.Send(new GetDishByIdQuery(id));
+
+        if (result.IsFailure)
+        {
+            return NotFound(result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteDish([FromRoute] Guid id)
+    {
+        var result = await mediator.Send(new DeleteDishCommand(id));
 
         if (result.IsFailure)
         {

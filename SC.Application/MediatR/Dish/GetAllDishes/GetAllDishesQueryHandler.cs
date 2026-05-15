@@ -18,7 +18,9 @@ internal class GetAllDishesQueryHandler(
     {
         try
         {
-            IQueryable<DishAggregateRoot> query = dishRepository.FindAll(cancellationToken: cancellationToken)!;
+            IQueryable<DishAggregateRoot> query = dishRepository.FindAll(
+                x => !x.IsDeleted,
+                cancellationToken: cancellationToken)!;
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
