@@ -13,4 +13,6 @@ public interface IJwtTokenGenerator
         bool isVerified);
 
     OpaqueTokenResult GenerateOpaqueToken();
+
+    string HashOpaqueToken(string rawToken);
 }

@@ -68,6 +68,11 @@ public sealed class JwtTokenGenerator : IJwtTokenGenerator
         return new OpaqueTokenResult(rawToken, tokenHash);
     }
 
+    public string HashOpaqueToken(string rawToken)
+    {
+        return ComputeSha256(rawToken);
+    }
+
     private static string ComputeSha256(string input)
     {
         var bytes = Encoding.UTF8.GetBytes(input);
