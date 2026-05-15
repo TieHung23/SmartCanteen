@@ -8,7 +8,7 @@ namespace SC.Domain.Domain.User;
 
 public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
-    private static readonly string[] FptEmailDomains = { "@fpt.edu.vn" };
+    private static readonly string[] FptEmailDomains = { "@fpt.edu.vn", "@fe.edu.vn" };
 
     private User()
     {
