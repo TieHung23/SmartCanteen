@@ -6,6 +6,7 @@ using SC.Application.MediatR.Dish.DeleteDish;
 using SC.Application.MediatR.Dish.GetAllDishes;
 using SC.Application.MediatR.Dish.GetDishById;
 using SC.Application.MediatR.Dish.UpdateDish;
+using SC.Application.MediatR.Dish.UpdateDishStock;
 
 namespace SC.Api.Controllers;
 
@@ -61,6 +62,22 @@ public class DishesController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> UpdateDish(
         [FromRoute] Guid id,
         [FromBody] UpdateDishCommand request)
+    {
+        request.Id = id;
+        var result = await mediator.Send(request);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPatch("{id:guid}/stock")]
+    public async Task<IActionResult> UpdateDishStock(
+        [FromRoute] Guid id,
+        [FromBody] UpdateDishStockCommand request)
     {
         request.Id = id;
         var result = await mediator.Send(request);
