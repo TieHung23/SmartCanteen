@@ -60,6 +60,30 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
+    public void Update(
+        string name,
+        string description,
+        Money price,
+        int stockQuantity,
+        Guid mealId,
+        Guid categoryId,
+        bool isActive,
+        Guid updatedBy)
+    {
+        if (stockQuantity < 0)
+            throw new ArgumentOutOfRangeException(nameof(stockQuantity), "Stock quantity cannot be negative.");
+
+        Name = name;
+        Description = description;
+        Price = price;
+        StockQuantity = stockQuantity;
+        MealId = mealId;
+        CategoryId = categoryId;
+        IsActive = isActive;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+    }
+
     public void MarkInactive(Guid updatedBy)
     {
         IsActive = false;
