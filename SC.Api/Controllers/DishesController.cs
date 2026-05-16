@@ -40,6 +40,22 @@ public class DishesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateDish([FromBody] CreateDishCommand request)
+    {
+        var result = await mediator.Send(request);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return CreatedAtAction(
+            nameof(GetDishById),
+            new { id = result.Value!.Id },
+            result);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteDish([FromRoute] Guid id)
     {
