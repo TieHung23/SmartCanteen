@@ -10,11 +10,14 @@ Logs/
 .idea/
 .vscode/
 
-# Visual Studio / MSBuild user & cache files
-*.suo
-*.user
-*.rsuser
-*.csproj.user
-*.csproj.iscache
+# Visual Studio local workspace/cache files
+.vs/
 *.csproj.lscache
-*.vsidx
+*.csproj.user
+# Local developer secrets (per-machine, never commit)
+appsettings.Local.json
+
+# IDE / build artifacts
+*.lscache
+CLAUDE.md
+.claude/
