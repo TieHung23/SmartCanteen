@@ -1,10 +1,18 @@
 using CloudinaryDotNet;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SC.Contract.Services.Auth;
+using SC.Contract.Services.Email;
+using SC.Contract.Services.Storage;
+using SC.Contract.Services.Verification;
 using SC.Infrastructure.BackgroundServices;
 using SC.Infrastructure.DependencyInjection.Options;
+using SC.Infrastructure.Services.Auth;
 using SC.Infrastructure.Services.Cloudinary;
 using SC.Infrastructure.Services.Cache;
+using SC.Infrastructure.Services.Email;
+using SC.Infrastructure.Services.Storage;
+using SC.Infrastructure.Services.Verification;
 
 namespace SC.Infrastructure.DependencyInjection.Configurations;
 
@@ -16,6 +24,24 @@ public static class Configurations
     {
         services.Configure<CloundinaryOptions>(configuration.GetSection(CloundinaryOptions.SectionName));
         services.Configure<LogUploadOptions>(configuration.GetSection(LogUploadOptions.SectionName));
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<ResendOptions>(configuration.GetSection(ResendOptions.SectionName));
+        services.Configure<VerificationOptions>(configuration.GetSection(VerificationOptions.SectionName));
+
+        services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IFileValidator, FileValidator>();
+        services.AddScoped<IFileUploader, CloudinaryFileUploaderAdapter>();
+
+        var resendApiKey = configuration[$"{ResendOptions.SectionName}:ApiKey"];
+        if (string.IsNullOrWhiteSpace(resendApiKey))
+        {
+            services.AddScoped<IEmailSender, LoggingEmailSender>();
+        }
+        else
+        {
+            services.AddHttpClient<IEmailSender, ResendEmailSender>();
+        }
 
         var cloudName = configuration[$"{CloundinaryOptions.SectionName}:CloudName"];
         var apiKey = configuration[$"{CloundinaryOptions.SectionName}:ApiKey"];
