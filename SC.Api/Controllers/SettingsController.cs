@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Setting.GetAllSettings;
+using SC.Application.MediatR.Setting.GetSettingById;
 
 namespace SC.Api.Controllers;
 
@@ -22,5 +23,17 @@ public class SettingsController(IMediator mediator) : ControllerBase
 
         return Ok(result);
     }
-}
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetSettingById([FromRoute] Guid id)
+    {
+        var result = await mediator.Send(new GetSettingByIdQuery(id));
+
+        if (result.IsFailure)
+        {
+            return NotFound(result);
+        }
+
+        return Ok(result);
+    }
+}
