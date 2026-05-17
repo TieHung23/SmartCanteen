@@ -5,6 +5,7 @@ using SC.Application.MediatR.Setting.GetAllSettings;
 using SC.Application.MediatR.Setting.CreateSetting;
 using SC.Application.MediatR.Setting.DeleteSetting;
 using SC.Application.MediatR.Setting.GetSettingById;
+using SC.Application.MediatR.Setting.UpdateSetting;
 
 namespace SC.Api.Controllers;
 
@@ -63,6 +64,22 @@ public class SettingsController(IMediator mediator) : ControllerBase
         if (result.IsFailure)
         {
             return NotFound(result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateSetting(
+        [FromRoute] Guid id,
+        [FromBody] UpdateSettingCommand request)
+    {
+        request.Id = id;
+        var result = await mediator.Send(request);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
         }
 
         return Ok(result);

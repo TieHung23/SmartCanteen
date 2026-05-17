@@ -16,6 +16,8 @@ Logs/
 *.csproj.user
 # Local developer secrets (per-machine, never commit)
 appsettings.Local.json
+SC.Api/appsettings.json
+SC.Api/appsettings.Development.json
 
 # IDE / build artifacts
 *.lscache

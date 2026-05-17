@@ -1,0 +1,66 @@
+using Microsoft.Extensions.Logging;
+using SC.Contract.Abstraction.Message;
+using SC.Contract.Shared;
+using SC.Domain.Abstraction.Repositories;
+using SC.Domain.Abstraction.Services;
+using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
+
+namespace SC.Application.MediatR.Setting.UpdateSetting;
+
+internal class UpdateSettingCommandHandler(
+    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    ICurrentUserService currentUserService,
+    ILogger<UpdateSettingCommandHandler> logger
+) : ICommandHandler<UpdateSettingCommand, UpdateSettingResponse>
+{
+    public async Task<Result<UpdateSettingResponse>> Handle(
+        UpdateSettingCommand request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var setting = await settingRepository.FindByIdAsync(request.Id, cancellationToken);
+            if (setting is null || setting.IsDeleted)
+            {
+                return Result.Failure<UpdateSettingResponse>(Error.NullValue, "Setting not found.");
+            }
+
+            setting.Update(
+                request.Name.Trim(),
+                request.Description?.Trim() ?? string.Empty,
+                request.Group.Trim(),
+                request.Value.Trim(),
+                request.Type.Trim(),
+                currentUserService.UserId);
+
+            var updateResult = await settingRepository.UpdateAsync(setting);
+            if (updateResult.IsFailure)
+            {
+                return Result.Failure<UpdateSettingResponse>(
+                    updateResult.Error ?? Error.ServerError,
+                    updateResult.Message);
+            }
+
+            var response = new UpdateSettingResponse
+            {
+                Id = setting.Id,
+                Code = setting.Code,
+                Name = setting.Name,
+                Description = setting.Description,
+                Group = setting.Group,
+                Value = setting.Value,
+                Type = setting.Type
+            };
+
+            return Result.Success(response, "Setting updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error updating setting {SettingId}", request.Id);
+            return Result.Failure<UpdateSettingResponse>(
+                Error.ServerError,
+                "An error occurred while updating setting.");
+        }
+    }
+}
+
