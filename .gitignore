@@ -8,3 +8,11 @@ SC.Architecture.Test/TestResults
 Logs/
 .idea/
 .vscode/
+
+# Local developer secrets (per-machine, never commit)
+appsettings.Local.json
+
+# IDE / build artifacts
+*.lscache
+CLAUDE.md
+.claude/
