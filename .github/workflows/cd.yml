@@ -3,7 +3,6 @@ name: CD Backend
 on:
   push:
     branches:
-      - master
       - develop
   workflow_dispatch:
 
@@ -11,7 +10,7 @@ jobs:
   deploy-via-ssh:
     name: CD Deploy (SSH Ubuntu)
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
 
     steps:
       - name: Checkout source
@@ -20,7 +19,7 @@ jobs:
       # ĐÃ XÓA BỎ BƯỚC SETUP .NET SDK DƯ THỪA
 
       - name: Package source code
-        run: tar -czf sc-api-release.tar.gz --exclude='.git' --exclude='**/bin' --exclude='**/obj' .
+        run: git archive --format=tar.gz -o sc-api-release.tar.gz HEAD
 
       - name: Upload package to Ubuntu
         uses: appleboy/scp-action@v0.1.7
