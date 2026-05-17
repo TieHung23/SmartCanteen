@@ -9,6 +9,10 @@ Logs/
 .idea/
 .vscode/
 
+# Visual Studio local workspace/cache files
+.vs/
+*.csproj.lscache
+*.csproj.user
 # Local developer secrets (per-machine, never commit)
 appsettings.Local.json
 
