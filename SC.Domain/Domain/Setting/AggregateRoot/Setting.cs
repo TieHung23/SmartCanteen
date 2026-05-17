@@ -46,4 +46,11 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }
+
+    public void SoftDelete(Guid updatedBy)
+    {
+        IsDeleted = true;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+    }
 }

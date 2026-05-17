@@ -18,7 +18,9 @@ internal class GetAllSettingsQueryHandler(
     {
         try
         {
-            IQueryable<SettingAggregateRoot> query = settingRepository.FindAll(cancellationToken: cancellationToken)!;
+            IQueryable<SettingAggregateRoot> query = settingRepository.FindAll(
+                x => !x.IsDeleted,
+                cancellationToken: cancellationToken)!;
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
@@ -82,4 +84,3 @@ internal class GetAllSettingsQueryHandler(
         }
     }
 }
-
