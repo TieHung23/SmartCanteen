@@ -6,5 +6,15 @@ riderModule.iml
 
 SC.Architecture.Test/TestResults
 Logs/
+.vs/
 .idea/
 .vscode/
+
+# Visual Studio / MSBuild user & cache files
+*.suo
+*.user
+*.rsuser
+*.csproj.user
+*.csproj.iscache
+*.csproj.lscache
+*.vsidx
