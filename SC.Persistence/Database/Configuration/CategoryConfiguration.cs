@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SC.Domain.Domain.Category;
+using SC.Domain.Domain.Category.AggregateRoot;
 
 namespace SC.Persistence.Database.Configuration;
 
@@ -8,7 +8,6 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 {
     public void Configure(EntityTypeBuilder<Category> builder)
     {
-        builder.ToTable("Categories");
 
         builder.HasKey(x => x.Id);
 
@@ -22,5 +21,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }

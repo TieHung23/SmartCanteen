@@ -27,11 +27,8 @@ jobs:
             Directory.Packages.props
             **/*.csproj
 
-      - name: Publish API
-        run: dotnet publish SC.Api/SC.Api.csproj -c Release -o ./publish
-
-      - name: Package artifact
-        run: tar -czf sc-api-release.tar.gz -C ./publish .
+      - name: Package source code
+        run: tar -czf sc-api-release.tar.gz --exclude='.git' --exclude='**/bin' --exclude='**/obj' .
 
       - name: Upload package to Ubuntu
         uses: appleboy/scp-action@v0.1.7
@@ -46,7 +43,7 @@ jobs:
       - name: Deploy via SSH (simulate supported)
         uses: appleboy/ssh-action@v1.0.3
         env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_API }}
           DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -63,10 +60,9 @@ jobs:
             if [ "$SIMULATE" = "true" ]; then
               echo "[SIMULATE] SSH connected to Ubuntu"
               echo "[SIMULATE] Would extract /tmp/sc-api-release.tar.gz to $TARGET_PATH"
-              echo "[SIMULATE] Would restart service smartcanteen-api"
+              echo "[SIMULATE] Would run docker compose up -d --build api in $TARGET_PATH/Docker"
             else
               tar -xzf /tmp/sc-api-release.tar.gz -C "$TARGET_PATH"
-              sudo systemctl restart smartcanteen-api
-              sudo systemctl status smartcanteen-api --no-pager
+              cd "$TARGET_PATH/Docker"
+              docker compose up -d --build api
             fi
-

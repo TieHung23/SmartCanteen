@@ -8,7 +8,6 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
 {
     public void Configure(EntityTypeBuilder<Meal> builder)
     {
-        builder.ToTable("Meals");
 
         builder.HasKey(x => x.Id);
 
@@ -22,20 +21,17 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
 
         builder.Property(x => x.IsActive).IsRequired();
 
-        builder.OwnsOne(x => x.Money, money =>
+        builder.OwnsOne(x => x.Price, price =>
         {
-            money.Property(x => x.Amount)
-                .HasColumnName("MoneyAmount")
+            price.Property(x => x.Amount)
                 .HasPrecision(18, 2);
 
-            money.Property(x => x.Currency)
-                .HasColumnName("MoneyCurrency")
+            price.Property(x => x.Currency)
                 .HasMaxLength(10);
         });
 
         builder.OwnsMany(x => x.MealSettingsList, mealSettings =>
         {
-            mealSettings.ToTable("MealSettings");
 
             mealSettings.WithOwner().HasForeignKey(x => x.MealId);
 
@@ -52,12 +48,11 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
 
             mealSettings.Property(x => x.IsDeleted)
                 .IsRequired();
-
-            mealSettings.Ignore(x => x.Meal);
-            mealSettings.Ignore(x => x.Category);
         });
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }

@@ -22,7 +22,7 @@ namespace SC.Persistence.Database.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SC.Domain.Domain.Category.Category", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Category.AggregateRoot.Category", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -55,10 +55,10 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories", (string)null);
+                    b.ToTable("Categories");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Dishes.AggregateRoot.Dishes", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -107,7 +107,75 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("MealId");
 
-                    b.ToTable("Dishes", (string)null);
+                    b.ToTable("Dishes");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Logging.AggregateRoot.ApiLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApiBody")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApiDesc")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApiMethod")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApiResponse")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApiUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApiVer")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorTrace")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LocalHostPC")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LocalIpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogApp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LoginId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Memo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ApiLogs");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Meal.AggregateRoot.Meal", b =>
@@ -115,6 +183,15 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AvailableForOrder")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("AvailableFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("AvailableTo")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -146,7 +223,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Meals", (string)null);
+                    b.ToTable("Meals");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
@@ -170,6 +247,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid?>("PaymentId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -182,7 +262,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("PaymentId");
 
-                    b.ToTable("Orders", (string)null);
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Payment.AggregateRoot.Payment", b =>
@@ -227,10 +307,110 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Payments", (string)null);
+                    b.ToTable("Payments");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.User.User", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Setting.AggregateRoot.Setting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Group")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Settings");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.User.EmailVerificationToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("EmailVerificationTokens");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.User.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -242,18 +422,88 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ReplacedByTokenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.User.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("Gender")
+                        .HasColumnType("integer");
+
                     b.Property<string>("ImgUrl")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MajorOrClass")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -264,8 +514,19 @@ namespace SC.Persistence.Database.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("Role")
                         .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StudentId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -278,96 +539,88 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.HasIndex("StudentId")
+                        .IsUnique()
+                        .HasFilter("\"StudentId\" IS NOT NULL");
+
+                    b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("SC.Persistence.Database.Logging.ApplicationLog", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Verification.AggregateRoot.VerificationRequest", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Exception")
-                        .HasColumnType("text");
-
-                    b.Property<string>("HttpMethod")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("Level")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("MessageTemplate")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Properties")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("RequestPath")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("TimeStamp")
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("UserId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.ToTable("ApplicationLogs", (string)null);
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("VerificationRequests");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Dishes.AggregateRoot.Dishes", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Category.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SC.Domain.Domain.Meal.AggregateRoot.Meal", "Meal")
-                        .WithMany()
-                        .HasForeignKey("MealId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.OwnsOne("SC.Domain.Domain.User.ValueObject.Money", "Price", b1 =>
+                    b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Price", b1 =>
                         {
-                            b1.Property<Guid>("DishesId")
+                            b1.Property<Guid>("DishId")
                                 .HasColumnType("uuid");
 
                             b1.Property<decimal>("Amount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("PriceAmount");
+                                .HasColumnType("numeric(18,2)");
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("character varying(10)")
-                                .HasColumnName("PriceCurrency");
+                                .HasColumnType("character varying(10)");
 
-                            b1.HasKey("DishesId");
+                            b1.HasKey("DishId");
 
                             b1.ToTable("Dishes");
 
                             b1.WithOwner()
-                                .HasForeignKey("DishesId");
+                                .HasForeignKey("DishId");
                         });
-
-                    b.Navigation("Category");
-
-                    b.Navigation("Meal");
 
                     b.Navigation("Price")
                         .IsRequired();
@@ -375,21 +628,19 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Meal.AggregateRoot.Meal", b =>
                 {
-                    b.OwnsOne("SC.Domain.Domain.User.ValueObject.Money", "Money", b1 =>
+                    b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Price", b1 =>
                         {
                             b1.Property<Guid>("MealId")
                                 .HasColumnType("uuid");
 
                             b1.Property<decimal>("Amount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("MoneyAmount");
+                                .HasColumnType("numeric(18,2)");
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("character varying(10)")
-                                .HasColumnName("MoneyCurrency");
+                                .HasColumnType("character varying(10)");
 
                             b1.HasKey("MealId");
 
@@ -402,7 +653,6 @@ namespace SC.Persistence.Database.Migrations
                     b.OwnsMany("SC.Domain.Domain.Meal.ValueObject.MealSettings", "MealSettingsList", b1 =>
                         {
                             b1.Property<Guid>("MealId")
-                                .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
                             b1.Property<Guid>("CategoryId")
@@ -417,7 +667,7 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.HasKey("MealId", "CategoryId");
 
-                            b1.ToTable("MealSettings", (string)null);
+                            b1.ToTable("MealSettings");
 
                             b1.WithOwner()
                                 .HasForeignKey("MealId");
@@ -425,89 +675,65 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Navigation("MealSettingsList");
 
-                    b.Navigation("Money")
+                    b.Navigation("Price")
                         .IsRequired();
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Meal.AggregateRoot.Meal", "Meal")
-                        .WithMany()
-                        .HasForeignKey("MealId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SC.Domain.Domain.Payment.AggregateRoot.Payment", "Payment")
-                        .WithMany()
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.OwnsMany("SC.Domain.Domain.Order.ValueObject.OrderItem", "OrderItems", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
-                                .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
-                            b1.Property<Guid>("DishesId")
+                            b1.Property<Guid>("DishId")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
                             b1.Property<int>("Quantity")
                                 .HasColumnType("integer");
 
-                            b1.HasKey("OrderId", "DishesId");
+                            b1.HasKey("OrderId", "DishId");
 
-                            b1.ToTable("OrderItems", (string)null);
+                            b1.ToTable("OrderItem");
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
 
-                            b1.OwnsOne("SC.Domain.Domain.User.ValueObject.Money", "UnitPrice", b2 =>
+                            b1.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "UnitPrice", b2 =>
                                 {
                                     b2.Property<Guid>("OrderItemOrderId")
                                         .HasColumnType("uuid");
 
-                                    b2.Property<Guid>("OrderItemDishesId")
+                                    b2.Property<Guid>("OrderItemDishId")
                                         .HasColumnType("uuid");
 
                                     b2.Property<decimal>("Amount")
                                         .HasPrecision(18, 2)
-                                        .HasColumnType("numeric(18,2)")
-                                        .HasColumnName("UnitPriceAmount");
+                                        .HasColumnType("numeric(18,2)");
 
                                     b2.Property<string>("Currency")
                                         .IsRequired()
                                         .HasMaxLength(10)
-                                        .HasColumnType("character varying(10)")
-                                        .HasColumnName("UnitPriceCurrency");
+                                        .HasColumnType("character varying(10)");
 
-                                    b2.HasKey("OrderItemOrderId", "OrderItemDishesId");
+                                    b2.HasKey("OrderItemOrderId", "OrderItemDishId");
 
-                                    b2.ToTable("OrderItems");
+                                    b2.ToTable("OrderItem");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("OrderItemOrderId", "OrderItemDishesId");
+                                        .HasForeignKey("OrderItemOrderId", "OrderItemDishId");
                                 });
 
                             b1.Navigation("UnitPrice")
                                 .IsRequired();
                         });
 
-                    b.Navigation("Meal");
-
                     b.Navigation("OrderItems");
-
-                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Payment.AggregateRoot.Payment", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.User.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.OwnsOne("SC.Domain.Domain.Payment.ValueObject.BalanceSnapshot", "BalanceSnapshot", b1 =>
                         {
                             b1.Property<Guid>("PaymentId")
@@ -515,18 +741,15 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.Property<decimal>("BalanceAfter")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("BalanceSnapshotBalanceAfter");
+                                .HasColumnType("numeric(18,2)");
 
                             b1.Property<decimal>("BalanceBefore")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("BalanceSnapshotBalanceBefore");
+                                .HasColumnType("numeric(18,2)");
 
                             b1.Property<decimal>("DeltaAmount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("BalanceSnapshotDeltaAmount");
+                                .HasColumnType("numeric(18,2)");
 
                             b1.HasKey("PaymentId");
 
@@ -538,27 +761,41 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Navigation("BalanceSnapshot")
                         .IsRequired();
+                });
 
-                    b.Navigation("User");
+            modelBuilder.Entity("SC.Domain.Domain.User.EmailVerificationToken", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.User.RefreshToken", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.User", b =>
                 {
-                    b.OwnsOne("SC.Domain.Domain.User.ValueObject.Money", "Balance", b1 =>
+                    b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Balance", b1 =>
                         {
                             b1.Property<Guid>("UserId")
                                 .HasColumnType("uuid");
 
                             b1.Property<decimal>("Amount")
                                 .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("BalanceAmount");
+                                .HasColumnType("numeric(18,2)");
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("character varying(10)")
-                                .HasColumnName("BalanceCurrency");
+                                .HasColumnType("character varying(10)");
 
                             b1.HasKey("UserId");
 
@@ -570,6 +807,58 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Navigation("Balance")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Verification.AggregateRoot.VerificationRequest", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsMany("SC.Domain.Domain.Verification.ValueObject.VerificationDocument", "Documents", b1 =>
+                        {
+                            b1.Property<Guid>("VerificationRequestId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("CloudinaryUrl")
+                                .IsRequired()
+                                .HasMaxLength(1000)
+                                .HasColumnType("character varying(1000)");
+
+                            b1.Property<int>("DocumentType")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("FileName")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("character varying(255)");
+
+                            b1.Property<long>("FileSize")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("MimeType")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<DateTimeOffset>("UploadedAt")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.HasKey("VerificationRequestId", "Id");
+
+                            b1.ToTable("VerificationDocuments", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("VerificationRequestId");
+                        });
+
+                    b.Navigation("Documents");
                 });
 #pragma warning restore 612, 618
         }

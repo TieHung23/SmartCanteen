@@ -8,7 +8,6 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 {
     public void Configure(EntityTypeBuilder<Payment> builder)
     {
-        builder.ToTable("Payments");
 
         builder.HasKey(x => x.Id);
 
@@ -28,27 +27,24 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .IsRequired()
             .HasConversion<int>();
 
-        builder.HasOne(x => x.User)
-            .WithMany()
-            .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.UserId).IsRequired();
+        builder.HasIndex(x => x.UserId);
 
         builder.OwnsOne(x => x.BalanceSnapshot, snapshot =>
         {
             snapshot.Property(x => x.DeltaAmount)
-                .HasColumnName("BalanceSnapshotDeltaAmount")
                 .HasPrecision(18, 2);
 
             snapshot.Property(x => x.BalanceBefore)
-                .HasColumnName("BalanceSnapshotBalanceBefore")
                 .HasPrecision(18, 2);
 
             snapshot.Property(x => x.BalanceAfter)
-                .HasColumnName("BalanceSnapshotBalanceAfter")
                 .HasPrecision(18, 2);
         });
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
     }
 }

@@ -7,24 +7,21 @@ public class MealSettings : Abstraction.Aggregates.ValueObject
     }
 
     public Guid CategoryId { get; set; }
-    public Category.Category? Category { get; set; }
-
     public int Quantity { get; init; }
     public bool IsDeleted { get; init; }
 
     public Guid MealId { get; set; }
-    public AggregateRoot.Meal? Meal { get; set; }
 
-    public static MealSettings Create(Category.Category category, int quantity, AggregateRoot.Meal meal)
+    public static MealSettings Create(Guid categoryId, int quantity, Guid mealId)
     {
         if (quantity <= 0)
             throw new ArgumentException("Quantity must be greater than zero.", nameof(quantity));
         return new MealSettings
         {
-            Category = category,
+            CategoryId = categoryId,
             Quantity = quantity,
             IsDeleted = false,
-            Meal = meal
+            MealId = mealId
         };
     }
 

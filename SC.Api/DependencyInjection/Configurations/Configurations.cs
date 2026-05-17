@@ -18,6 +18,72 @@ namespace SC.Api.DependencyInjection.Configurations;
 
 public static class Configurations
 {
+    public static void ConfigureCors(this IServiceCollection services, CorsOptions corsOptions)
+    {
+        services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(builder =>
+            {
+                if (corsOptions.AllowedOrigins is { Length: > 0 })
+                {
+                    builder.WithOrigins(corsOptions.AllowedOrigins);
+                }
+                else
+                {
+                    builder.AllowAnyOrigin();
+                }
+
+                if (corsOptions.AllowedMethods is { Length: > 0 })
+                {
+                    builder.WithMethods(corsOptions.AllowedMethods);
+                }
+                else
+                {
+                    builder.AllowAnyMethod();
+                }
+
+                if (corsOptions.AllowedHeaders is { Length: > 0 })
+                {
+                    builder.WithHeaders(corsOptions.AllowedHeaders);
+                }
+                else
+                {
+                    builder.AllowAnyHeader();
+                }
+            });
+        });
+    }
+
+    public static void ConfigureRateLimiter(this IServiceCollection services, RateLimitOptions rateLimitOptions)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddPolicy("FixedWindowPolicy", httpContext =>
+                System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                    factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.Window),
+                        QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                        QueueLimit = rateLimitOptions.QueueLimit
+                    }));
+            
+            // Set the default policy to the fixed window policy
+            options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                    factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.Window),
+                        QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                        QueueLimit = rateLimitOptions.QueueLimit
+                    }));
+        });
+    }
     public static void ConfigureSwagger(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddEndpointsApiExplorer();
@@ -40,6 +106,31 @@ public static class Configurations
         services.AddSwaggerGen(options =>
         {
             options.OperationFilter<ApiVersionHeaderOperationFilter>();
+
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "Paste the JWT access token returned by /api/auth/login."
+            });
+
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            });
         });
     }
 
@@ -49,15 +140,24 @@ public static class Configurations
         var minimumLevel = ParseLogLevel(loggingOptions.MinimumLevel);
         var columnWriters = new Dictionary<string, ColumnWriterBase>
         {
+            ["\"LoginId\""] = new SinglePropertyColumnWriter("LoginId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LogLevel\""] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
+            ["\"ApiUrl\""] = new SinglePropertyColumnWriter("ApiUrl", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiMethod\""] = new SinglePropertyColumnWriter("ApiMethod", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
             ["\"Message\""] = new RenderedMessageColumnWriter(),
-            ["\"MessageTemplate\""] = new MessageTemplateColumnWriter(),
-            ["\"Level\""] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
-            ["\"TimeStamp\""] = new TimestampColumnWriter(NpgsqlDbType.TimestampTz),
-            ["\"Exception\""] = new ExceptionColumnWriter(),
-            ["\"Properties\""] = new LogEventSerializedColumnWriter(),
-            ["\"UserId\""] = new SinglePropertyColumnWriter("UserId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
-            ["\"RequestPath\""] = new SinglePropertyColumnWriter("RequestPath"),
-            ["\"HttpMethod\""] = new SinglePropertyColumnWriter("HttpMethod", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar)
+            ["\"ErrorTrace\""] = new ExceptionColumnWriter(),
+            ["\"ApiBody\""] = new SinglePropertyColumnWriter("ApiBody", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiResponse\""] = new SinglePropertyColumnWriter("ApiResponse", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LocalIpAddress\""] = new SinglePropertyColumnWriter("LocalIpAddress", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LocalHostPC\""] = new SinglePropertyColumnWriter("LocalHostPC", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LogApp\""] = new SinglePropertyColumnWriter("LogApp", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"LogVersion\""] = new SinglePropertyColumnWriter("LogVersion", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"Memo\""] = new SinglePropertyColumnWriter("Memo", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"RequestId\""] = new SinglePropertyColumnWriter("RequestId", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiDesc\""] = new SinglePropertyColumnWriter("ApiDesc", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"ApiVer\""] = new SinglePropertyColumnWriter("ApiVer", PropertyWriteMethod.ToString, NpgsqlDbType.Varchar),
+            ["\"CreatedDate\""] = new TimestampColumnWriter(NpgsqlDbType.TimestampTz),
+            ["\"EndDate\""] = new SinglePropertyColumnWriter("EndDate", PropertyWriteMethod.ToString, NpgsqlDbType.TimestampTz)
         };
 
         builder.Host.UseSerilog((_, _, loggerConfiguration) =>
@@ -70,8 +170,6 @@ public static class Configurations
                 .WriteTo.Console(restrictedToMinimumLevel: minimumLevel)
                 .WriteTo.Logger(logger =>
                     logger
-                        .Filter.ByIncludingOnly(logEvent =>
-                            logEvent.Properties.ContainsKey("StatusCode") || IsEfCommand(logEvent))
                         .WriteTo.Map("LogDate", "unknown-date", (logDate, writeToByDate) =>
                             writeToByDate.Map("UserId", "anonymous", (userId, writeToByUser) =>
                                 writeToByUser.File(
@@ -79,15 +177,7 @@ public static class Configurations
                                     rollingInterval: RollingInterval.Day,
                                     retainedFileCountLimit: 30,
                                     shared: true,
-                                    restrictedToMinimumLevel: minimumLevel))))
-                .WriteTo.Logger(logger =>
-                    logger
-                        .Filter.ByIncludingOnly(logEvent => logEvent.Properties.ContainsKey("StatusCode"))
-                        .WriteTo.PostgreSQL(
-                            connectionString,
-                            tableName,
-                            columnWriters,
-                            needAutoCreateTable: false));
+                                    restrictedToMinimumLevel: minimumLevel))));
         });
     }
 
@@ -217,21 +307,6 @@ public static class Configurations
         return hasUppercase
             ? $"\"{tableName}\""
             : tableName;
-    }
-
-    private static bool IsEfCommand(LogEvent logEvent)
-    {
-        if (!logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
-        {
-            return false;
-        }
-
-        if (sourceContext is ScalarValue scalar && scalar.Value is string source)
-        {
-            return source.Contains("Microsoft.EntityFrameworkCore.Database.Command", StringComparison.Ordinal);
-        }
-
-        return false;
     }
 }
 
