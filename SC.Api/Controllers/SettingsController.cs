@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Setting.GetAllSettings;
+using SC.Application.MediatR.Setting.CreateSetting;
 using SC.Application.MediatR.Setting.DeleteSetting;
 using SC.Application.MediatR.Setting.GetSettingById;
 
@@ -36,6 +37,22 @@ public class SettingsController(IMediator mediator) : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateSetting([FromBody] CreateSettingCommand request)
+    {
+        var result = await mediator.Send(request);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return CreatedAtAction(
+            nameof(GetSettingById),
+            new { id = result.Value!.Id },
+            result);
     }
 
     [HttpDelete("{id:guid}")]
