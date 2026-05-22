@@ -30,7 +30,21 @@ internal class LoginCommandHandler(
                 .FindAll(u => u!.Email == normalizedEmail, cancellationToken)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (user is null || !passwordHasher.Verify(request.Password, user.PasswordHash))
+            if (user is null)
+            {
+                return Result.Failure<AuthTokensDto>(Error.InvalidCredentials, "Invalid email or password.");
+            }
+
+            // Accounts created via Google sign-in have no password hash — password
+            // login is not available for them.
+            if (user.PasswordHash is null)
+            {
+                return Result.Failure<AuthTokensDto>(
+                    Error.InvalidCredentials,
+                    "This account uses Google sign-in. Please continue with Google.");
+            }
+
+            if (!passwordHasher.Verify(request.Password, user.PasswordHash))
             {
                 return Result.Failure<AuthTokensDto>(Error.InvalidCredentials, "Invalid email or password.");
             }
