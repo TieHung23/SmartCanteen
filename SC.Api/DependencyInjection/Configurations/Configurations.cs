@@ -200,19 +200,27 @@ public static class Configurations
         app.Use(async (HttpContext context, RequestDelegate next) =>
         {
             var requestBody = await ReadRequestBodyAsync(context.Request);
+            context.Items["RequestBody"] = requestBody;
 
             var originalBody = context.Response.Body;
             await using var responseBody = new MemoryStream();
             context.Response.Body = responseBody;
 
-            await next(context);
+            try
+            {
+                await next(context);
 
-            var responseText = await ReadResponseBodyAsync(context.Response);
-            context.Response.Body = originalBody;
-            await responseBody.CopyToAsync(originalBody);
-
-            context.Items["RequestBody"] = requestBody;
-            context.Items["ResponseBody"] = responseText;
+                // Capture the buffered response, then flush it to the real stream.
+                context.Items["ResponseBody"] = await ReadResponseBodyAsync(context.Response);
+                responseBody.Seek(0, SeekOrigin.Begin);
+                await responseBody.CopyToAsync(originalBody);
+            }
+            finally
+            {
+                // Always restore the original stream — even when the pipeline throws —
+                // so middleware running outside this one can still write the response.
+                context.Response.Body = originalBody;
+            }
         });
     }
 
