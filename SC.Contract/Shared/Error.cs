@@ -19,6 +19,11 @@ public class Error(string code, string message) : IEquatable<Error>
     public static readonly Error InvalidRefreshToken = new("InvalidRefreshToken", "The refresh token is invalid, revoked, or expired.");
     public static readonly Error Forbidden = new("Forbidden", "You do not have permission to perform this action.");
 
+    // Google sign-in (BR-01, BR-03, BR-04)
+    public static readonly Error GoogleTokenInvalid = new("GoogleTokenInvalid", "The Google sign-in token is invalid or has expired.");
+    public static readonly Error GoogleEmailNotVerified = new("GoogleEmailNotVerified", "The Google account email address is not verified.");
+    public static readonly Error NonFptGoogleAccount = new("NonFptGoogleAccount", "Google sign-in is only available for FPT University accounts.");
+
     // Identity verification (BR-07, BR-27, BR-29, BR-30, BR-31, BR-36, BR-39, BR-49)
     public static readonly Error StudentIdAlreadyUsed = new("StudentIdAlreadyUsed", "This institutional ID is already linked to another account.");
     public static readonly Error VerificationAlreadyPending = new("VerificationAlreadyPending", "You already have a pending verification request.");
