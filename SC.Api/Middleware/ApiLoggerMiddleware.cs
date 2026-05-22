@@ -43,34 +43,60 @@ public class ApiLoggerMiddleware
         finally
         {
             sw.Stop();
-            var responseBodyText = await ReadResponseBody(context.Response);
 
-            // Copy response back to original stream
-            await responseBody.CopyToAsync(originalBodyStream);
+            // This finally block must never throw: an exception raised here would
+            // replace the real pipeline exception and leave the response broken.
+            var responseBodyText = await SafeReadResponseBody(context.Response);
 
-            // Do not log OPTIONS or common static files
+            try
+            {
+                if (responseBody.CanSeek)
+                {
+                    responseBody.Seek(0, SeekOrigin.Begin);
+                    await responseBody.CopyToAsync(originalBodyStream);
+                }
+            }
+            catch (Exception copyEx)
+            {
+                _logger.LogWarning(copyEx,
+                    "ApiLoggerMiddleware: failed to copy the buffered response to the client stream.");
+            }
+            finally
+            {
+                // Restore the real stream so later middleware (e.g. the global
+                // exception handler) can still write a response after this exits.
+                context.Response.Body = originalBodyStream;
+            }
+
+            // Do not log OPTIONS preflight requests.
             if (context.Request.Method != "OPTIONS")
             {
-                var logLevel = error != null || context.Response.StatusCode >= 500 
-                    ? AppLogLevel.ERROR 
-                    : AppLogLevel.INFO;
-
-                var logItem = new ApiLog
+                try
                 {
-                    ApiUrl = context.Request.Path + context.Request.QueryString,
-                    ApiMethod = context.Request.Method,
-                    ApiBody = requestBody,
-                    ApiResponse = responseBodyText,
-                    ErrorTrace = error?.ToString(),
-                    Message = error?.Message ?? $"Responded {context.Response.StatusCode} in {sw.ElapsedMilliseconds}ms",
-                    LocalIpAddress = context.Connection.RemoteIpAddress?.ToString(),
-                    CreatedDate = startTime,
-                    EndDate = DateTimeOffset.UtcNow,
-                    RequestId = context.TraceIdentifier
-                };
+                    var logLevel = error != null || context.Response.StatusCode >= 500
+                        ? AppLogLevel.ERROR
+                        : AppLogLevel.INFO;
 
-                // Optional: Fire-and-forget or wait
-                await apiLogService.WriteLogAsync(logItem, logLevel);
+                    var logItem = new ApiLog
+                    {
+                        ApiUrl = context.Request.Path + context.Request.QueryString,
+                        ApiMethod = context.Request.Method,
+                        ApiBody = requestBody,
+                        ApiResponse = responseBodyText,
+                        ErrorTrace = error?.ToString(),
+                        Message = error?.Message ?? $"Responded {context.Response.StatusCode} in {sw.ElapsedMilliseconds}ms",
+                        LocalIpAddress = context.Connection.RemoteIpAddress?.ToString(),
+                        CreatedDate = startTime,
+                        EndDate = DateTimeOffset.UtcNow,
+                        RequestId = context.TraceIdentifier
+                    };
+
+                    await apiLogService.WriteLogAsync(logItem, logLevel);
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(logEx, "ApiLoggerMiddleware: failed to persist the API log entry.");
+                }
             }
         }
     }
@@ -89,6 +115,18 @@ public class ApiLoggerMiddleware
         return Sanitize(body);
     }
 
+    private static async Task<string> SafeReadResponseBody(HttpResponse response)
+    {
+        try
+        {
+            return await ReadResponseBody(response);
+        }
+        catch (Exception ex)
+        {
+            return $"[response body unavailable: {ex.GetType().Name}]";
+        }
+    }
+
     private static async Task<string> ReadResponseBody(HttpResponse response)
     {
         if (IsBinaryContent(response.ContentType))
@@ -96,9 +134,18 @@ public class ApiLoggerMiddleware
             return $"[binary content - {response.ContentLength ?? 0} bytes - {response.ContentType}]";
         }
 
-        response.Body.Seek(0, SeekOrigin.Begin);
-        var text = await new StreamReader(response.Body, leaveOpen: true).ReadToEndAsync();
-        response.Body.Seek(0, SeekOrigin.Begin);
+        var body = response.Body;
+
+        // A disposed stream reports false for all three capabilities — guard against
+        // it so a closed response stream does not throw ObjectDisposedException.
+        if (body is null || !body.CanRead || !body.CanSeek)
+        {
+            return "[response body not capturable]";
+        }
+
+        body.Seek(0, SeekOrigin.Begin);
+        var text = await new StreamReader(body, leaveOpen: true).ReadToEndAsync();
+        body.Seek(0, SeekOrigin.Begin);
         return Sanitize(text);
     }
 
