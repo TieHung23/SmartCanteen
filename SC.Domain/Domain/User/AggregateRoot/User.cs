@@ -106,9 +106,16 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         LastLoginAt = DateTimeOffset.UtcNow;
     }
 
-    public bool IsFptEmail()
+    public bool IsFptEmail() => IsFptEmail(Email);
+
+    /// <summary>
+    /// True when the email belongs to a trusted FPT University domain. Static overload so
+    /// callers can check an email before a <see cref="User"/> instance exists.
+    /// </summary>
+    public static bool IsFptEmail(string email)
     {
-        return FptEmailDomains.Any(d => Email.EndsWith(d, StringComparison.OrdinalIgnoreCase));
+        return !string.IsNullOrWhiteSpace(email)
+            && FptEmailDomains.Any(d => email.EndsWith(d, StringComparison.OrdinalIgnoreCase));
     }
 
     public static bool IsValidEmail(string email)
