@@ -43,5 +43,6 @@
         <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0"/>
         <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3"/>
         <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.0"/>
+        <PackageVersion Include="Google.Apis.Auth" Version="1.69.0"/>
     </ItemGroup>
 </Project>
