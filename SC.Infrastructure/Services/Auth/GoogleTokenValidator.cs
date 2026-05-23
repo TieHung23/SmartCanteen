@@ -9,7 +9,7 @@ namespace SC.Infrastructure.Services.Auth;
 /// <summary>
 /// Verifies Google ID tokens using the official Google.Apis.Auth library. The library checks
 /// the token signature against Google's published certificates, plus issuer and expiry; the
-/// configured client ID is enforced as the required audience.
+/// configured client IDs are enforced as accepted audiences (Web + Android clients).
 /// </summary>
 public sealed class GoogleTokenValidator : IGoogleTokenValidator
 {
@@ -29,15 +29,15 @@ public sealed class GoogleTokenValidator : IGoogleTokenValidator
         if (string.IsNullOrWhiteSpace(idToken))
             return null;
 
-        if (string.IsNullOrWhiteSpace(_options.ClientId))
+        if (_options.ClientIds is null || _options.ClientIds.Length == 0)
         {
             throw new InvalidOperationException(
-                "Google:ClientId is not configured. Set it in the application configuration.");
+                "Google:ClientIds is not configured. Set at least one client ID in the application configuration.");
         }
 
         var settings = new GoogleJsonWebSignature.ValidationSettings
         {
-            Audience = new[] { _options.ClientId }
+            Audience = _options.ClientIds
         };
 
         try
