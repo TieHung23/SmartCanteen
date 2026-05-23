@@ -21,8 +21,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(x => x.Email).IsUnique();
 
-        builder.Property(x => x.PasswordHash)
-            .IsRequired();
+        // Nullable: accounts created via Google sign-in have no password.
+        builder.Property(x => x.PasswordHash);
+
+        builder.Property(x => x.GoogleSubjectId)
+            .HasMaxLength(64);
+
+        builder.HasIndex(x => x.GoogleSubjectId)
+            .IsUnique()
+            .HasFilter("\"GoogleSubjectId\" IS NOT NULL");
 
         builder.Property(x => x.ImgUrl)
             .HasMaxLength(500);

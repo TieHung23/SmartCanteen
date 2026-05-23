@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Auth.GetCurrentUser;
+using SC.Application.MediatR.Auth.GoogleLogin;
 using SC.Application.MediatR.Auth.Login;
 using SC.Application.MediatR.Auth.Logout;
 using SC.Application.MediatR.Auth.Refresh;
@@ -44,6 +45,14 @@ public class AuthController(IMediator mediator) : ControllerBase
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command)
+    {
+        var result = await mediator.Send(command);
+        return Map(result);
+    }
+
+    [HttpPost("google")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Google([FromBody] GoogleLoginCommand command)
     {
         var result = await mediator.Send(command);
         return Map(result);
@@ -93,6 +102,9 @@ public class AuthController(IMediator mediator) : ControllerBase
             "AccountNotActive" => Unauthorized(new { error = errorCode }),
             "InvalidOrExpiredToken" => BadRequest(new { error = errorCode }),
             "InvalidRefreshToken" => Unauthorized(new { error = errorCode }),
+            "GoogleTokenInvalid" => Unauthorized(new { error = errorCode }),
+            "GoogleEmailNotVerified" => Unauthorized(new { error = errorCode }),
+            "NonFptGoogleAccount" => StatusCode(StatusCodes.Status403Forbidden, new { error = errorCode }),
             "Forbidden" => Forbid(),
             "ServerError" => StatusCode(StatusCodes.Status500InternalServerError, new { error = errorCode }),
             _ => BadRequest(new { error = errorCode ?? "UnknownError" })
