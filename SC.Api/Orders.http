@@ -1,0 +1,144 @@
+### SmartCanteen Order API Endpoints
+
+@baseUrl = http://localhost:5000/api/orders
+@contentType = application/json
+@token = Bearer YOUR_JWT_TOKEN_HERE
+
+### Get All Orders (Current User)
+GET {{baseUrl}}?pageNumber=1&pageSize=10
+Accept: {{contentType}}
+Authorization: {{token}}
+
+### Get All Orders with Status Filter (Pending = 0)
+GET {{baseUrl}}?pageNumber=1&pageSize=10&status=0
+Accept: {{contentType}}
+Authorization: {{token}}
+
+### Get All Orders with Status Filter (Completed = 2)
+GET {{baseUrl}}?pageNumber=1&pageSize=10&status=2
+Accept: {{contentType}}
+Authorization: {{token}}
+
+### Get Order by ID
+GET {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Accept: {{contentType}}
+Authorization: {{token}}
+
+### Create Order (Deducts from User Wallet)
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "mealId": "550e8400-e29b-41d4-a716-446655440001",
+  "items": [
+    {
+      "dishId": "550e8400-e29b-41d4-a716-446655440002",
+      "quantity": 2,
+      "unitPrice": 25000
+    },
+    {
+      "dishId": "550e8400-e29b-41d4-a716-446655440003",
+      "quantity": 1,
+      "unitPrice": 20000
+    },
+    {
+      "dishId": "550e8400-e29b-41d4-a716-446655440004",
+      "quantity": 1,
+      "unitPrice": 15000
+    }
+  ]
+}
+
+### Create Order with Different Items
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "mealId": "550e8400-e29b-41d4-a716-446655440001",
+  "items": [
+    {
+      "dishId": "550e8400-e29b-41d4-a716-446655440005",
+      "quantity": 3,
+      "unitPrice": 30000
+    }
+  ]
+}
+
+### Update Order Status to ReadyForPickup (1)
+PUT {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": 1
+}
+
+### Update Order Status to Completed (2)
+PUT {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": 2
+}
+
+### Update Order Status to Cancelled (3)
+PUT {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": 3
+}
+
+### Delete Order
+DELETE {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Accept: {{contentType}}
+Authorization: {{token}}
+
+### Test: Create Order with Insufficient Balance (Should Fail)
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "mealId": "550e8400-e29b-41d4-a716-446655440001",
+  "items": [
+    {
+      "dishId": "550e8400-e29b-41d4-a716-446655440002",
+      "quantity": 100,
+      "unitPrice": 999999
+    }
+  ]
+}
+
+### Test: Create Order with Empty Items (Should Fail)
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "mealId": "550e8400-e29b-41d4-a716-446655440001",
+  "items": []
+}
+
+### Test: Create Order with Zero Quantity (Should Fail)
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+Authorization: {{token}}
+
+{
+  "mealId": "550e8400-e29b-41d4-a716-446655440001",
+  "items": [
+    {
+      "dishId": "550e8400-e29b-41d4-a716-446655440002",
+      "quantity": 0,
+      "unitPrice": 25000
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+namespace SC.Application.MediatR.Order.GetAllOrders;
+
+public class GetAllOrdersResponse
+{
+    public Guid Id { get; set; }
+    public Guid MealId { get; set; }
+    public Guid UserId { get; set; }
+    public int Status { get; set; }
+    public decimal TotalPrice { get; set; }
+    public string Currency { get; set; } = "VND";
+    public int ItemCount { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+}
