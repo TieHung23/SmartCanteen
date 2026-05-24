@@ -8,7 +8,7 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
     private Category()
     {
     }
-    
+
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public DateTimeOffset CreatedAtUtc { get; set; }
@@ -42,5 +42,26 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
             CreatedBy = createdBy,
             UpdatedBy = Guid.Empty
         };
+    }
+
+    /// <summary>
+    /// Updates the category information
+    /// </summary>
+    public void Update(string name, string description, Guid updatedBy)
+    {
+        Name = name;
+        Description = description;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+    }
+
+    /// <summary>
+    /// Soft deletes the category
+    /// </summary>
+    public void SoftDelete(Guid updatedBy)
+    {
+        IsDeleted = true;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
     }
 }

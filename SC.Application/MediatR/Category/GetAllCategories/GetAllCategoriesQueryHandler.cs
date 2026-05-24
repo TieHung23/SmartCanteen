@@ -19,10 +19,13 @@ internal class GetAllCategoriesQueryHandler(
         try
         {
             IQueryable<CategoryAggregateRoot> query = categoryRepository.FindAll(cancellationToken: cancellationToken)!;
-            
+
+            // Filter out deleted categories
+            query = query.Where(x => !x.IsDeleted);
+
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                query = query.Where(x => 
+                query = query.Where(x =>
                     x.Name.Contains(request.Name, StringComparison.OrdinalIgnoreCase));
             }
 
@@ -34,7 +37,7 @@ internal class GetAllCategoriesQueryHandler(
                 .Skip(skipCount)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
-            
+
             var responses = paginatedCategories.Select(c => new GetAllCategoriesResponse
             {
                 Id = c.Id,
