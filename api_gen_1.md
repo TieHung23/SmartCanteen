@@ -31,8 +31,8 @@ name: string? (optional filter)
     "items": [
       {
         "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "Meat",
-        "description": "Meat category"
+        "name": "Beverages",
+        "description": "Hot and cold drinks"
       }
     ]
   },
@@ -44,6 +44,8 @@ name: string? (optional filter)
 
 - Status codes: 200 (success), 400 (failure)
 - Authorization: None required
+- Features: Pagination, name search filter, ordered by name
+- Soft-deleted categories are automatically excluded
 - Source: SC.Api/Controllers/CategoriesController.cs
 
 ---
@@ -53,13 +55,145 @@ name: string? (optional filter)
 - Controller: SC.Api.Controllers.CategoriesController
 - Action: GetCategoryById
 - RequestType: Guid (route parameter)
-- ResponseType: unknown (not implemented - throws Exception)
+- ResponseType: Result<GetCategoryByIdResponse>
+
+### Response JSON
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Beverages",
+    "description": "Hot and cold drinks",
+    "createdAtUtc": "2026-05-24T10:00:00Z",
+    "updatedAtUtc": "2026-05-24T11:30:00Z",
+    "createdBy": "550e8400-e29b-41d4-a716-446655440200",
+    "updatedBy": "550e8400-e29b-41d4-a716-446655440200"
+  },
+  "message": "Category retrieved successfully."
+}
+```
 
 ### Notes
 
-- Status codes: unknown
+- Status codes: 200 (success), 404 (not found), 400 (failure)
+- Authorization: None required
+- Returns full audit trail (timestamps and user IDs)
+- Soft-deleted categories return 404
 - Source: SC.Api/Controllers/CategoriesController.cs
-- **Status**: NOT IMPLEMENTED - method throws Exception
+
+---
+
+## POST /api/categories
+
+- Controller: SC.Api.Controllers.CategoriesController
+- Action: CreateCategory
+- RequestType: CreateCategoryCommand
+- ResponseType: Result<CreateCategoryResponse>
+
+### Request JSON
+
+```json
+{
+  "name": "Beverages",
+  "description": "Hot and cold drinks"
+}
+```
+
+### Response JSON
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Beverages",
+    "description": "Hot and cold drinks"
+  },
+  "message": "Category created successfully."
+}
+```
+
+### Notes
+
+- Status codes: 201 (created), 400 (validation/failure)
+- Authorization: None required
+- Input is trimmed of whitespace
+- CreatedBy is automatically set from current user
+- CreatedAtUtc is set to UtcNow
+- Source: SC.Api/Controllers/CategoriesController.cs
+
+---
+
+## PUT /api/categories/{id}
+
+- Controller: SC.Api.Controllers.CategoriesController
+- Action: UpdateCategory
+- RequestType: UpdateCategoryCommand (id in route + body)
+- ResponseType: Result<UpdateCategoryResponse>
+
+### Request JSON
+
+```json
+{
+  "name": "Beverages",
+  "description": "Updated description - Hot, cold, and specialty drinks"
+}
+```
+
+### Response JSON
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Beverages",
+    "description": "Updated description - Hot, cold, and specialty drinks"
+  },
+  "message": "Category updated successfully."
+}
+```
+
+### Notes
+
+- Status codes: 200 (success), 400 (validation/failure/not found), 404 (category not found)
+- Authorization: None required
+- Input is trimmed of whitespace
+- UpdatedBy is automatically set from current user
+- UpdatedAtUtc is set to UtcNow
+- Soft-deleted categories cannot be updated
+- Source: SC.Api/Controllers/CategoriesController.cs
+
+---
+
+## DELETE /api/categories/{id}
+
+- Controller: SC.Api.Controllers.CategoriesController
+- Action: DeleteCategory
+- RequestType: Guid (route parameter)
+- ResponseType: Result
+
+### Response JSON
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Category deleted successfully."
+}
+```
+
+### Notes
+
+- Status codes: 200 (success), 400 (failure/not found), 404 (category not found)
+- Authorization: None required
+- Uses soft delete (marks IsDeleted = true, does not remove from database)
+- UpdatedBy is automatically set from current user
+- UpdatedAtUtc is set to UtcNow
+- Already deleted categories return failure
+- Source: SC.Api/Controllers/CategoriesController.cs
 
 ---
 
