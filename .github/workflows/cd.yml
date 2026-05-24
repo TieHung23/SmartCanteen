@@ -37,12 +37,13 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_API }}
           DEPLOY_SIMULATE: ${{ secrets.DEPLOY_SIMULATE }}
           BRANCH_NAME: ${{ github.ref_name }} # Lấy tên nhánh (master hoặc develop)
+          APPSETTINGS_DEVELOPMENT_JSON: ${{ secrets.APPSETTINGS_DEVELOPMENT_JSON }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME
+          envs: DEPLOY_PATH,DEPLOY_SIMULATE,BRANCH_NAME,APPSETTINGS_DEVELOPMENT_JSON
           script: |
             set -e
             # Tự động tách thư mục theo nhánh: .../api/master hoặc .../api/develop
@@ -54,10 +55,14 @@ jobs:
             if [ "$SIMULATE" = "true" ]; then
               echo "[SIMULATE] SSH connected to Ubuntu"
               echo "[SIMULATE] Would extract /tmp/sc-api-release.tar.gz to $TARGET_PATH"
+              echo "[SIMULATE] Would write appsettings.Development.json to $TARGET_PATH/SC.Api"
               echo "[SIMULATE] Would run docker compose up -d --build api in $TARGET_PATH/Docker"
             else
               tar -xzf /tmp/sc-api-release.tar.gz -C "$TARGET_PATH"
               rm -f /tmp/sc-api-release.tar.gz # Dọn dẹp file tạm
+
+              umask 077
+              printf '%s' "$APPSETTINGS_DEVELOPMENT_JSON" > "$TARGET_PATH/SC.Api/appsettings.Development.json"
               
               cd "$TARGET_PATH/Docker"
               docker compose up -d --build api

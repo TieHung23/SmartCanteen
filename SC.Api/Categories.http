@@ -1,0 +1,46 @@
+### Get All Categories (Paginated with Search)
+GET http://localhost:5000/api/categories?pageNumber=1&pageSize=10&name=
+Accept: application/json
+
+### Get All Categories - Page 2
+GET http://localhost:5000/api/categories?pageNumber=2&pageSize=10
+Accept: application/json
+
+### Search Categories by Name
+GET http://localhost:5000/api/categories?pageNumber=1&pageSize=10&name=Beverages
+Accept: application/json
+
+### Get Category by ID
+GET http://localhost:5000/api/categories/{id}
+Accept: application/json
+
+### Create Category
+POST http://localhost:5000/api/categories
+Content-Type: application/json
+
+{
+  "name": "Beverages",
+  "description": "Hot and cold drinks"
+}
+
+### Create Category - Another Example
+POST http://localhost:5000/api/categories
+Content-Type: application/json
+
+{
+  "name": "Desserts",
+  "description": "Sweet treats and pastries"
+}
+
+### Update Category
+PUT http://localhost:5000/api/categories/{id}
+Content-Type: application/json
+
+{
+  "name": "Beverages",
+  "description": "Updated description - Hot, cold, and specialty drinks"
+}
+
+### Delete Category (Soft Delete)
+DELETE http://localhost:5000/api/categories/{id}
+Accept: application/json

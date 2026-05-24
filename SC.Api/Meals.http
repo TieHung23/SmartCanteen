@@ -1,0 +1,85 @@
+### SmartCanteen Meal API Endpoints
+
+@baseUrl = http://localhost:5000/api/meals
+@contentType = application/json
+
+### Get All Meals (Paginated)
+GET {{baseUrl}}?pageNumber=1&pageSize=10
+Accept: {{contentType}}
+
+### Get All Meals with Name Filter
+GET {{baseUrl}}?pageNumber=1&pageSize=10&name=Lunch
+Accept: {{contentType}}
+
+### Get All Active Meals
+GET {{baseUrl}}?pageNumber=1&pageSize=10&isActive=true
+Accept: {{contentType}}
+
+### Get Meal by ID
+GET {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Accept: {{contentType}}
+
+### Create a New Meal
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Lunch Set A",
+  "description": "Delicious lunch combo with rice, meat, and vegetables",
+  "priceAmount": 45000,
+  "priceCurrency": "VND",
+  "availableFrom": "2026-05-24T10:00:00Z",
+  "availableTo": "2026-05-24T14:00:00Z",
+  "availableForOrder": "2026-05-24T09:30:00Z",
+  "mealSettings": [
+    {
+      "categoryId": "550e8400-e29b-41d4-a716-446655440001",
+      "quantity": 2
+    },
+    {
+      "categoryId": "550e8400-e29b-41d4-a716-446655440002",
+      "quantity": 1
+    },
+    {
+      "categoryId": "550e8400-e29b-41d4-a716-446655440003",
+      "quantity": 1
+    }
+  ]
+}
+
+### Update an Existing Meal
+PUT {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Lunch Set A - Updated",
+  "description": "Updated lunch combo with rice, meat, and fresh vegetables",
+  "priceAmount": 50000,
+  "priceCurrency": "VND",
+  "isActive": true,
+  "availableFrom": "2026-05-24T10:00:00Z",
+  "availableTo": "2026-05-24T14:00:00Z",
+  "availableForOrder": "2026-05-24T09:30:00Z",
+  "mealSettings": [
+    {
+      "categoryId": "550e8400-e29b-41d4-a716-446655440001",
+      "quantity": 3
+    },
+    {
+      "categoryId": "550e8400-e29b-41d4-a716-446655440002",
+      "quantity": 1
+    },
+    {
+      "categoryId": "550e8400-e29b-41d4-a716-446655440003",
+      "quantity": 1
+    }
+  ]
+}
+
+### Delete a Meal
+DELETE {{baseUrl}}/550e8400-e29b-41d4-a716-446655440000
+Accept: {{contentType}}
+Authorization: Bearer YOUR_TOKEN_HERE

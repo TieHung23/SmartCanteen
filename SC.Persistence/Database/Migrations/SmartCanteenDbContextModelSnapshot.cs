@@ -491,6 +491,10 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<int?>("Gender")
                         .HasColumnType("integer");
 
+                    b.Property<string>("GoogleSubjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("ImgUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -511,7 +515,6 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")
@@ -538,6 +541,10 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("GoogleSubjectId")
+                        .IsUnique()
+                        .HasFilter("\"GoogleSubjectId\" IS NOT NULL");
 
                     b.HasIndex("StudentId")
                         .IsUnique()
