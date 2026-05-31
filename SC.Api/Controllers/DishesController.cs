@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Dish.CreateDish;
 using SC.Application.MediatR.Dish.DeleteDish;
@@ -13,6 +14,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
+[Authorize]
 public class DishesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
