@@ -6,12 +6,14 @@ using SC.Application.MediatR.Setting.CreateSetting;
 using SC.Application.MediatR.Setting.DeleteSetting;
 using SC.Application.MediatR.Setting.GetSettingById;
 using SC.Application.MediatR.Setting.UpdateSetting;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SC.Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
+[Authorize]
 public class SettingsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
