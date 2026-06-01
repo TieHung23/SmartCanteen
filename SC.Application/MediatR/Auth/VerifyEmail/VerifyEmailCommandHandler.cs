@@ -13,9 +13,9 @@ internal class VerifyEmailCommandHandler(
     IRepositoryBase<UserAggregate, Guid> userRepository,
     IRepositoryBase<EmailVerificationTokenAggregate, Guid> tokenRepository,
     IJwtTokenGenerator tokenGenerator,
-    ILogger<VerifyEmailCommandHandler> logger) : ICommandHandler<VerifyEmailCommand>
+    ILogger<VerifyEmailCommandHandler> logger) : ICommandHandler<VerifyEmailCommand, VerifyEmailResponse>
 {
-    public async Task<Result> Handle(VerifyEmailCommand request, CancellationToken cancellationToken)
+    public async Task<Result<VerifyEmailResponse>> Handle(VerifyEmailCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -27,13 +27,17 @@ internal class VerifyEmailCommandHandler(
 
             if (token is null || !token.IsValid)
             {
-                return Result.Failure(Error.InvalidOrExpiredToken, "The verification token is invalid or expired.");
+                return Result.Failure<VerifyEmailResponse>(
+                    Error.InvalidOrExpiredToken,
+                    "The verification token is invalid or expired.");
             }
 
             var user = await userRepository.FindByIdAsync(token.UserId, cancellationToken);
             if (user is null)
             {
-                return Result.Failure(Error.InvalidOrExpiredToken, "Associated account no longer exists.");
+                return Result.Failure<VerifyEmailResponse>(
+                    Error.InvalidOrExpiredToken,
+                    "Associated account no longer exists.");
             }
 
             user.ConfirmEmail();
@@ -41,18 +45,29 @@ internal class VerifyEmailCommandHandler(
 
             var userUpdate = await userRepository.UpdateAsync(user);
             if (userUpdate.IsFailure)
-                return Result.Failure(userUpdate.Error ?? Error.ServerError, userUpdate.Message);
+                return Result.Failure<VerifyEmailResponse>(
+                    userUpdate.Error ?? Error.ServerError,
+                    userUpdate.Message);
 
             var tokenUpdate = await tokenRepository.UpdateAsync(token);
             if (tokenUpdate.IsFailure)
-                return Result.Failure(tokenUpdate.Error ?? Error.ServerError, tokenUpdate.Message);
+                return Result.Failure<VerifyEmailResponse>(
+                    tokenUpdate.Error ?? Error.ServerError,
+                    tokenUpdate.Message);
 
-            return Result.Success("Email verified successfully.");
+            var response = new VerifyEmailResponse
+            {
+                Message = "Email verified successfully."
+            };
+
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error verifying email token");
-            return Result.Failure(Error.ServerError, "An error occurred while verifying the email.");
+            return Result.Failure<VerifyEmailResponse>(
+                Error.ServerError,
+                "An error occurred while verifying the email.");
         }
     }
 }

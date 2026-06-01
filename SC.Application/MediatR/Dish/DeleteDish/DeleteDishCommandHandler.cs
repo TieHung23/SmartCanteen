@@ -11,9 +11,9 @@ internal class DeleteDishCommandHandler(
     IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
     ICurrentUserService currentUserService,
     ILogger<DeleteDishCommandHandler> logger
-) : ICommandHandler<DeleteDishCommand>
+) : ICommandHandler<DeleteDishCommand, DeleteDishResponse>
 {
-    public async Task<Result> Handle(
+    public async Task<Result<DeleteDishResponse>> Handle(
         DeleteDishCommand request,
         CancellationToken cancellationToken)
     {
@@ -23,7 +23,9 @@ internal class DeleteDishCommandHandler(
 
             if (dish is null || dish.IsDeleted)
             {
-                return Result.Failure(Error.NullValue, "Dish not found.");
+                return Result.Failure<DeleteDishResponse>(
+                    Error.NullValue,
+                    "Dish not found.");
             }
 
             dish.SoftDelete(currentUserService.UserId);
@@ -31,17 +33,23 @@ internal class DeleteDishCommandHandler(
             var deleteResult = await dishRepository.UpdateAsync(dish);
             if (deleteResult.IsFailure)
             {
-                return Result.Failure(
+                return Result.Failure<DeleteDishResponse>(
                     deleteResult.Error ?? Error.ServerError,
                     deleteResult.Message);
             }
 
-            return Result.Success("Dish deleted successfully.");
+            var response = new DeleteDishResponse
+            {
+                Id = request.Id,
+                Message = "Dish deleted successfully."
+            };
+
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting dish {DishId}", request.Id);
-            return Result.Failure(
+            return Result.Failure<DeleteDishResponse>(
                 Error.ServerError,
                 "An error occurred while deleting dish.");
         }

@@ -11,9 +11,9 @@ internal class DeleteSettingCommandHandler(
     IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
     ICurrentUserService currentUserService,
     ILogger<DeleteSettingCommandHandler> logger
-) : ICommandHandler<DeleteSettingCommand>
+) : ICommandHandler<DeleteSettingCommand, DeleteSettingResponse>
 {
-    public async Task<Result> Handle(
+    public async Task<Result<DeleteSettingResponse>> Handle(
         DeleteSettingCommand request,
         CancellationToken cancellationToken)
     {
@@ -23,7 +23,9 @@ internal class DeleteSettingCommandHandler(
 
             if (setting is null || setting.IsDeleted)
             {
-                return Result.Failure(Error.NullValue, "Setting not found.");
+                return Result.Failure<DeleteSettingResponse>(
+                    Error.NullValue,
+                    "Setting not found.");
             }
 
             setting.SoftDelete(currentUserService.UserId);
@@ -31,17 +33,23 @@ internal class DeleteSettingCommandHandler(
             var deleteResult = await settingRepository.UpdateAsync(setting);
             if (deleteResult.IsFailure)
             {
-                return Result.Failure(
+                return Result.Failure<DeleteSettingResponse>(
                     deleteResult.Error ?? Error.ServerError,
                     deleteResult.Message);
             }
 
-            return Result.Success("Setting deleted successfully.");
+            var response = new DeleteSettingResponse
+            {
+                Id = request.Id,
+                Message = "Setting deleted successfully."
+            };
+
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting setting {SettingId}", request.Id);
-            return Result.Failure(
+            return Result.Failure<DeleteSettingResponse>(
                 Error.ServerError,
                 "An error occurred while deleting setting.");
         }
