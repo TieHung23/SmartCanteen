@@ -12,18 +12,18 @@ public sealed class ResendEmailSender : IEmailSender
 {
     private readonly HttpClient _httpClient;
     private readonly ResendOptions _resendOptions;
-    private readonly JwtOptions _jwtOptions;
+    private readonly FrontendOptions _frontendOptions;
     private readonly ILogger<ResendEmailSender> _logger;
 
     public ResendEmailSender(
         HttpClient httpClient,
         IOptions<ResendOptions> resendOptions,
-        IOptions<JwtOptions> jwtOptions,
+        IOptions<FrontendOptions> frontendOptions,
         ILogger<ResendEmailSender> logger)
     {
         _httpClient = httpClient;
         _resendOptions = resendOptions.Value;
-        _jwtOptions = jwtOptions.Value;
+        _frontendOptions = frontendOptions.Value;
         _logger = logger;
 
         _httpClient.BaseAddress = new Uri(_resendOptions.ApiBaseUrl);
@@ -36,7 +36,11 @@ public sealed class ResendEmailSender : IEmailSender
         string rawToken,
         CancellationToken cancellationToken = default)
     {
-        var link = $"{_jwtOptions.BaseUrl.TrimEnd('/')}/api/auth/verify-email?token={Uri.EscapeDataString(rawToken)}";
+        var baseUrl = _frontendOptions.BaseUrl.TrimEnd('/');
+        var path = _frontendOptions.VerifyEmailPath.StartsWith('/')
+            ? _frontendOptions.VerifyEmailPath
+            : "/" + _frontendOptions.VerifyEmailPath;
+        var link = $"{baseUrl}{path}?token={Uri.EscapeDataString(rawToken)}";
         var html = $@"
             <p>Welcome to SmartCanteen!</p>
             <p>Click the link below to verify your email address:</p>
