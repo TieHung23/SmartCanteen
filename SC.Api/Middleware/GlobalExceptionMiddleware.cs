@@ -33,8 +33,18 @@ public sealed class GlobalExceptionMiddleware
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
+        // If the response has already started, headers and status are on the wire —
+        // attempting to write again throws and masks the original failure.
+        if (context.Response.HasStarted)
+        {
+            _logger.LogWarning(
+                "Response has already started; the error payload could not be written.");
+            return;
+        }
+
+        context.Response.Clear();
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
