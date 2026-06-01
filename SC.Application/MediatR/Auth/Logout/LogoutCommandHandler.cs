@@ -11,9 +11,9 @@ namespace SC.Application.MediatR.Auth.Logout;
 internal class LogoutCommandHandler(
     IRepositoryBase<RefreshTokenAggregate, Guid> refreshTokenRepository,
     IJwtTokenGenerator tokenGenerator,
-    ILogger<LogoutCommandHandler> logger) : ICommandHandler<LogoutCommand>
+    ILogger<LogoutCommandHandler> logger) : ICommandHandler<LogoutCommand, LogoutResponse>
 {
-    public async Task<Result> Handle(LogoutCommand request, CancellationToken cancellationToken)
+    public async Task<Result<LogoutResponse>> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -27,17 +27,29 @@ internal class LogoutCommandHandler(
             {
                 // Silently succeed — logging out an unknown token still leaves the
                 // user logged out from their perspective.
-                return Result.Success("Logged out.");
+                var response = new LogoutResponse
+                {
+                    Message = "Logged out."
+                };
+
+                return Result.Success(response, response.Message);
             }
 
             token.Revoke();
             await refreshTokenRepository.UpdateAsync(token);
-            return Result.Success("Logged out.");
+            var revokedResponse = new LogoutResponse
+            {
+                Message = "Logged out."
+            };
+
+            return Result.Success(revokedResponse, revokedResponse.Message);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error during logout");
-            return Result.Failure(Error.ServerError, "An error occurred while logging out.");
+            return Result.Failure<LogoutResponse>(
+                Error.ServerError,
+                "An error occurred while logging out.");
         }
     }
 }

@@ -11,9 +11,9 @@ internal class DeleteCategoryCommandHandler(
     IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
     ICurrentUserService currentUserService,
     ILogger<DeleteCategoryCommandHandler> logger
-) : ICommandHandler<DeleteCategoryCommand>
+) : ICommandHandler<DeleteCategoryCommand, DeleteCategoryResponse>
 {
-    public async Task<Result> Handle(
+    public async Task<Result<DeleteCategoryResponse>> Handle(
         DeleteCategoryCommand request,
         CancellationToken cancellationToken)
     {
@@ -22,7 +22,9 @@ internal class DeleteCategoryCommandHandler(
             var category = await categoryRepository.FindByIdAsync(request.Id, cancellationToken);
             if (category is null || category.IsDeleted)
             {
-                return Result.Failure(Error.NullValue, "Category not found.");
+                return Result.Failure<DeleteCategoryResponse>(
+                    Error.NullValue,
+                    "Category not found.");
             }
 
             category.SoftDelete(currentUserService.UserId);
@@ -30,17 +32,23 @@ internal class DeleteCategoryCommandHandler(
             var deleteResult = await categoryRepository.UpdateAsync(category);
             if (deleteResult.IsFailure)
             {
-                return Result.Failure(
+                return Result.Failure<DeleteCategoryResponse>(
                     deleteResult.Error ?? Error.ServerError,
                     deleteResult.Message);
             }
 
-            return Result.Success("Category deleted successfully.");
+            var response = new DeleteCategoryResponse
+            {
+                Id = request.Id,
+                Message = "Category deleted successfully."
+            };
+
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting category {CategoryId}", request.Id);
-            return Result.Failure(
+            return Result.Failure<DeleteCategoryResponse>(
                 Error.ServerError,
                 "An error occurred while deleting the category.");
         }
