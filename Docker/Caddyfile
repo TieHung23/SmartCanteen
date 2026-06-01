@@ -1,0 +1,20 @@
+# SmartCanteen reverse proxy configuration.
+# Deploy: copy to /etc/caddy/Caddyfile on the VPS, then `sudo systemctl reload caddy`.
+# Prerequisites: DNS A records `api` and `app` on 360retail.shop point at this VPS,
+# and the backend (:8080) and frontend (:3000) are running on localhost.
+
+api.360retail.shop {
+    reverse_proxy localhost:8080 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+app.360retail.shop {
+    reverse_proxy localhost:3000 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
