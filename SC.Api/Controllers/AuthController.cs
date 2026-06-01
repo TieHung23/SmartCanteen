@@ -2,7 +2,6 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SC.Api.Extensions;
 using SC.Application.MediatR.Auth.GetCurrentUser;
 using SC.Application.MediatR.Auth.GoogleLogin;
 using SC.Application.MediatR.Auth.Login;
@@ -23,7 +22,12 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
     {
         var result = await mediator.Send(command);
-        return result.ToActionResult(StatusCodes.Status201Created);
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpGet("verify-email")]
@@ -31,7 +35,12 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
     {
         var result = await mediator.Send(new VerifyEmailCommand(token));
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     [HttpPost("login")]
@@ -39,7 +48,12 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
     {
         var result = await mediator.Send(command);
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     [HttpPost("refresh")]
@@ -47,7 +61,12 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command)
     {
         var result = await mediator.Send(command);
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     [HttpPost("google")]
@@ -55,7 +74,12 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Google([FromBody] GoogleLoginCommand command)
     {
         var result = await mediator.Send(command);
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     [HttpPost("logout")]
@@ -63,7 +87,12 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Logout([FromBody] LogoutCommand command)
     {
         var result = await mediator.Send(command);
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     [HttpGet("me")]
@@ -71,6 +100,11 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Me()
     {
         var result = await mediator.Send(new GetCurrentUserQuery());
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 }

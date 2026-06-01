@@ -2,7 +2,6 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SC.Api.Extensions;
 using SC.Application.MediatR.Verification.GetMyStatus;
 using SC.Application.MediatR.Verification.SubmitVerification;
 using SC.Domain.Domain.Verification.Enum;
@@ -46,13 +45,23 @@ public class VerificationController(IMediator mediator) : ControllerBase
         }
 
         var result = await mediator.Send(new SubmitVerificationCommand(inputs), cancellationToken);
-        return result.ToActionResult(StatusCodes.Status201Created);
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpGet("me")]
     public async Task<IActionResult> GetMyStatus(CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetMyVerificationStatusQuery(), cancellationToken);
-        return result.ToActionResult();
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 }
