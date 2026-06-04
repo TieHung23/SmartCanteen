@@ -1,0 +1,326 @@
+using Microsoft.Extensions.Logging;
+using SC.Contract.Services.Payment;
+using SC.Contract.Shared;
+using SC.Domain.Abstraction.Repositories;
+using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Payment.Enum;
+using SC.Domain.Domain.Payment.ValueObject;
+using SC.Domain.SharedKernel.ValueObjects;
+using PaymentAggregate = SC.Domain.Domain.Payment.AggregateRoot.Payment;
+using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
+using UserAggregate = SC.Domain.Domain.User.User;
+
+namespace SC.Infrastructure.Services.Payment;
+
+public class PaymentService(
+    IRepositoryBase<UserAggregate, Guid> userRepository,
+    IRepositoryBase<PaymentAggregate, Guid> paymentRepository,
+    IRepositoryBase<SettingAggregate, Guid> settingRepository,
+    ICurrentUserService currentUserService,
+    ILogger<PaymentService> logger) : IPaymentService
+{
+    private const string VndPerPointSettingCode = "VND_PER_POINT";
+    private const string MinTopUpAmountSettingCode = "MIN_TOPUP_AMOUNT";
+    private const string MaxTopUpAmountSettingCode = "MAX_TOPUP_AMOUNT";
+
+    public async Task<Result<TopUpWalletResult>> TopUpWalletAsync(
+        decimal amountVnd,
+        int method,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (amountVnd <= 0)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    "Top-up amount must be greater than zero.");
+            }
+
+            var vndPerPointResult = await GetRequiredDecimalSettingAsync(
+                VndPerPointSettingCode,
+                cancellationToken);
+            if (vndPerPointResult.IsFailure)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    vndPerPointResult.Error ?? Error.ServerError,
+                    vndPerPointResult.Message);
+            }
+
+            var minTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MinTopUpAmountSettingCode,
+                cancellationToken);
+            if (minTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    minTopUpAmountResult.Error ?? Error.ServerError,
+                    minTopUpAmountResult.Message);
+            }
+
+            var maxTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MaxTopUpAmountSettingCode,
+                cancellationToken);
+            if (maxTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    maxTopUpAmountResult.Error ?? Error.ServerError,
+                    maxTopUpAmountResult.Message);
+            }
+
+            var vndPerPoint = vndPerPointResult.Value;
+            var minTopUpAmount = minTopUpAmountResult.Value;
+            var maxTopUpAmount = maxTopUpAmountResult.Value;
+
+            if (minTopUpAmount > maxTopUpAmount)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    "Payment top-up min amount cannot be greater than max amount.");
+            }
+
+            if (amountVnd < minTopUpAmount)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    $"Top-up amount must be at least {minTopUpAmount} VND.");
+            }
+
+            if (amountVnd > maxTopUpAmount)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    $"Top-up amount must not exceed {maxTopUpAmount} VND.");
+            }
+
+            if (amountVnd % vndPerPoint != 0)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    $"Top-up amount must be divisible by {vndPerPoint} VND.");
+            }
+
+            if (!Enum.IsDefined(typeof(PaymentMethod), method))
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    "Payment method is invalid.");
+            }
+
+            if ((PaymentMethod)method != PaymentMethod.SePay)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    "Only SePay top-up is currently supported.");
+            }
+
+            var currentUserId = currentUserService.UserId;
+            var user = await userRepository.FindByIdAsync(currentUserId, cancellationToken);
+
+            if (user is null)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.NullValue,
+                    "User not found.");
+            }
+
+            var convertedPoints = amountVnd / vndPerPoint;
+            var balanceBefore = user.Balance.Amount;
+            var balanceAfter = balanceBefore + convertedPoints;
+            var gatewayOrderId = $"SC-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
+            var paymentContent = gatewayOrderId;
+
+            var payment = PaymentAggregate.Create(
+                BalanceSnapshot.Create(convertedPoints, balanceBefore, balanceAfter),
+                gatewayOrderId,
+                amountVnd,
+                convertedPoints,
+                (PaymentMethod)method,
+                currentUserId,
+                currentUserId,
+                PaymentType.TopUp);
+
+            var paymentResult = await paymentRepository.AddAsync(payment);
+            if (paymentResult.IsFailure)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    paymentResult.Error ?? Error.ServerError,
+                    paymentResult.Message);
+            }
+
+            var result = new TopUpWalletResult(
+                payment.Id,
+                amountVnd,
+                convertedPoints,
+                balanceBefore,
+                balanceAfter,
+                method,
+                payment.Status.ToString(),
+                payment.GatewayOrderId,
+                paymentContent,
+                null);
+
+            return Result.Success(result, "SePay top-up payment created successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error topping up wallet for user {UserId}", currentUserService.UserId);
+            return Result.Failure<TopUpWalletResult>(
+                Error.ServerError,
+                "An error occurred while topping up wallet.");
+        }
+    }
+
+    public async Task<Result<CompletePaymentResult>> HandleSepayIpnAsync(
+        IReadOnlyDictionary<string, string> data,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var transferType = GetValue(data, "transferType");
+            if (!string.Equals(transferType, "in", StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.InvalidValue,
+                    "SePay transaction is not an incoming transfer.");
+            }
+
+            var orderId = ResolveSepayOrderId(data);
+            if (string.IsNullOrWhiteSpace(orderId))
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.InvalidValue,
+                    "SePay payment code is missing.");
+            }
+
+            var payment = await paymentRepository.FindSingleAsync(
+                x => x.GatewayOrderId == orderId,
+                cancellationToken);
+
+            if (payment is null)
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.NullValue,
+                    "Payment not found.");
+            }
+
+            if (payment.Method != PaymentMethod.SePay)
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.InvalidValue,
+                    "Payment method does not match SePay top-up.");
+            }
+
+            if (payment.Status == PaymentStatus.Completed)
+            {
+                return Result.Success(
+                    new CompletePaymentResult(
+                        payment.Id,
+                        payment.GatewayOrderId,
+                        payment.Status.ToString(),
+                        payment.ConvertedPoints,
+                        payment.BalanceSnapshot.BalanceAfter),
+                    "Payment was already completed.");
+            }
+
+            if (!decimal.TryParse(GetValue(data, "transferAmount"), out var amountVnd)
+                || amountVnd != payment.AmountVnd)
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.InvalidValue,
+                    "SePay transfer amount does not match payment.");
+            }
+
+            var user = await userRepository.FindByIdAsync(payment.UserId, cancellationToken);
+            if (user is null)
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.NullValue,
+                    "Payment user not found.");
+            }
+
+            user.Balance = Money.Create(payment.BalanceSnapshot.BalanceAfter, user.Balance.Currency);
+            payment.MarkAsCompleted(GetValue(data, "referenceCode"), payment.UserId);
+
+            var paymentUpdate = await paymentRepository.UpdateAsync(payment);
+            if (paymentUpdate.IsFailure)
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    paymentUpdate.Error ?? Error.ServerError,
+                    paymentUpdate.Message);
+            }
+
+            var userUpdate = await userRepository.UpdateAsync(user);
+            if (userUpdate.IsFailure)
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    userUpdate.Error ?? Error.ServerError,
+                    userUpdate.Message);
+            }
+
+            return Result.Success(
+                new CompletePaymentResult(
+                    payment.Id,
+                    payment.GatewayOrderId,
+                    payment.Status.ToString(),
+                    payment.ConvertedPoints,
+                    user.Balance.Amount),
+                "SePay payment completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error handling SePay payment IPN");
+            return Result.Failure<CompletePaymentResult>(
+                Error.ServerError,
+                "An error occurred while handling SePay IPN.");
+        }
+    }
+
+    private async Task<Result<decimal>> GetRequiredDecimalSettingAsync(
+        string code,
+        CancellationToken cancellationToken)
+    {
+        var setting = await settingRepository.FindSingleAsync(
+            x => !x.IsDeleted && x.Code == code,
+            cancellationToken);
+
+        if (setting is null)
+        {
+            return Result.Failure<decimal>(
+                Error.InvalidValue,
+                $"Payment setting {code} is missing.");
+        }
+
+        if (!decimal.TryParse(setting.Value, out var value) || value <= 0)
+        {
+            return Result.Failure<decimal>(
+                Error.InvalidValue,
+                $"Payment setting {code} is invalid.");
+        }
+
+        return Result.Success(value, $"Payment setting {code} loaded.");
+    }
+
+    private static string GetValue(IReadOnlyDictionary<string, string> data, string key)
+    {
+        return data.TryGetValue(key, out var value) ? value : string.Empty;
+    }
+
+    private static string ResolveSepayOrderId(IReadOnlyDictionary<string, string> data)
+    {
+        var code = GetValue(data, "code");
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            return code;
+        }
+
+        var content = GetValue(data, "content");
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return string.Empty;
+        }
+
+        return content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(part => part.StartsWith("SC-", StringComparison.OrdinalIgnoreCase))
+            ?? string.Empty;
+    }
+}

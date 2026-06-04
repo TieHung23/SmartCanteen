@@ -44,6 +44,7 @@ internal class GetAllOrdersQueryHandler(
             {
                 Id = o.Id,
                 MealId = o.MealId,
+                PaymentId = o.PaymentId,
                 UserId = o.CreatedBy,
                 Status = (int)o.Status,
                 TotalPrice = o.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity),
