@@ -10,8 +10,9 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Meal.UpdateMeal;
 
 internal class UpdateMealCommandHandler(
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateMealCommandHandler> logger
 ) : ICommandHandler<UpdateMealCommand, UpdateMealResponse>
 {
@@ -21,7 +22,7 @@ internal class UpdateMealCommandHandler(
     {
         try
         {
-            var meal = await mealRepository.FindByIdAsync(request.Id, cancellationToken);
+            var meal = await mealRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (meal is null)
             {
@@ -72,13 +73,10 @@ internal class UpdateMealCommandHandler(
                 meal.AddMealCategory(mealSetting);
             }
 
-            var updateResult = await mealRepository.UpdateAsync(meal);
-            if (updateResult.IsFailure)
-            {
-                return Result.Failure<UpdateMealResponse>(
-                    updateResult.Error ?? Error.ServerError,
-                    updateResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            mealRepository.Update(meal);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new UpdateMealResponse
             {
@@ -91,6 +89,7 @@ internal class UpdateMealCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error updating meal with id {MealId}", request.Id);
             return Result.Failure<UpdateMealResponse>(
                 Error.ServerError,

@@ -9,7 +9,7 @@ using SC.Domain.Domain.Verification.AggregateRoot;
 namespace SC.Application.MediatR.Verification.GetMyStatus;
 
 internal class GetMyVerificationStatusQueryHandler(
-    IRepositoryBase<VerificationRequest, Guid> verificationRepository,
+    IGenericRepository<VerificationRequest, Guid> verificationRepository,
     ICurrentUserService currentUserService,
     ILogger<GetMyVerificationStatusQueryHandler> logger)
     : IQueryHandler<GetMyVerificationStatusQuery, VerificationStatusResponse>
@@ -25,7 +25,7 @@ internal class GetMyVerificationStatusQueryHandler(
                 return Result.Failure<VerificationStatusResponse>(Error.Forbidden, "Not authenticated.");
 
             var latest = await verificationRepository
-                .FindAll(v => v!.UserId == userId, cancellationToken)
+                .GetQueryable(v => v.UserId == userId)
                 .OrderByDescending(v => v!.SubmittedAt)
                 .FirstOrDefaultAsync(cancellationToken);
 

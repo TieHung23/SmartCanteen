@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Services.Payment;
 using SC.Contract.Shared;
@@ -13,10 +14,11 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Infrastructure.Services.Payment;
 
 public class PaymentService(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<PaymentAggregate, Guid> paymentRepository,
-    IRepositoryBase<SettingAggregate, Guid> settingRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<PaymentAggregate, Guid> paymentRepository,
+    IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<PaymentService> logger) : IPaymentService
 {
     private const string VndPerPointSettingCode = "VND_PER_POINT";
@@ -114,7 +116,7 @@ public class PaymentService(
             }
 
             var currentUserId = currentUserService.UserId;
-            var user = await userRepository.FindByIdAsync(currentUserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(currentUserId, cancellationToken);
 
             if (user is null)
             {
@@ -139,13 +141,10 @@ public class PaymentService(
                 currentUserId,
                 PaymentType.TopUp);
 
-            var paymentResult = await paymentRepository.AddAsync(payment);
-            if (paymentResult.IsFailure)
-            {
-                return Result.Failure<TopUpWalletResult>(
-                    paymentResult.Error ?? Error.ServerError,
-                    paymentResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await paymentRepository.AddAsync(payment, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var result = new TopUpWalletResult(
                 payment.Id,
@@ -163,6 +162,7 @@ public class PaymentService(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error topping up wallet for user {UserId}", currentUserService.UserId);
             return Result.Failure<TopUpWalletResult>(
                 Error.ServerError,
@@ -192,9 +192,9 @@ public class PaymentService(
                     "SePay payment code is missing.");
             }
 
-            var payment = await paymentRepository.FindSingleAsync(
-                x => x.GatewayOrderId == orderId,
-                cancellationToken);
+            var payment = await paymentRepository.GetQueryable(
+                x => x.GatewayOrderId == orderId)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (payment is null)
             {
@@ -230,7 +230,7 @@ public class PaymentService(
                     "SePay transfer amount does not match payment.");
             }
 
-            var user = await userRepository.FindByIdAsync(payment.UserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(payment.UserId, cancellationToken);
             if (user is null)
             {
                 return Result.Failure<CompletePaymentResult>(
@@ -241,21 +241,11 @@ public class PaymentService(
             user.Balance = Money.Create(payment.BalanceSnapshot.BalanceAfter, user.Balance.Currency);
             payment.MarkAsCompleted(GetValue(data, "referenceCode"), payment.UserId);
 
-            var paymentUpdate = await paymentRepository.UpdateAsync(payment);
-            if (paymentUpdate.IsFailure)
-            {
-                return Result.Failure<CompletePaymentResult>(
-                    paymentUpdate.Error ?? Error.ServerError,
-                    paymentUpdate.Message);
-            }
-
-            var userUpdate = await userRepository.UpdateAsync(user);
-            if (userUpdate.IsFailure)
-            {
-                return Result.Failure<CompletePaymentResult>(
-                    userUpdate.Error ?? Error.ServerError,
-                    userUpdate.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            paymentRepository.Update(payment);
+            userRepository.Update(user);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             return Result.Success(
                 new CompletePaymentResult(
@@ -268,6 +258,7 @@ public class PaymentService(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error handling SePay payment IPN");
             return Result.Failure<CompletePaymentResult>(
                 Error.ServerError,
@@ -279,9 +270,9 @@ public class PaymentService(
         string code,
         CancellationToken cancellationToken)
     {
-        var setting = await settingRepository.FindSingleAsync(
-            x => !x.IsDeleted && x.Code == code,
-            cancellationToken);
+        var setting = await settingRepository.GetQueryable(
+            x => !x.IsDeleted && x.Code == code)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (setting is null)
         {

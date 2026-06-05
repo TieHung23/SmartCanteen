@@ -12,12 +12,13 @@ using EmailVerificationTokenAggregate = SC.Domain.Domain.User.EmailVerificationT
 namespace SC.Application.MediatR.Auth.Register;
 
 internal class RegisterUserCommandHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<EmailVerificationTokenAggregate, Guid> tokenRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<EmailVerificationTokenAggregate, Guid> tokenRepository,
     IPasswordHasher passwordHasher,
     IJwtTokenGenerator tokenGenerator,
     IEmailSender emailSender,
     IConfiguration configuration,
+    IUnitOfWork unitOfWork,
     ILogger<RegisterUserCommandHandler> logger) : ICommandHandler<RegisterUserCommand, RegisterUserResponse>
 {
     public async Task<Result<RegisterUserResponse>> Handle(
@@ -29,7 +30,7 @@ internal class RegisterUserCommandHandler(
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
             var emailTaken = await userRepository
-                .FindAll(u => u!.Email == normalizedEmail, cancellationToken)
+                .GetQueryable(u => u.Email == normalizedEmail)
                 .AnyAsync(cancellationToken);
 
             if (emailTaken)
@@ -42,7 +43,7 @@ internal class RegisterUserCommandHandler(
             if (!string.IsNullOrWhiteSpace(request.StudentId))
             {
                 var studentIdTaken = await userRepository
-                    .FindAll(u => u!.StudentId == request.StudentId, cancellationToken)
+                    .GetQueryable(u => u.StudentId == request.StudentId)
                     .AnyAsync(cancellationToken);
 
                 if (studentIdTaken)
@@ -67,25 +68,16 @@ internal class RegisterUserCommandHandler(
                 address: string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
                 gender: request.Gender);
 
-            var addUserResult = await userRepository.AddAsync(user);
-            if (addUserResult.IsFailure)
-            {
-                return Result.Failure<RegisterUserResponse>(
-                    addUserResult.Error ?? Error.ServerError,
-                    addUserResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await userRepository.AddAsync(user, cancellationToken);
 
             var opaque = tokenGenerator.GenerateOpaqueToken();
             var ttl = TimeSpan.FromHours(configuration.GetValue("Jwt:EmailVerificationHours", 24));
             var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, opaque.TokenHash, ttl);
 
-            var addTokenResult = await tokenRepository.AddAsync(verificationToken);
-            if (addTokenResult.IsFailure)
-            {
-                return Result.Failure<RegisterUserResponse>(
-                    addTokenResult.Error ?? Error.ServerError,
-                    addTokenResult.Message);
-            }
+            await tokenRepository.AddAsync(verificationToken, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             try
             {
@@ -102,6 +94,7 @@ internal class RegisterUserCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error during user registration for {Email}", request.Email);
             return Result.Failure<RegisterUserResponse>(
                 Error.ServerError,

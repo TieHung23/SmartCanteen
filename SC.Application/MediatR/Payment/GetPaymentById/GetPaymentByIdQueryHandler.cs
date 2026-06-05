@@ -8,7 +8,7 @@ using PaymentAggregateRoot = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 namespace SC.Application.MediatR.Payment.GetPaymentById;
 
 internal class GetPaymentByIdQueryHandler(
-    IRepositoryBase<PaymentAggregateRoot, Guid> paymentRepository,
+    IGenericRepository<PaymentAggregateRoot, Guid> paymentRepository,
     ICurrentUserService currentUserService,
     ILogger<GetPaymentByIdQueryHandler> logger)
     : IQueryHandler<GetPaymentByIdQuery, GetPaymentByIdResponse>
@@ -19,7 +19,7 @@ internal class GetPaymentByIdQueryHandler(
     {
         try
         {
-            var payment = await paymentRepository.FindByIdAsync(request.Id, cancellationToken);
+            var payment = await paymentRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (payment is null || payment.UserId != currentUserService.UserId)
             {

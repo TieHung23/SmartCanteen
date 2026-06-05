@@ -9,8 +9,8 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Verification.Admin.GetDetail;
 
 internal class GetVerificationDetailQueryHandler(
-    IRepositoryBase<VerificationRequest, Guid> verificationRepository,
-    IRepositoryBase<UserAggregate, Guid> userRepository,
+    IGenericRepository<VerificationRequest, Guid> verificationRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
     ILogger<GetVerificationDetailQueryHandler> logger)
     : IQueryHandler<GetVerificationDetailQuery, VerificationDetailResponse>
 {
@@ -21,13 +21,13 @@ internal class GetVerificationDetailQueryHandler(
         try
         {
             var verification = await verificationRepository
-                .FindAll(v => v!.Id == request.Id, cancellationToken)
+                .GetQueryable(v => v.Id == request.Id)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (verification is null)
                 return Result.Failure<VerificationDetailResponse>(Error.VerificationNotFound, "Verification request not found.");
 
-            var user = await userRepository.FindByIdAsync(verification.UserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(verification.UserId, cancellationToken);
 
             var docs = verification.Documents
                 .Select(d => new VerificationDocumentDto(

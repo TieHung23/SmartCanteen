@@ -7,7 +7,7 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Meal.GetMealById;
 
 internal class GetMealByIdQueryHandler(
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ILogger<GetMealByIdQueryHandler> logger
 ) : IQueryHandler<GetMealByIdQuery, GetMealByIdResponse>
 {
@@ -17,7 +17,7 @@ internal class GetMealByIdQueryHandler(
     {
         try
         {
-            var meal = await mealRepository.FindByIdAsync(request.Id, cancellationToken);
+            var meal = await mealRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (meal is null)
             {

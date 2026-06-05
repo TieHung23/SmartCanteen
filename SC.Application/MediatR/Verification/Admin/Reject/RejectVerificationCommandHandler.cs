@@ -11,10 +11,11 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Verification.Admin.Reject;
 
 internal class RejectVerificationCommandHandler(
-    IRepositoryBase<VerificationRequest, Guid> verificationRepository,
-    IRepositoryBase<UserAggregate, Guid> userRepository,
+    IGenericRepository<VerificationRequest, Guid> verificationRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
     ICurrentUserService currentUserService,
     IEmailSender emailSender,
+    IUnitOfWork unitOfWork,
     ILogger<RejectVerificationCommandHandler> logger) : ICommandHandler<RejectVerificationCommand, RejectVerificationResponse>
 {
     public async Task<Result<RejectVerificationResponse>> Handle(RejectVerificationCommand request, CancellationToken cancellationToken)
@@ -26,7 +27,7 @@ internal class RejectVerificationCommandHandler(
                     Error.RejectionReasonRequired,
                     "Rejection reason is required.");
 
-            var verification = await verificationRepository.FindByIdAsync(request.Id, cancellationToken);
+            var verification = await verificationRepository.GetByIdAsync(request.Id, cancellationToken);
             if (verification is null)
                 return Result.Failure<RejectVerificationResponse>(
                     Error.VerificationNotFound,
@@ -39,14 +40,12 @@ internal class RejectVerificationCommandHandler(
 
             var reviewerId = currentUserService.UserId;
             verification.Reject(reviewerId, request.Reason);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            verificationRepository.Update(verification);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
-            var update = await verificationRepository.UpdateAsync(verification);
-            if (update.IsFailure)
-                return Result.Failure<RejectVerificationResponse>(
-                    update.Error ?? Error.ServerError,
-                    update.Message);
-
-            var user = await userRepository.FindByIdAsync(verification.UserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(verification.UserId, cancellationToken);
             if (user is not null)
             {
                 try
@@ -69,6 +68,7 @@ internal class RejectVerificationCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error rejecting verification {Id}", request.Id);
             return Result.Failure<RejectVerificationResponse>(
                 Error.ServerError,

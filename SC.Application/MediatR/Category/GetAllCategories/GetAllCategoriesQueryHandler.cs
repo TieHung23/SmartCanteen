@@ -8,7 +8,7 @@ using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 namespace SC.Application.MediatR.Category.GetAllCategories;
 
 internal class GetAllCategoriesQueryHandler(
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ILogger<GetAllCategoriesQueryHandler> logger
 ) : IQueryHandler<GetAllCategoriesQuery, PaginatedList<GetAllCategoriesResponse>>
 {
@@ -18,7 +18,7 @@ internal class GetAllCategoriesQueryHandler(
     {
         try
         {
-            IQueryable<CategoryAggregateRoot> query = categoryRepository.FindAll(cancellationToken: cancellationToken)!;
+            IQueryable<CategoryAggregateRoot> query = categoryRepository.GetQueryable();
 
             // Filter out deleted categories
             query = query.Where(x => !x.IsDeleted);
