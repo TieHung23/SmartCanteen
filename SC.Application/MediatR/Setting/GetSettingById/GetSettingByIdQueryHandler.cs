@@ -7,7 +7,7 @@ using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 namespace SC.Application.MediatR.Setting.GetSettingById;
 
 internal class GetSettingByIdQueryHandler(
-    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    IGenericRepository<SettingAggregateRoot, Guid> settingRepository,
     ILogger<GetSettingByIdQueryHandler> logger
 ) : IQueryHandler<GetSettingByIdQuery, GetSettingByIdResponse>
 {
@@ -17,7 +17,7 @@ internal class GetSettingByIdQueryHandler(
     {
         try
         {
-            var setting = await settingRepository.FindByIdAsync(request.Id, cancellationToken);
+            var setting = await settingRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (setting is null || setting.IsDeleted)
             {

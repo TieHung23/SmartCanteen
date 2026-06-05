@@ -16,12 +16,13 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Verification.SubmitVerification;
 
 internal class SubmitVerificationCommandHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<VerificationRequest, Guid> verificationRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<VerificationRequest, Guid> verificationRepository,
     IFileValidator fileValidator,
     IFileUploader fileUploader,
     ICurrentUserService currentUserService,
     IConfiguration configuration,
+    IUnitOfWork unitOfWork,
     ILogger<SubmitVerificationCommandHandler> logger) : ICommandHandler<SubmitVerificationCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(SubmitVerificationCommand request, CancellationToken cancellationToken)
@@ -32,7 +33,7 @@ internal class SubmitVerificationCommandHandler(
             if (userId == Guid.Empty)
                 return Result.Failure<Guid>(Error.Forbidden, "Not authenticated.");
 
-            var user = await userRepository.FindByIdAsync(userId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(userId, cancellationToken);
             if (user is null)
                 return Result.Failure<Guid>(Error.Forbidden, "User not found.");
 
@@ -50,7 +51,7 @@ internal class SubmitVerificationCommandHandler(
 
             // BR-39: only one pending request at a time
             var pendingExists = await verificationRepository
-                .FindAll(v => v!.UserId == userId && v.Status == VerificationStatus.Pending, cancellationToken)
+                .GetQueryable(v => v.UserId == userId && v.Status == VerificationStatus.Pending)
                 .AnyAsync(cancellationToken);
 
             if (pendingExists)
@@ -91,14 +92,16 @@ internal class SubmitVerificationCommandHandler(
                 uploadedDocs,
                 TimeSpan.FromDays(requestExpiryDays));
 
-            var addResult = await verificationRepository.AddAsync(verificationRequest);
-            if (addResult.IsFailure)
-                return Result.Failure<Guid>(addResult.Error ?? Error.ServerError, addResult.Message);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await verificationRepository.AddAsync(verificationRequest, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             return Result.Success(verificationRequest.Id, "Verification request submitted.");
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error submitting verification request");
             return Result.Failure<Guid>(Error.ServerError, "An error occurred while submitting the verification request.");
         }

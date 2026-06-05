@@ -8,8 +8,9 @@ using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 namespace SC.Application.MediatR.Setting.DeleteSetting;
 
 internal class DeleteSettingCommandHandler(
-    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    IGenericRepository<SettingAggregateRoot, Guid> settingRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteSettingCommandHandler> logger
 ) : ICommandHandler<DeleteSettingCommand, DeleteSettingResponse>
 {
@@ -19,7 +20,7 @@ internal class DeleteSettingCommandHandler(
     {
         try
         {
-            var setting = await settingRepository.FindByIdAsync(request.Id, cancellationToken);
+            var setting = await settingRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (setting is null || setting.IsDeleted)
             {
@@ -28,15 +29,11 @@ internal class DeleteSettingCommandHandler(
                     "Setting not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             setting.SoftDelete(currentUserService.UserId);
-
-            var deleteResult = await settingRepository.UpdateAsync(setting);
-            if (deleteResult.IsFailure)
-            {
-                return Result.Failure<DeleteSettingResponse>(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
+            settingRepository.Update(setting);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new DeleteSettingResponse
             {
@@ -48,6 +45,7 @@ internal class DeleteSettingCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting setting {SettingId}", request.Id);
             return Result.Failure<DeleteSettingResponse>(
                 Error.ServerError,

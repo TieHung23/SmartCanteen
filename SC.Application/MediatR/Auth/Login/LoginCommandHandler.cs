@@ -13,11 +13,12 @@ using RefreshTokenAggregate = SC.Domain.Domain.User.RefreshToken;
 namespace SC.Application.MediatR.Auth.Login;
 
 internal class LoginCommandHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<RefreshTokenAggregate, Guid> refreshTokenRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<RefreshTokenAggregate, Guid> refreshTokenRepository,
     IPasswordHasher passwordHasher,
     IJwtTokenGenerator tokenGenerator,
     IConfiguration configuration,
+    IUnitOfWork unitOfWork,
     ILogger<LoginCommandHandler> logger) : ICommandHandler<LoginCommand, AuthTokensDto>
 {
     public async Task<Result<AuthTokensDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -27,7 +28,7 @@ internal class LoginCommandHandler(
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
             var user = await userRepository
-                .FindAll(u => u!.Email == normalizedEmail, cancellationToken)
+                .GetQueryable(u => u.Email == normalizedEmail)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (user is null)
@@ -73,17 +74,11 @@ internal class LoginCommandHandler(
 
             user.RecordLogin();
 
-            var saveRefresh = await refreshTokenRepository.AddAsync(refreshToken);
-            if (saveRefresh.IsFailure)
-            {
-                return Result.Failure<AuthTokensDto>(saveRefresh.Error ?? Error.ServerError, saveRefresh.Message);
-            }
-
-            var updateUser = await userRepository.UpdateAsync(user);
-            if (updateUser.IsFailure)
-            {
-                return Result.Failure<AuthTokensDto>(updateUser.Error ?? Error.ServerError, updateUser.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+            userRepository.Update(user);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             return Result.Success(
                 new AuthTokensDto(
@@ -95,6 +90,7 @@ internal class LoginCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error during login for {Email}", request.Email);
             return Result.Failure<AuthTokensDto>(Error.ServerError, "An error occurred while signing in.");
         }

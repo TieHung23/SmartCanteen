@@ -13,10 +13,11 @@ using RefreshTokenAggregate = SC.Domain.Domain.User.RefreshToken;
 namespace SC.Application.MediatR.Auth.Refresh;
 
 internal class RefreshTokenCommandHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<RefreshTokenAggregate, Guid> refreshTokenRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<RefreshTokenAggregate, Guid> refreshTokenRepository,
     IJwtTokenGenerator tokenGenerator,
     IConfiguration configuration,
+    IUnitOfWork unitOfWork,
     ILogger<RefreshTokenCommandHandler> logger) : ICommandHandler<RefreshTokenCommand, AuthTokensDto>
 {
     public async Task<Result<AuthTokensDto>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -26,7 +27,7 @@ internal class RefreshTokenCommandHandler(
             var providedHash = tokenGenerator.HashOpaqueToken(request.RefreshToken);
 
             var existing = await refreshTokenRepository
-                .FindAll(t => t!.TokenHash == providedHash, cancellationToken)
+                .GetQueryable(t => t.TokenHash == providedHash)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existing is null || !existing.IsActive)
@@ -34,11 +35,15 @@ internal class RefreshTokenCommandHandler(
                 return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Refresh token is invalid or expired.");
             }
 
-            var user = await userRepository.FindByIdAsync(existing.UserId, cancellationToken);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            var user = await userRepository.GetByIdAsync(existing.UserId, cancellationToken);
             if (user is null || user.Status is AccountStatus.Suspended or AccountStatus.Banned)
             {
                 existing.Revoke();
-                await refreshTokenRepository.UpdateAsync(existing);
+                refreshTokenRepository.Update(existing);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                await unitOfWork.CommitAsync(cancellationToken);
                 return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Account no longer eligible.");
             }
 
@@ -48,13 +53,10 @@ internal class RefreshTokenCommandHandler(
 
             existing.Revoke(newRefresh.Id);
 
-            var addResult = await refreshTokenRepository.AddAsync(newRefresh);
-            if (addResult.IsFailure)
-                return Result.Failure<AuthTokensDto>(addResult.Error ?? Error.ServerError, addResult.Message);
-
-            var updateResult = await refreshTokenRepository.UpdateAsync(existing);
-            if (updateResult.IsFailure)
-                return Result.Failure<AuthTokensDto>(updateResult.Error ?? Error.ServerError, updateResult.Message);
+            await refreshTokenRepository.AddAsync(newRefresh, cancellationToken);
+            refreshTokenRepository.Update(existing);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var access = tokenGenerator.GenerateAccessToken(
                 user.Id,
@@ -72,6 +74,7 @@ internal class RefreshTokenCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error refreshing token");
             return Result.Failure<AuthTokensDto>(Error.ServerError, "An error occurred while refreshing the token.");
         }

@@ -14,11 +14,12 @@ using UserAggregateRoot = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Order.CreateOrder;
 
 internal class CreateOrderCommandHandler(
-    IRepositoryBase<OrderAggregateRoot, Guid> orderRepository,
-    IRepositoryBase<UserAggregateRoot, Guid> userRepository,
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
-    IRepositoryBase<PaymentAggregateRoot, Guid> paymentRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<UserAggregateRoot, Guid> userRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<PaymentAggregateRoot, Guid> paymentRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
 {
@@ -43,7 +44,7 @@ internal class CreateOrderCommandHandler(
             }
 
             var currentUserId = currentUserService.UserId;
-            var user = await userRepository.FindByIdAsync(currentUserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(currentUserId, cancellationToken);
 
             if (user is null)
             {
@@ -53,9 +54,7 @@ internal class CreateOrderCommandHandler(
             }
 
             var dishIds = request.Items.Select(item => item.DishId).Distinct().ToList();
-            var dishes = dishRepository.FindAll(
-                    dish => dishIds.Contains(dish!.Id),
-                    cancellationToken)
+            var dishes = dishRepository.GetQueryable(dish => dishIds.Contains(dish.Id))
                 .ToList()
                 .Where(dish => dish is not null)
                 .ToDictionary(dish => dish!.Id, dish => dish!);
@@ -106,6 +105,8 @@ internal class CreateOrderCommandHandler(
                     $"Insufficient balance. Required: {totalPrice}, Available: {user.Balance.Amount}");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
             var order = OrderAggregateRoot.Create(request.MealId, currentUserId);
 
             foreach (var item in request.Items)
@@ -130,31 +131,13 @@ internal class CreateOrderCommandHandler(
                 PaymentType.OrderPayment);
             payment.MarkAsCompleted($"WALLET-{order.Id:N}", currentUserId);
 
-            var paymentAddResult = await paymentRepository.AddAsync(payment);
-            if (paymentAddResult.IsFailure)
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    paymentAddResult.Error ?? Error.ServerError,
-                    paymentAddResult.Message);
-            }
-
+            await paymentRepository.AddAsync(payment, cancellationToken);
             order.AttachPayment(payment.Id, currentUserId);
+            userRepository.Update(user);
+            await orderRepository.AddAsync(order, cancellationToken);
 
-            var userUpdateResult = await userRepository.UpdateAsync(user);
-            if (userUpdateResult.IsFailure)
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    userUpdateResult.Error ?? Error.ServerError,
-                    userUpdateResult.Message);
-            }
-
-            var orderAddResult = await orderRepository.AddAsync(order);
-            if (orderAddResult.IsFailure)
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    orderAddResult.Error ?? Error.ServerError,
-                    orderAddResult.Message);
-            }
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new CreateOrderResponse
             {
@@ -170,6 +153,7 @@ internal class CreateOrderCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error creating order for user {UserId}", currentUserService.UserId);
             return Result.Failure<CreateOrderResponse>(
                 Error.ServerError,

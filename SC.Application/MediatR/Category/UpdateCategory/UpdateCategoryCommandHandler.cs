@@ -8,8 +8,9 @@ using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 namespace SC.Application.MediatR.Category.UpdateCategory;
 
 internal class UpdateCategoryCommandHandler(
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateCategoryCommandHandler> logger
 ) : ICommandHandler<UpdateCategoryCommand, UpdateCategoryResponse>
 {
@@ -19,7 +20,7 @@ internal class UpdateCategoryCommandHandler(
     {
         try
         {
-            var category = await categoryRepository.FindByIdAsync(request.Id, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<UpdateCategoryResponse>(Error.NullValue, "Category not found.");
@@ -30,13 +31,10 @@ internal class UpdateCategoryCommandHandler(
                 request.Description.Trim(),
                 currentUserService.UserId);
 
-            var updateResult = await categoryRepository.UpdateAsync(category);
-            if (updateResult.IsFailure)
-            {
-                return Result.Failure<UpdateCategoryResponse>(
-                    updateResult.Error ?? Error.ServerError,
-                    updateResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            categoryRepository.Update(category);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new UpdateCategoryResponse
             {
@@ -49,6 +47,7 @@ internal class UpdateCategoryCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error updating category {CategoryId}", request.Id);
             return Result.Failure<UpdateCategoryResponse>(
                 Error.ServerError,

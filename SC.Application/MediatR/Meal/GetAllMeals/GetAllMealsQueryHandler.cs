@@ -8,7 +8,7 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Meal.GetAllMeals;
 
 internal class GetAllMealsQueryHandler(
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ILogger<GetAllMealsQueryHandler> logger
 ) : IQueryHandler<GetAllMealsQuery, PaginatedList<GetAllMealsResponse>>
 {
@@ -18,7 +18,7 @@ internal class GetAllMealsQueryHandler(
     {
         try
         {
-            IQueryable<MealAggregateRoot> query = mealRepository.FindAll(cancellationToken: cancellationToken)!;
+            IQueryable<MealAggregateRoot> query = mealRepository.GetQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {

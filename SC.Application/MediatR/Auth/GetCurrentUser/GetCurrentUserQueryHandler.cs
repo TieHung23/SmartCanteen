@@ -8,7 +8,7 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Auth.GetCurrentUser;
 
 internal class GetCurrentUserQueryHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
     ICurrentUserService currentUserService,
     ILogger<GetCurrentUserQueryHandler> logger) : IQueryHandler<GetCurrentUserQuery, UserProfileResponse>
 {
@@ -22,7 +22,7 @@ internal class GetCurrentUserQueryHandler(
                 return Result.Failure<UserProfileResponse>(Error.Forbidden, "Not authenticated.");
             }
 
-            var user = await userRepository.FindByIdAsync(userId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(userId, cancellationToken);
             if (user is null)
             {
                 return Result.Failure<UserProfileResponse>(Error.Forbidden, "User not found.");
