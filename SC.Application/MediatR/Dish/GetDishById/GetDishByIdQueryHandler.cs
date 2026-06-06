@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -17,9 +18,11 @@ internal class GetDishByIdQueryHandler(
     {
         try
         {
-            var dish = await dishRepository.GetByIdAsync(request.Id, cancellationToken);
+            var dish = await dishRepository.GetQueryable(x => x.Id == request.Id && !x.IsDeleted)
+                .Include(x => x.DishMeals)
+                .FirstOrDefaultAsync(cancellationToken);
 
-            if (dish is null || dish.IsDeleted)
+            if (dish is null)
             {
                 return Result.Failure<GetDishByIdResponse>(
                     Error.NullValue,
@@ -32,10 +35,8 @@ internal class GetDishByIdQueryHandler(
                 Name = dish.Name,
                 Description = dish.Description,
                 Price = dish.Price.Amount,
-                Currency = dish.Price.Currency,
-                StockQuantity = dish.StockQuantity,
                 IsActive = dish.IsActive,
-                MealId = dish.MealId,
+                MealIds = dish.DishMeals.Select(dm => dm.MealId).ToList(),
                 CategoryId = dish.CategoryId
             };
 

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SC.Persistence.Database;
@@ -11,9 +12,11 @@ using SC.Persistence.Database;
 namespace SC.Persistence.Database.Migrations
 {
     [DbContext(typeof(SmartCanteenDbContext))]
-    partial class SmartCanteenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606175609_UpdateDatabaseFollowSpec")]
+    partial class UpdateDatabaseFollowSpec
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -728,12 +731,6 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Price", b1 =>
                         {
                             b1.Property<Guid>("DishId")
@@ -755,8 +752,6 @@ namespace SC.Persistence.Database.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("DishId");
                         });
-
-                    b.Navigation("Category");
 
                     b.Navigation("Price")
                         .IsRequired();
@@ -811,19 +806,11 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealSettings", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("SC.Domain.Domain.Meal.Entity.MealTemplate", null)
                         .WithMany("Settings")
                         .HasForeignKey("MealTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealTemplate", b =>
@@ -839,18 +826,13 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Meal.AggregateRoot.Meal", "Meal")
-                        .WithMany()
-                        .HasForeignKey("MealId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.OwnsMany("SC.Domain.Domain.Order.ValueObject.OrderItem", "OrderItems", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
                                 .HasColumnType("uuid");
 
                             b1.Property<Guid>("DishId")
+                                .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
                             b1.Property<int>("Quantity")
@@ -858,15 +840,7 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.HasKey("OrderId", "DishId");
 
-                            b1.HasIndex("DishId");
-
                             b1.ToTable("OrderItem");
-
-                            b1.HasOne("SC.Domain.Domain.Dish.AggregateRoot.Dish", "Dish")
-                                .WithMany()
-                                .HasForeignKey("DishId")
-                                .OnDelete(DeleteBehavior.Restrict)
-                                .IsRequired();
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
@@ -896,13 +870,9 @@ namespace SC.Persistence.Database.Migrations
                                         .HasForeignKey("OrderItemOrderId", "OrderItemDishId");
                                 });
 
-                            b1.Navigation("Dish");
-
                             b1.Navigation("UnitPrice")
                                 .IsRequired();
                         });
-
-                    b.Navigation("Meal");
 
                     b.Navigation("OrderItems");
                 });

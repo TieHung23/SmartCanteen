@@ -11,12 +11,13 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
 
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? ImgUrl { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Category Create(string name, string description, Guid createdBy)
+    public static Category Create(string name, string description, Guid createdBy, string? imgUrl = null)
     {
         return new Category
         {
@@ -24,33 +25,19 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
             Name = name,
             Description = description,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = createdBy
-        };
-    }
-
-    /// <summary>
-    /// Factory method for creating categories with specific IDs (used for seeding)
-    /// </summary>
-    internal static Category CreateForSeeding(Guid id, string name, string description, Guid createdBy, DateTimeOffset createdAtUtc)
-    {
-        return new Category
-        {
-            Id = id,
-            Name = name,
-            Description = description,
-            CreatedAtUtc = createdAtUtc,
             CreatedBy = createdBy,
-            UpdatedBy = Guid.Empty
+            ImgUrl = imgUrl
         };
     }
 
     /// <summary>
     /// Updates the category information
     /// </summary>
-    public void Update(string name, string description, Guid updatedBy)
+    public void Update(string name, string description, Guid updatedBy, string? imgUrl = null)
     {
         Name = name;
         Description = description;
+        ImgUrl = imgUrl;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

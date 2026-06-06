@@ -12,6 +12,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.MealId).IsRequired();
+
+        builder.HasOne(x => x.Meal)
+            .WithMany()
+            .HasForeignKey(x => x.MealId);
+
         builder.HasIndex(x => x.MealId);
 
         builder.Property(x => x.PaymentId);
@@ -31,6 +36,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
             orderItem.Property(x => x.Quantity)
                 .IsRequired();
+
+            orderItem.HasOne(x => x.Dish)
+                .WithMany()
+                .HasForeignKey(x => x.DishId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             orderItem.OwnsOne(x => x.UnitPrice, price =>
             {

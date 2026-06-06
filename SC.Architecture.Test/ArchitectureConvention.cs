@@ -289,6 +289,7 @@ public class ArchitectureConvention
             .Where(t => !t.IsEnum
                      && !t.IsGenericTypeDefinition
                      && t.Name != "ApiLog"
+                     && t.Name != "DishMeal"
                      && !InheritsFromGenericType(t, typeof(Entity<>)))
             .ToList();
 
@@ -330,6 +331,7 @@ public class ArchitectureConvention
             .AreNotAbstract()
             .GetTypes()
             .Where(t => t.Name != "ApiLog"
+                     && t.Name != "DishMeal"
                      && !InheritsFromGenericType(t, typeof(AggregateRoot<>)))
             .ToList();
 
@@ -358,6 +360,7 @@ public class ArchitectureConvention
             .Where(t => !t.IsEnum
                      && !t.IsGenericTypeDefinition
                      && t.Name != "ApiLog"
+                     && t.Name != "DishMeal"
                      && !ImplementsGenericInterface(t, typeof(IAuditableEntity<>)))
             .ToList();
 

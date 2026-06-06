@@ -3,7 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
-using SC.Domain.Domain.Meal.ValueObject;
+using SC.Domain.Domain.Meal.Entity;
 using SC.Domain.SharedKernel.ValueObjects;
 using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 
@@ -37,7 +37,7 @@ internal class CreateMealCommandHandler(
             }
 
             var currentUserId = currentUserService.UserId;
-            var price = Money.Create(request.PriceAmount, request.PriceCurrency);
+            var price = Money.Create(request.PriceAmount);
 
             var meal = MealAggregateRoot.Create(
                 request.Name,
@@ -57,8 +57,9 @@ internal class CreateMealCommandHandler(
                         $"Quantity for category {setting.CategoryId} must be greater than zero.");
                 }
 
-                var mealSetting = MealSettings.Create(setting.CategoryId, setting.Quantity, meal.Id);
-                meal.AddMealCategory(mealSetting);
+                var template = MealTemplate.Create(meal.Id, $"Category-{setting.CategoryId}");
+                template.AddSetting(setting.CategoryId, setting.Quantity, setting.Quantity, true);
+                meal.AddMealTemplate(template);
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);

@@ -32,17 +32,16 @@ internal class GetMealByIdQueryHandler(
                 Name = meal.Name,
                 Description = meal.Description,
                 PriceAmount = meal.Price.Amount,
-                PriceCurrency = meal.Price.Currency,
                 IsActive = meal.IsActive,
                 AvailableFrom = meal.AvailableFrom,
                 AvailableTo = meal.AvailableTo,
                 AvailableForOrder = meal.AvailableForOrder,
-                MealSettings = meal.MealSettingsList
-                    .Where(m => !m.IsDeleted)
-                    .Select(m => new MealSettingDto
+                MealSettings = meal.MealTemplates
+                    .SelectMany(t => t.Settings)
+                    .Select(s => new MealSettingDto
                     {
-                        CategoryId = m.CategoryId,
-                        Quantity = m.Quantity
+                        CategoryId = s.CategoryId,
+                        Quantity = s.MinQuantity
                     })
                     .ToList()
             };

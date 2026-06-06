@@ -46,7 +46,6 @@ internal class GetAllMealsQueryHandler(
                 Name = m.Name,
                 Description = m.Description,
                 PriceAmount = m.Price.Amount,
-                PriceCurrency = m.Price.Currency,
                 IsActive = m.IsActive,
                 AvailableFrom = m.AvailableFrom,
                 AvailableTo = m.AvailableTo,

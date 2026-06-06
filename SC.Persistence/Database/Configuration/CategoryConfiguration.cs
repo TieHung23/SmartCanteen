@@ -19,6 +19,9 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .IsRequired()
             .HasMaxLength(500);
 
+        builder.Property(x => x.ImgUrl)
+            .HasMaxLength(2048);
+
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);

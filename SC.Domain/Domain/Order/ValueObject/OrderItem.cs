@@ -9,13 +9,14 @@ public class OrderItem : Abstraction.Aggregates.ValueObject
     }
 
     public Guid DishId { get; set; }
+    public Dish.AggregateRoot.Dish Dish { get; set; } = null!;
 
     public int Quantity { get; init; }
     public Money UnitPrice { get; init; } = Money.Create(0);
 
     public Guid OrderId { get; set; }
 
-    public static OrderItem Create(Guid dishId, int quantity, decimal unitPriceAmount, string unitPriceCurrency = "VND")
+    public static OrderItem Create(Guid dishId, int quantity, decimal unitPriceAmount)
     {
         if (quantity <= 0)
             throw new ArgumentException("Quantity must be greater than zero.", nameof(quantity));
@@ -24,7 +25,7 @@ public class OrderItem : Abstraction.Aggregates.ValueObject
         {
             DishId = dishId,
             Quantity = quantity,
-            UnitPrice = Money.Create(unitPriceAmount, unitPriceCurrency)
+            UnitPrice = Money.Create(unitPriceAmount)
         };
     }
 

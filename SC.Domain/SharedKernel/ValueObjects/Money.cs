@@ -12,7 +12,7 @@ public class Money : Abstraction.Aggregates.ValueObject
     public decimal Amount { get; }
     public string Currency { get; }
 
-    public static Money Create(decimal amount, string currency = "VND")
+    public static Money Create(decimal amount, string currency = "Point")
     {
         return new Money(amount, currency);
     }

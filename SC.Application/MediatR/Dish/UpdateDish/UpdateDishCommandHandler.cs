@@ -3,6 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.SharedKernel.ValueObjects;
 using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
@@ -46,12 +47,13 @@ internal class UpdateDishCommandHandler(
             dish.Update(
                 request.Name.Trim(),
                 request.Description.Trim(),
-                Money.Create(request.Price, request.Currency),
-                request.StockQuantity,
-                request.MealId,
+                Money.Create(request.Price),
                 request.CategoryId,
                 request.IsActive,
                 currentUserService.UserId);
+
+            dish.DishMeals.Clear();
+            dish.DishMeals.Add(new DishMeal { DishId = dish.Id, MealId = meal.Id, Quantity = 1 });
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             dishRepository.Update(dish);
@@ -64,10 +66,8 @@ internal class UpdateDishCommandHandler(
                 Name = dish.Name,
                 Description = dish.Description,
                 Price = dish.Price.Amount,
-                Currency = dish.Price.Currency,
-                StockQuantity = dish.StockQuantity,
                 IsActive = dish.IsActive,
-                MealId = dish.MealId,
+                MealId = meal.Id,
                 CategoryId = dish.CategoryId
             };
 

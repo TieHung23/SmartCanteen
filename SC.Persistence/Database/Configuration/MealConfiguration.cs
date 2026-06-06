@@ -30,25 +30,15 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
                 .HasMaxLength(10);
         });
 
-        builder.OwnsMany(x => x.MealSettingsList, mealSettings =>
-        {
+        builder.HasMany(x => x.DishMeals)
+            .WithOne(x => x.Meal)
+            .HasForeignKey(x => x.MealId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-            mealSettings.WithOwner().HasForeignKey(x => x.MealId);
-
-            mealSettings.HasKey(x => new { x.MealId, x.CategoryId });
-
-            mealSettings.Property(x => x.CategoryId)
-                .IsRequired();
-
-            mealSettings.Property(x => x.MealId)
-                .IsRequired();
-
-            mealSettings.Property(x => x.Quantity)
-                .IsRequired();
-
-            mealSettings.Property(x => x.IsDeleted)
-                .IsRequired();
-        });
+        builder.HasMany(x => x.MealTemplates)
+            .WithOne(x => x.Meal)
+            .HasForeignKey(x => x.MealId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();

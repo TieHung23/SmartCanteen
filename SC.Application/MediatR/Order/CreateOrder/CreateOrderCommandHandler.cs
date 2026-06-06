@@ -73,25 +73,6 @@ internal class CreateOrderCommandHandler(
                     "One or more dishes are not available.");
             }
 
-            foreach (var item in request.Items)
-            {
-                var dish = dishes[item.DishId];
-                if (dish.StockQuantity < item.Quantity)
-                {
-                    return Result.Failure<CreateOrderResponse>(
-                        Error.InvalidValue,
-                        $"Dish {dish.Name} does not have enough stock.");
-                }
-            }
-
-            var currency = dishes.Values.First().Price.Currency;
-            if (dishes.Values.Any(dish => dish.Price.Currency != currency))
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    Error.InvalidValue,
-                    "Order items must use the same currency.");
-            }
-
             var totalPrice = request.Items.Sum(item =>
             {
                 var dish = dishes[item.DishId];
@@ -112,7 +93,7 @@ internal class CreateOrderCommandHandler(
             foreach (var item in request.Items)
             {
                 var dish = dishes[item.DishId];
-                order.AddDish(item.DishId, item.Quantity, dish.Price.Amount, dish.Price.Currency);
+                order.AddDish(item.DishId, item.Quantity, dish.Price.Amount);
             }
 
             var balanceBefore = user.Balance.Amount;
@@ -144,7 +125,6 @@ internal class CreateOrderCommandHandler(
                 Id = order.Id,
                 PaymentId = payment.Id,
                 TotalPrice = totalPrice,
-                Currency = currency,
                 Message = "Order created successfully and wallet debited.",
                 UserRemainingBalance = newBalance.Amount
             };

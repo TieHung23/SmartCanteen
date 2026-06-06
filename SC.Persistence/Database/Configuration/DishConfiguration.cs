@@ -19,9 +19,6 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
             .IsRequired()
             .HasMaxLength(500);
 
-        builder.Property(x => x.StockQuantity)
-            .IsRequired();
-
         builder.Property(x => x.IsActive)
             .IsRequired();
 
@@ -34,11 +31,18 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
                 .HasMaxLength(10);
         });
 
-        builder.Property(x => x.MealId).IsRequired();
         builder.Property(x => x.CategoryId).IsRequired();
 
-        builder.HasIndex(x => x.MealId);
+        builder.HasOne(x => x.Category)
+            .WithMany()
+            .HasForeignKey(x => x.CategoryId);
+
         builder.HasIndex(x => x.CategoryId);
+
+        builder.HasMany(x => x.DishMeals)
+            .WithOne(x => x.Dish)
+            .HasForeignKey(x => x.DishId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();

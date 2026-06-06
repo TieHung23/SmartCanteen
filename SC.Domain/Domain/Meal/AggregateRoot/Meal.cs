@@ -1,6 +1,7 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
-using SC.Domain.Domain.Meal.ValueObject;
+using SC.Domain.Domain.Dish.AggregateRoot;
+using SC.Domain.Domain.Meal.Entity;
 using SC.Domain.SharedKernel.ValueObjects;
 
 // ReSharper disable All
@@ -17,7 +18,8 @@ public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public string Description { get; set; } = string.Empty;
     public Money Price { get; set; } = Money.Create(0);
     public bool IsActive { get; set; } = true;
-    public IList<MealSettings> MealSettingsList { get; set; } = new List<MealSettings>();
+    public ICollection<DishMeal> DishMeals { get; set; } = new List<DishMeal>();
+    public ICollection<MealTemplate> MealTemplates { get; set; } = new List<MealTemplate>();
     public DateTimeOffset AvailableFrom { get; set; }
     public DateTimeOffset AvailableTo { get; set; }
     public DateTimeOffset AvailableForOrder { get; set; }
@@ -55,18 +57,28 @@ public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
-    public void AddMealCategory(MealSettings mealSettings)
+    public void AddDishMeal(DishMeal dishMeal)
     {
-        MealSettingsList.Add(mealSettings);
+        DishMeals.Add(dishMeal);
     }
 
-    public void RemoveMealCategory(MealSettings mealSettings)
+    public void RemoveDishMeal(DishMeal dishMeal)
     {
-        MealSettingsList.Remove(mealSettings);
+        DishMeals.Remove(dishMeal);
     }
 
-    public void ClearMealCategories()
+    public void AddMealTemplate(MealTemplate mealTemplate)
     {
-        MealSettingsList.Clear();
+        MealTemplates.Add(mealTemplate);
+    }
+
+    public void RemoveMealTemplate(MealTemplate mealTemplate)
+    {
+        MealTemplates.Remove(mealTemplate);
+    }
+
+    public void ClearMealTemplates()
+    {
+        MealTemplates.Clear();
     }
 }
