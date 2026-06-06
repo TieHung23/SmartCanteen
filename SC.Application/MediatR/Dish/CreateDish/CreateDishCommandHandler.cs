@@ -3,17 +3,16 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.SharedKernel.ValueObjects;
 using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
-using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 
 namespace SC.Application.MediatR.Dish.CreateDish;
 
 internal class CreateDishCommandHandler(
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
-    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<CreateDishCommandHandler> logger
@@ -31,18 +30,10 @@ internal class CreateDishCommandHandler(
                 return Result.Failure<CreateDishResponse>(Error.NullValue, "Category not found.");
             }
 
-            var meal = await mealRepository.GetByIdAsync(request.MealId, cancellationToken);
-            if (meal is null || meal.IsDeleted || !meal.IsActive)
-            {
-                return Result.Failure<CreateDishResponse>(Error.NullValue, "Meal not found.");
-            }
-
             var dish = DishAggregateRoot.Create(
                 request.Name.Trim(),
                 request.Description.Trim(),
-                Money.Create(request.Price, request.Currency),
-                request.StockQuantity,
-                request.MealId,
+                Money.Create(request.Price),
                 request.CategoryId,
                 currentUserService.UserId);
 
@@ -57,10 +48,7 @@ internal class CreateDishCommandHandler(
                 Name = dish.Name,
                 Description = dish.Description,
                 Price = dish.Price.Amount,
-                Currency = dish.Price.Currency,
-                StockQuantity = dish.StockQuantity,
                 IsActive = dish.IsActive,
-                MealId = dish.MealId,
                 CategoryId = dish.CategoryId
             };
 

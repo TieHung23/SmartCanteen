@@ -3,14 +3,16 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
-using SC.Domain.Domain.Meal.ValueObject;
-using SC.Domain.SharedKernel.ValueObjects;
+using SC.Domain.Domain.Dish.AggregateRoot;
+using SC.Domain.Domain.Meal.Entity;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 
 namespace SC.Application.MediatR.Meal.UpdateMeal;
 
 internal class UpdateMealCommandHandler(
     IGenericRepository<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<UpdateMealCommandHandler> logger
@@ -38,39 +40,70 @@ internal class UpdateMealCommandHandler(
                     "Meal name is required.");
             }
 
-            if (request.PriceAmount <= 0)
-            {
-                return Result.Failure<UpdateMealResponse>(
-                    Error.InvalidValue,
-                    "Meal price must be greater than zero.");
-            }
-
             var currentUserId = currentUserService.UserId;
-            var price = Money.Create(request.PriceAmount, request.PriceCurrency);
 
             meal.Update(
                 request.Name,
                 request.Description,
-                price,
                 request.AvailableFrom,
                 request.AvailableTo,
                 request.AvailableForOrder,
                 request.IsActive,
                 currentUserId);
 
-            // Update meal settings
-            meal.ClearMealCategories();
-            foreach (var setting in request.MealSettings)
+            // Update meal templates
+            meal.ClearMealTemplates();
+            foreach (var templateInput in request.MealTemplates)
             {
-                if (setting.Quantity <= 0)
+                if (string.IsNullOrWhiteSpace(templateInput.Name))
                 {
                     return Result.Failure<UpdateMealResponse>(
                         Error.InvalidValue,
-                        $"Quantity for category {setting.CategoryId} must be greater than zero.");
+                        "Template name is required.");
                 }
 
-                var mealSetting = MealSettings.Create(setting.CategoryId, setting.Quantity, meal.Id);
-                meal.AddMealCategory(mealSetting);
+                var template = MealTemplate.Create(meal.Id, templateInput.Name);
+
+                foreach (var setting in templateInput.Settings)
+                {
+                    if (setting.MinQuantity < 0)
+                    {
+                        return Result.Failure<UpdateMealResponse>(
+                            Error.InvalidValue,
+                            $"MinQuantity for category {setting.CategoryId} cannot be negative.");
+                    }
+
+                    if (setting.MaxQuantity < setting.MinQuantity)
+                    {
+                        return Result.Failure<UpdateMealResponse>(
+                            Error.InvalidValue,
+                            $"MaxQuantity for category {setting.CategoryId} must be >= MinQuantity.");
+                    }
+
+                    template.AddSetting(setting.CategoryId, setting.MinQuantity, setting.MaxQuantity, setting.IsRequired);
+                }
+
+                meal.AddMealTemplate(template);
+            }
+
+            // Update dish meals
+            meal.DishMeals.Clear();
+            foreach (var dishInput in request.Dishes)
+            {
+                var dish = await dishRepository.GetByIdAsync(dishInput.DishId, cancellationToken);
+                if (dish is null || dish.IsDeleted || !dish.IsActive)
+                {
+                    return Result.Failure<UpdateMealResponse>(
+                        Error.NullValue,
+                        $"Dish with id {dishInput.DishId} not found or inactive.");
+                }
+
+                meal.AddDishMeal(new DishMeal
+                {
+                    DishId = dishInput.DishId,
+                    MealId = meal.Id,
+                    Quantity = dishInput.Quantity > 0 ? dishInput.Quantity : 1
+                });
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);

@@ -29,7 +29,8 @@ internal class UpdateCategoryCommandHandler(
             category.Update(
                 request.Name.Trim(),
                 request.Description.Trim(),
-                currentUserService.UserId);
+                currentUserService.UserId,
+                request.ImgUrl);
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             categoryRepository.Update(category);
@@ -40,7 +41,8 @@ internal class UpdateCategoryCommandHandler(
             {
                 Id = category.Id,
                 Name = category.Name,
-                Description = category.Description
+                Description = category.Description,
+                ImgUrl = category.ImgUrl
             };
 
             return Result.Success(response, "Category updated successfully.");

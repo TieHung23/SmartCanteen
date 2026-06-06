@@ -35,6 +35,7 @@ internal class GetAllMealsQueryHandler(
 
             var skipCount = request.GetSkipCount();
             var paginatedMeals = await query
+                .Include(x => x.DishMeals)
                 .OrderBy(x => x.Name)
                 .Skip(skipCount)
                 .Take(request.PageSize)
@@ -45,12 +46,17 @@ internal class GetAllMealsQueryHandler(
                 Id = m.Id,
                 Name = m.Name,
                 Description = m.Description,
-                PriceAmount = m.Price.Amount,
-                PriceCurrency = m.Price.Currency,
                 IsActive = m.IsActive,
                 AvailableFrom = m.AvailableFrom,
                 AvailableTo = m.AvailableTo,
-                AvailableForOrder = m.AvailableForOrder
+                AvailableForOrder = m.AvailableForOrder,
+                Dishes = m.DishMeals
+                    .Select(dm => new DishMealDto
+                    {
+                        DishId = dm.DishId,
+                        Quantity = dm.Quantity
+                    })
+                    .ToList()
             }).ToList();
 
             var paginatedResult = new PaginatedList<GetAllMealsResponse>(

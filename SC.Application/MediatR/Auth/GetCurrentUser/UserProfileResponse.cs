@@ -18,5 +18,4 @@ public record UserProfileResponse(
     string? Address,
     Gender? Gender,
     decimal BalanceAmount,
-    string BalanceCurrency,
     DateTimeOffset? LastLoginAt);

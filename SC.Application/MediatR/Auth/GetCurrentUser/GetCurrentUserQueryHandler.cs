@@ -44,7 +44,6 @@ internal class GetCurrentUserQueryHandler(
                 user.Address,
                 user.Gender,
                 user.Balance.Amount,
-                user.Balance.Currency,
                 user.LastLoginAt);
 
             return Result.Success(response, "Profile retrieved.");
