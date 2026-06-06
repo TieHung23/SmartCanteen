@@ -7,6 +7,5 @@ public class CreateDishResponse
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public bool IsActive { get; set; }
-    public Guid MealId { get; set; }
     public Guid CategoryId { get; set; }
 }

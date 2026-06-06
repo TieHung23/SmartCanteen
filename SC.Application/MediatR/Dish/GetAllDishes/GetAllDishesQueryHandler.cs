@@ -31,11 +31,6 @@ internal class GetAllDishesQueryHandler(
                 query = query.Where(x => x.CategoryId == request.CategoryId.Value);
             }
 
-            if (request.MealId.HasValue)
-            {
-                query = query.Where(x => x.DishMeals.Any(dm => dm.MealId == request.MealId.Value));
-            }
-
             if (request.IsActive.HasValue)
             {
                 query = query.Where(x => x.IsActive == request.IsActive.Value);
@@ -45,7 +40,6 @@ internal class GetAllDishesQueryHandler(
 
             var skipCount = request.GetSkipCount();
             var paginatedDishes = await query
-                .Include(x => x.DishMeals)
                 .OrderBy(x => x.Name)
                 .Skip(skipCount)
                 .Take(request.PageSize)
@@ -58,7 +52,6 @@ internal class GetAllDishesQueryHandler(
                 Description = d.Description,
                 Price = d.Price.Amount,
                 IsActive = d.IsActive,
-                MealIds = d.DishMeals.Select(dm => dm.MealId).ToList(),
                 CategoryId = d.CategoryId
             }).ToList();
 

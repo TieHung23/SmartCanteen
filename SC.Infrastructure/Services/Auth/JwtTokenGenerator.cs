@@ -32,7 +32,7 @@ public sealed class JwtTokenGenerator : IJwtTokenGenerator
         bool isVerified)
     {
         var now = DateTimeOffset.UtcNow;
-        var expiresAt = now.AddMinutes(_options.AccessTokenMinutes);
+        var expiresAt = now.AddYears(_options.AccessTokenMinutes);
 
         var claims = new List<Claim>
         {

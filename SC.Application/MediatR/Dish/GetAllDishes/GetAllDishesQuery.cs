@@ -7,7 +7,6 @@ public class GetAllDishesQuery : PaginationParams, IQuery<PaginatedList<GetAllDi
 {
     public string? Name { get; set; }
     public Guid? CategoryId { get; set; }
-    public Guid? MealId { get; set; }
     public bool? IsActive { get; set; }
 
     public GetAllDishesQuery()
@@ -19,13 +18,11 @@ public class GetAllDishesQuery : PaginationParams, IQuery<PaginatedList<GetAllDi
         int pageSize = 10,
         string? name = null,
         Guid? categoryId = null,
-        Guid? mealId = null,
         bool? isActive = null)
         : base(pageNumber, pageSize)
     {
         Name = name;
         CategoryId = categoryId;
-        MealId = mealId;
         IsActive = isActive;
     }
 }

@@ -9,6 +9,5 @@ public class UpdateDishCommand : ICommand<UpdateDishResponse>
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public bool IsActive { get; set; } = true;
-    public Guid MealId { get; set; }
     public Guid CategoryId { get; set; }
 }

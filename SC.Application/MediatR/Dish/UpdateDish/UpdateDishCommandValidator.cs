@@ -20,9 +20,6 @@ public class UpdateDishCommandValidator : AbstractValidator<UpdateDishCommand>
         RuleFor(x => x.Price)
             .GreaterThanOrEqualTo(0);
 
-        RuleFor(x => x.MealId)
-            .NotEmpty();
-
         RuleFor(x => x.CategoryId)
             .NotEmpty();
     }

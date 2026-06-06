@@ -11,6 +11,10 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
 
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(x => x.Name)
             .IsRequired()
             .HasMaxLength(200);
@@ -20,15 +24,6 @@ public class MealConfiguration : IEntityTypeConfiguration<Meal>
             .HasMaxLength(500);
 
         builder.Property(x => x.IsActive).IsRequired();
-
-        builder.OwnsOne(x => x.Price, price =>
-        {
-            price.Property(x => x.Amount)
-                .HasPrecision(18, 2);
-
-            price.Property(x => x.Currency)
-                .HasMaxLength(10);
-        });
 
         builder.HasMany(x => x.DishMeals)
             .WithOne(x => x.Meal)

@@ -7,6 +7,5 @@ public class CreateDishCommand : ICommand<CreateDishResponse>
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
-    public Guid MealId { get; set; }
     public Guid CategoryId { get; set; }
 }

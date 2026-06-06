@@ -19,7 +19,6 @@ internal class GetDishByIdQueryHandler(
         try
         {
             var dish = await dishRepository.GetQueryable(x => x.Id == request.Id && !x.IsDeleted)
-                .Include(x => x.DishMeals)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (dish is null)
@@ -36,7 +35,6 @@ internal class GetDishByIdQueryHandler(
                 Description = dish.Description,
                 Price = dish.Price.Amount,
                 IsActive = dish.IsActive,
-                MealIds = dish.DishMeals.Select(dm => dm.MealId).ToList(),
                 CategoryId = dish.CategoryId
             };
 

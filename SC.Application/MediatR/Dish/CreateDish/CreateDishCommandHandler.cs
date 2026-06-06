@@ -7,14 +7,12 @@ using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.SharedKernel.ValueObjects;
 using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
-using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 
 namespace SC.Application.MediatR.Dish.CreateDish;
 
 internal class CreateDishCommandHandler(
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
-    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<CreateDishCommandHandler> logger
@@ -32,20 +30,12 @@ internal class CreateDishCommandHandler(
                 return Result.Failure<CreateDishResponse>(Error.NullValue, "Category not found.");
             }
 
-            var meal = await mealRepository.GetByIdAsync(request.MealId, cancellationToken);
-            if (meal is null || meal.IsDeleted || !meal.IsActive)
-            {
-                return Result.Failure<CreateDishResponse>(Error.NullValue, "Meal not found.");
-            }
-
             var dish = DishAggregateRoot.Create(
                 request.Name.Trim(),
                 request.Description.Trim(),
                 Money.Create(request.Price),
                 request.CategoryId,
                 currentUserService.UserId);
-
-            dish.DishMeals.Add(new DishMeal { DishId = dish.Id, MealId = meal.Id, Quantity = 1 });
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await dishRepository.AddAsync(dish, cancellationToken);
@@ -59,7 +49,6 @@ internal class CreateDishCommandHandler(
                 Description = dish.Description,
                 Price = dish.Price.Amount,
                 IsActive = dish.IsActive,
-                MealId = meal.Id,
                 CategoryId = dish.CategoryId
             };
 
