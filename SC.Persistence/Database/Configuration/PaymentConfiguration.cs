@@ -11,9 +11,20 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.GatewayTransactionId)
+        builder.Property(x => x.GatewayOrderId)
             .IsRequired()
+            .HasMaxLength(100);
+
+        builder.Property(x => x.GatewayTransactionId)
             .HasMaxLength(200);
+
+        builder.Property(x => x.AmountVnd)
+            .IsRequired()
+            .HasPrecision(18, 2);
+
+        builder.Property(x => x.ConvertedPoints)
+            .IsRequired()
+            .HasPrecision(18, 2);
 
         builder.Property(x => x.Status)
             .IsRequired()
@@ -27,8 +38,12 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .IsRequired()
             .HasConversion<int>();
 
+        builder.Property(x => x.FailureReason)
+            .HasMaxLength(500);
+
         builder.Property(x => x.UserId).IsRequired();
         builder.HasIndex(x => x.UserId);
+        builder.HasIndex(x => x.GatewayOrderId).IsUnique();
 
         builder.OwnsOne(x => x.BalanceSnapshot, snapshot =>
         {
@@ -43,6 +58,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         });
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
+        builder.Property(x => x.CompletedAtUtc);
         builder.Property(x => x.CreatedBy).IsRequired();
 
         builder.Ignore(x => x.DomainEvents);

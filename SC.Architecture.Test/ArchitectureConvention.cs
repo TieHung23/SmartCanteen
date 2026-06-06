@@ -14,11 +14,11 @@ public class ArchitectureConvention
 {
     // ── Assemblies ────────────────────────────────────────────────────────────
     private static readonly Assembly _applicationAssembly = SC.Application.Assembly.Get;
-    private static readonly Assembly _domainAssembly      = SC.Domain.Assembly.Get;
-    private static readonly Assembly _contractAssembly    = SC.Contract.Assembly.Get;
+    private static readonly Assembly _domainAssembly = SC.Domain.Assembly.Get;
+    private static readonly Assembly _contractAssembly = SC.Contract.Assembly.Get;
     private static readonly Assembly _infrastructureAssembly = SC.Infrastructure.Assembly.Get;
     private static readonly Assembly _persistenceAssembly = SC.Persistence.Assembly.Get;
-    private static readonly Assembly _apiAssembly         = SC.Api.Assembly.Get;
+    private static readonly Assembly _apiAssembly = SC.Api.Assembly.Get;
 
     // =========================================================================
     //  MediatR – Query conventions
@@ -95,6 +95,21 @@ public class ArchitectureConvention
 
         Assert.True(result.IsSuccessful,
             "All IQueryHandler implementations must be named with a 'QueryHandler' suffix.\n" +
+            FormatFailures(result));
+    }
+
+    [Fact]
+    public void QueryHandlers_Should_Use_Generic_Result_Response()
+    {
+        var result = Types.InAssembly(_applicationAssembly)
+            .That()
+            .HaveNameEndingWith("QueryHandler")
+            .Should()
+            .ImplementInterface(typeof(IQueryHandler<,>))
+            .GetResult();
+
+        Assert.True(result.IsSuccessful,
+            "All QueryHandlers must implement IQueryHandler<TQuery,TResponse> to enforce Result<T> responses.\n" +
             FormatFailures(result));
     }
 
@@ -185,6 +200,21 @@ public class ArchitectureConvention
 
         Assert.True(result.IsSuccessful,
             "All ICommandHandler implementations must be named with a 'CommandHandler' suffix.\n" +
+            FormatFailures(result));
+    }
+
+    [Fact]
+    public void CommandHandlers_Should_Use_Generic_Result_Response()
+    {
+        var result = Types.InAssembly(_applicationAssembly)
+            .That()
+            .HaveNameEndingWith("CommandHandler")
+            .Should()
+            .ImplementInterface(typeof(ICommandHandler<,>))
+            .GetResult();
+
+        Assert.True(result.IsSuccessful,
+            "All CommandHandlers must implement ICommandHandler<TCommand,TResponse> to enforce Result<T> responses.\n" +
             FormatFailures(result));
     }
 

@@ -11,10 +11,11 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Dish.CreateDish;
 
 internal class CreateDishCommandHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<CreateDishCommandHandler> logger
 ) : ICommandHandler<CreateDishCommand, CreateDishResponse>
 {
@@ -24,13 +25,13 @@ internal class CreateDishCommandHandler(
     {
         try
         {
-            var category = await categoryRepository.FindByIdAsync(request.CategoryId, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.CategoryId, cancellationToken);
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<CreateDishResponse>(Error.NullValue, "Category not found.");
             }
 
-            var meal = await mealRepository.FindByIdAsync(request.MealId, cancellationToken);
+            var meal = await mealRepository.GetByIdAsync(request.MealId, cancellationToken);
             if (meal is null || meal.IsDeleted || !meal.IsActive)
             {
                 return Result.Failure<CreateDishResponse>(Error.NullValue, "Meal not found.");
@@ -45,13 +46,10 @@ internal class CreateDishCommandHandler(
                 request.CategoryId,
                 currentUserService.UserId);
 
-            var createResult = await dishRepository.AddAsync(dish);
-            if (createResult.IsFailure)
-            {
-                return Result.Failure<CreateDishResponse>(
-                    createResult.Error ?? Error.ServerError,
-                    createResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await dishRepository.AddAsync(dish, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new CreateDishResponse
             {
@@ -70,6 +68,7 @@ internal class CreateDishCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error creating dish");
             return Result.Failure<CreateDishResponse>(
                 Error.ServerError,

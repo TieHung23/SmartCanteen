@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Verification.GetMyStatus;
 using SC.Application.MediatR.Verification.SubmitVerification;
-using SC.Contract.Shared;
 using SC.Domain.Domain.Verification.Enum;
 
 namespace SC.Api.Controllers;
@@ -46,31 +45,23 @@ public class VerificationController(IMediator mediator) : ControllerBase
         }
 
         var result = await mediator.Send(new SubmitVerificationCommand(inputs), cancellationToken);
-        return Map(result, StatusCodes.Status201Created);
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpGet("me")]
     public async Task<IActionResult> GetMyStatus(CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetMyVerificationStatusQuery(), cancellationToken);
-        return Map(result);
-    }
-
-    private IActionResult Map<T>(Result<T> result, int successStatusCode = StatusCodes.Status200OK)
-    {
-        if (result.IsSuccess)
-            return StatusCode(successStatusCode, result);
-
-        return result.Error?.ToString() switch
+        if (result.IsFailure)
         {
-            "Forbidden" => Forbid(),
-            "AccountNotActive" => StatusCode(StatusCodes.Status403Forbidden, new { error = "AccountNotActive" }),
-            "VerificationAlreadyPending" => Conflict(new { error = "VerificationAlreadyPending" }),
-            "FileTooLarge" => StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "FileTooLarge" }),
-            "UnsupportedFileFormat" => BadRequest(new { error = "UnsupportedFileFormat" }),
-            "EmptyValue" => BadRequest(new { error = "EmptyValue" }),
-            "ServerError" => StatusCode(StatusCodes.Status500InternalServerError, new { error = "ServerError" }),
-            _ => BadRequest(new { error = result.Error?.ToString() ?? "UnknownError" })
-        };
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 }

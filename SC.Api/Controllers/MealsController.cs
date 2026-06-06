@@ -14,6 +14,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
+[Authorize]
 public class MealsController(IMediator mediator) : ControllerBase
 {
     /// <summary>

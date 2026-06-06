@@ -14,8 +14,10 @@
         <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
         <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" />
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\SC.Contract\SC.Contract.csproj" />
         <ProjectReference Include="..\SC.Domain\SC.Domain.csproj" />
     </ItemGroup>
 

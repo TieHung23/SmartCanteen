@@ -3,16 +3,23 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Payment.Enum;
+using SC.Domain.Domain.Payment.ValueObject;
 using SC.Domain.SharedKernel.ValueObjects;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
+using PaymentAggregateRoot = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 using UserAggregateRoot = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Order.CreateOrder;
 
 internal class CreateOrderCommandHandler(
-    IRepositoryBase<OrderAggregateRoot, Guid> orderRepository,
-    IRepositoryBase<UserAggregateRoot, Guid> userRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<UserAggregateRoot, Guid> userRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<PaymentAggregateRoot, Guid> paymentRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
 {
@@ -36,15 +43,8 @@ internal class CreateOrderCommandHandler(
                     "Item quantity must be greater than zero.");
             }
 
-            if (request.Items.Any(item => item.UnitPrice <= 0))
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    Error.InvalidValue,
-                    "Item price must be greater than zero.");
-            }
-
             var currentUserId = currentUserService.UserId;
-            var user = await userRepository.FindByIdAsync(currentUserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(currentUserId, cancellationToken);
 
             if (user is null)
             {
@@ -53,11 +53,51 @@ internal class CreateOrderCommandHandler(
                     "User not found.");
             }
 
-            // Calculate total order price
-            var totalPrice = request.Items.Sum(item => item.UnitPrice * item.Quantity);
-            var currency = "VND";
+            var dishIds = request.Items.Select(item => item.DishId).Distinct().ToList();
+            var dishes = dishRepository.GetQueryable(dish => dishIds.Contains(dish.Id))
+                .ToList()
+                .Where(dish => dish is not null)
+                .ToDictionary(dish => dish!.Id, dish => dish!);
 
-            // Check if user has sufficient balance
+            if (dishes.Count != dishIds.Count)
+            {
+                return Result.Failure<CreateOrderResponse>(
+                    Error.NullValue,
+                    "One or more dishes were not found.");
+            }
+
+            if (dishes.Values.Any(dish => dish.IsDeleted || !dish.IsActive))
+            {
+                return Result.Failure<CreateOrderResponse>(
+                    Error.InvalidValue,
+                    "One or more dishes are not available.");
+            }
+
+            foreach (var item in request.Items)
+            {
+                var dish = dishes[item.DishId];
+                if (dish.StockQuantity < item.Quantity)
+                {
+                    return Result.Failure<CreateOrderResponse>(
+                        Error.InvalidValue,
+                        $"Dish {dish.Name} does not have enough stock.");
+                }
+            }
+
+            var currency = dishes.Values.First().Price.Currency;
+            if (dishes.Values.Any(dish => dish.Price.Currency != currency))
+            {
+                return Result.Failure<CreateOrderResponse>(
+                    Error.InvalidValue,
+                    "Order items must use the same currency.");
+            }
+
+            var totalPrice = request.Items.Sum(item =>
+            {
+                var dish = dishes[item.DishId];
+                return dish.Price.Amount * item.Quantity;
+            });
+
             if (user.Balance.Amount < totalPrice)
             {
                 return Result.Failure<CreateOrderResponse>(
@@ -65,39 +105,44 @@ internal class CreateOrderCommandHandler(
                     $"Insufficient balance. Required: {totalPrice}, Available: {user.Balance.Amount}");
             }
 
-            // Create the order
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
             var order = OrderAggregateRoot.Create(request.MealId, currentUserId);
 
-            // Add items to order
             foreach (var item in request.Items)
             {
-                order.AddDish(item.DishId, item.Quantity, item.UnitPrice, currency);
+                var dish = dishes[item.DishId];
+                order.AddDish(item.DishId, item.Quantity, dish.Price.Amount, dish.Price.Currency);
             }
 
-            // Deduct from user wallet
-            var newBalance = Money.Create(user.Balance.Amount - totalPrice, currency);
+            var balanceBefore = user.Balance.Amount;
+            var balanceAfter = balanceBefore - totalPrice;
+            var newBalance = Money.Create(balanceAfter, user.Balance.Currency);
             user.Balance = newBalance;
 
-            // Save changes
-            var userUpdateResult = await userRepository.UpdateAsync(user);
-            if (userUpdateResult.IsFailure)
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    userUpdateResult.Error ?? Error.ServerError,
-                    userUpdateResult.Message);
-            }
+            var payment = PaymentAggregateRoot.Create(
+                BalanceSnapshot.Create(-totalPrice, balanceBefore, balanceAfter),
+                $"ORDER-{order.Id:N}",
+                totalPrice,
+                totalPrice,
+                PaymentMethod.Wallet,
+                currentUserId,
+                currentUserId,
+                PaymentType.OrderPayment);
+            payment.MarkAsCompleted($"WALLET-{order.Id:N}", currentUserId);
 
-            var orderAddResult = await orderRepository.AddAsync(order);
-            if (orderAddResult.IsFailure)
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    orderAddResult.Error ?? Error.ServerError,
-                    orderAddResult.Message);
-            }
+            await paymentRepository.AddAsync(payment, cancellationToken);
+            order.AttachPayment(payment.Id, currentUserId);
+            userRepository.Update(user);
+            await orderRepository.AddAsync(order, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new CreateOrderResponse
             {
                 Id = order.Id,
+                PaymentId = payment.Id,
                 TotalPrice = totalPrice,
                 Currency = currency,
                 Message = "Order created successfully and wallet debited.",
@@ -108,6 +153,7 @@ internal class CreateOrderCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error creating order for user {UserId}", currentUserService.UserId);
             return Result.Failure<CreateOrderResponse>(
                 Error.ServerError,

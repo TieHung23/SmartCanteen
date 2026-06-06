@@ -8,40 +8,46 @@ using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 namespace SC.Application.MediatR.Setting.DeleteSetting;
 
 internal class DeleteSettingCommandHandler(
-    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    IGenericRepository<SettingAggregateRoot, Guid> settingRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteSettingCommandHandler> logger
-) : ICommandHandler<DeleteSettingCommand>
+) : ICommandHandler<DeleteSettingCommand, DeleteSettingResponse>
 {
-    public async Task<Result> Handle(
+    public async Task<Result<DeleteSettingResponse>> Handle(
         DeleteSettingCommand request,
         CancellationToken cancellationToken)
     {
         try
         {
-            var setting = await settingRepository.FindByIdAsync(request.Id, cancellationToken);
+            var setting = await settingRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (setting is null || setting.IsDeleted)
             {
-                return Result.Failure(Error.NullValue, "Setting not found.");
+                return Result.Failure<DeleteSettingResponse>(
+                    Error.NullValue,
+                    "Setting not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             setting.SoftDelete(currentUserService.UserId);
+            settingRepository.Update(setting);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
-            var deleteResult = await settingRepository.UpdateAsync(setting);
-            if (deleteResult.IsFailure)
+            var response = new DeleteSettingResponse
             {
-                return Result.Failure(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
+                Id = request.Id,
+                Message = "Setting deleted successfully."
+            };
 
-            return Result.Success("Setting deleted successfully.");
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting setting {SettingId}", request.Id);
-            return Result.Failure(
+            return Result.Failure<DeleteSettingResponse>(
                 Error.ServerError,
                 "An error occurred while deleting setting.");
         }

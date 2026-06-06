@@ -12,12 +12,12 @@ namespace SC.Infrastructure.Services.Email;
 /// </summary>
 public sealed class LoggingEmailSender : IEmailSender
 {
-    private readonly JwtOptions _jwtOptions;
+    private readonly FrontendOptions _frontendOptions;
     private readonly ILogger<LoggingEmailSender> _logger;
 
-    public LoggingEmailSender(IOptions<JwtOptions> jwtOptions, ILogger<LoggingEmailSender> logger)
+    public LoggingEmailSender(IOptions<FrontendOptions> frontendOptions, ILogger<LoggingEmailSender> logger)
     {
-        _jwtOptions = jwtOptions.Value;
+        _frontendOptions = frontendOptions.Value;
         _logger = logger;
     }
 
@@ -26,7 +26,11 @@ public sealed class LoggingEmailSender : IEmailSender
         string rawToken,
         CancellationToken cancellationToken = default)
     {
-        var link = $"{_jwtOptions.BaseUrl.TrimEnd('/')}/api/auth/verify-email?token={Uri.EscapeDataString(rawToken)}";
+        var baseUrl = _frontendOptions.BaseUrl.TrimEnd('/');
+        var path = _frontendOptions.VerifyEmailPath.StartsWith('/')
+            ? _frontendOptions.VerifyEmailPath
+            : "/" + _frontendOptions.VerifyEmailPath;
+        var link = $"{baseUrl}{path}?token={Uri.EscapeDataString(rawToken)}";
         _logger.LogWarning(
             "[Dev] No email provider configured. Verification link for {Email}: {Link}",
             toEmail,

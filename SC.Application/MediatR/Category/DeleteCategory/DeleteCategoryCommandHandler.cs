@@ -8,39 +8,45 @@ using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 namespace SC.Application.MediatR.Category.DeleteCategory;
 
 internal class DeleteCategoryCommandHandler(
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteCategoryCommandHandler> logger
-) : ICommandHandler<DeleteCategoryCommand>
+) : ICommandHandler<DeleteCategoryCommand, DeleteCategoryResponse>
 {
-    public async Task<Result> Handle(
+    public async Task<Result<DeleteCategoryResponse>> Handle(
         DeleteCategoryCommand request,
         CancellationToken cancellationToken)
     {
         try
         {
-            var category = await categoryRepository.FindByIdAsync(request.Id, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
             if (category is null || category.IsDeleted)
             {
-                return Result.Failure(Error.NullValue, "Category not found.");
+                return Result.Failure<DeleteCategoryResponse>(
+                    Error.NullValue,
+                    "Category not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             category.SoftDelete(currentUserService.UserId);
+            categoryRepository.Update(category);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
-            var deleteResult = await categoryRepository.UpdateAsync(category);
-            if (deleteResult.IsFailure)
+            var response = new DeleteCategoryResponse
             {
-                return Result.Failure(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
+                Id = request.Id,
+                Message = "Category deleted successfully."
+            };
 
-            return Result.Success("Category deleted successfully.");
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting category {CategoryId}", request.Id);
-            return Result.Failure(
+            return Result.Failure<DeleteCategoryResponse>(
                 Error.ServerError,
                 "An error occurred while deleting the category.");
         }

@@ -11,6 +11,8 @@ public static class Configurations
     public static void AddPersistenceConfigurations(this IServiceCollection services)
     {
         services.AddScoped(typeof(IRepositoryBase<,>), RepositoryType);
+        services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IApiLogRepository, ApiLogRepository>();
     }
 }

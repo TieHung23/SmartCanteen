@@ -8,8 +8,9 @@ using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 namespace SC.Application.MediatR.Setting.UpdateSetting;
 
 internal class UpdateSettingCommandHandler(
-    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    IGenericRepository<SettingAggregateRoot, Guid> settingRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateSettingCommandHandler> logger
 ) : ICommandHandler<UpdateSettingCommand, UpdateSettingResponse>
 {
@@ -19,7 +20,7 @@ internal class UpdateSettingCommandHandler(
     {
         try
         {
-            var setting = await settingRepository.FindByIdAsync(request.Id, cancellationToken);
+            var setting = await settingRepository.GetByIdAsync(request.Id, cancellationToken);
             if (setting is null || setting.IsDeleted)
             {
                 return Result.Failure<UpdateSettingResponse>(Error.NullValue, "Setting not found.");
@@ -33,13 +34,10 @@ internal class UpdateSettingCommandHandler(
                 request.Type.Trim(),
                 currentUserService.UserId);
 
-            var updateResult = await settingRepository.UpdateAsync(setting);
-            if (updateResult.IsFailure)
-            {
-                return Result.Failure<UpdateSettingResponse>(
-                    updateResult.Error ?? Error.ServerError,
-                    updateResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            settingRepository.Update(setting);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new UpdateSettingResponse
             {
@@ -56,6 +54,7 @@ internal class UpdateSettingCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error updating setting {SettingId}", request.Id);
             return Result.Failure<UpdateSettingResponse>(
                 Error.ServerError,

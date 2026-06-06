@@ -9,35 +9,51 @@ using RefreshTokenAggregate = SC.Domain.Domain.User.RefreshToken;
 namespace SC.Application.MediatR.Auth.Logout;
 
 internal class LogoutCommandHandler(
-    IRepositoryBase<RefreshTokenAggregate, Guid> refreshTokenRepository,
+    IGenericRepository<RefreshTokenAggregate, Guid> refreshTokenRepository,
     IJwtTokenGenerator tokenGenerator,
-    ILogger<LogoutCommandHandler> logger) : ICommandHandler<LogoutCommand>
+    IUnitOfWork unitOfWork,
+    ILogger<LogoutCommandHandler> logger) : ICommandHandler<LogoutCommand, LogoutResponse>
 {
-    public async Task<Result> Handle(LogoutCommand request, CancellationToken cancellationToken)
+    public async Task<Result<LogoutResponse>> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         try
         {
             var hash = tokenGenerator.HashOpaqueToken(request.RefreshToken);
 
             var token = await refreshTokenRepository
-                .FindAll(t => t!.TokenHash == hash, cancellationToken)
+                .GetQueryable(t => t.TokenHash == hash)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (token is null)
             {
-                // Silently succeed — logging out an unknown token still leaves the
-                // user logged out from their perspective.
-                return Result.Success("Logged out.");
+                var response = new LogoutResponse
+                {
+                    Message = "Logged out."
+                };
+
+                return Result.Success(response, response.Message);
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             token.Revoke();
-            await refreshTokenRepository.UpdateAsync(token);
-            return Result.Success("Logged out.");
+            refreshTokenRepository.Update(token);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
+
+            var revokedResponse = new LogoutResponse
+            {
+                Message = "Logged out."
+            };
+
+            return Result.Success(revokedResponse, revokedResponse.Message);
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error during logout");
-            return Result.Failure(Error.ServerError, "An error occurred while logging out.");
+            return Result.Failure<LogoutResponse>(
+                Error.ServerError,
+                "An error occurred while logging out.");
         }
     }
 }

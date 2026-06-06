@@ -9,7 +9,7 @@ using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 namespace SC.Application.MediatR.Order.GetAllOrders;
 
 internal class GetAllOrdersQueryHandler(
-    IRepositoryBase<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     ICurrentUserService currentUserService,
     ILogger<GetAllOrdersQueryHandler> logger
 ) : IQueryHandler<GetAllOrdersQuery, PaginatedList<GetAllOrdersResponse>>
@@ -20,7 +20,7 @@ internal class GetAllOrdersQueryHandler(
     {
         try
         {
-            IQueryable<OrderAggregateRoot> query = orderRepository.FindAll(cancellationToken: cancellationToken)!;
+            IQueryable<OrderAggregateRoot> query = orderRepository.GetQueryable();
 
             // If no specific user is requested, filter to current user
             Guid filterUserId = request.UserId ?? currentUserService.UserId;
@@ -44,6 +44,7 @@ internal class GetAllOrdersQueryHandler(
             {
                 Id = o.Id,
                 MealId = o.MealId,
+                PaymentId = o.PaymentId,
                 UserId = o.CreatedBy,
                 Status = (int)o.Status,
                 TotalPrice = o.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity),

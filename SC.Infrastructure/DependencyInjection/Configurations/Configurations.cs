@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SC.Contract.Services.Auth;
 using SC.Contract.Services.Email;
+using SC.Contract.Services.Payment;
 using SC.Contract.Services.Storage;
 using SC.Contract.Services.Verification;
 using SC.Infrastructure.BackgroundServices;
@@ -11,6 +12,7 @@ using SC.Infrastructure.Services.Auth;
 using SC.Infrastructure.Services.Cloudinary;
 using SC.Infrastructure.Services.Cache;
 using SC.Infrastructure.Services.Email;
+using SC.Infrastructure.Services.Payment;
 using SC.Infrastructure.Services.Storage;
 using SC.Infrastructure.Services.Verification;
 
@@ -28,10 +30,13 @@ public static class Configurations
         services.Configure<ResendOptions>(configuration.GetSection(ResendOptions.SectionName));
         services.Configure<VerificationOptions>(configuration.GetSection(VerificationOptions.SectionName));
         services.Configure<GoogleOptions>(configuration.GetSection(GoogleOptions.SectionName));
+        services.Configure<FrontendOptions>(configuration.GetSection(FrontendOptions.SectionName));
+        services.Configure<SePayOptions>(configuration.GetSection(SePayOptions.SectionName));
 
         services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+        services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IFileValidator, FileValidator>();
         services.AddScoped<IFileUploader, CloudinaryFileUploaderAdapter>();
 

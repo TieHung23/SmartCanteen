@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -8,8 +9,9 @@ using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 namespace SC.Application.MediatR.Setting.CreateSetting;
 
 internal class CreateSettingCommandHandler(
-    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    IGenericRepository<SettingAggregateRoot, Guid> settingRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<CreateSettingCommandHandler> logger
 ) : ICommandHandler<CreateSettingCommand, CreateSettingResponse>
 {
@@ -20,9 +22,9 @@ internal class CreateSettingCommandHandler(
         try
         {
             var normalizedCode = request.Code.Trim();
-            var existing = await settingRepository.FindSingleAsync(
-                x => !x.IsDeleted && x.Code.ToLower() == normalizedCode.ToLower(),
-                cancellationToken);
+            var existing = await settingRepository.GetQueryable(
+                x => !x.IsDeleted && x.Code.ToLower() == normalizedCode.ToLower())
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (existing is not null)
             {
@@ -40,13 +42,10 @@ internal class CreateSettingCommandHandler(
                 request.Type.Trim(),
                 currentUserService.UserId);
 
-            var createResult = await settingRepository.AddAsync(setting);
-            if (createResult.IsFailure)
-            {
-                return Result.Failure<CreateSettingResponse>(
-                    createResult.Error ?? Error.ServerError,
-                    createResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await settingRepository.AddAsync(setting, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new CreateSettingResponse
             {
@@ -63,6 +62,7 @@ internal class CreateSettingCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error creating setting");
             return Result.Failure<CreateSettingResponse>(
                 Error.ServerError,

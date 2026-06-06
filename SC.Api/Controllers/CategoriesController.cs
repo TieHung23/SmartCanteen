@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Category.CreateCategory;
 using SC.Application.MediatR.Category.DeleteCategory;
@@ -12,6 +13,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
+[Authorize]
 public class CategoriesController(IMediator mediator) : ControllerBase
 {
     /// <summary>

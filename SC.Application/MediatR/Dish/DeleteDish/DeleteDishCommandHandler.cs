@@ -8,40 +8,46 @@ using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 namespace SC.Application.MediatR.Dish.DeleteDish;
 
 internal class DeleteDishCommandHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteDishCommandHandler> logger
-) : ICommandHandler<DeleteDishCommand>
+) : ICommandHandler<DeleteDishCommand, DeleteDishResponse>
 {
-    public async Task<Result> Handle(
+    public async Task<Result<DeleteDishResponse>> Handle(
         DeleteDishCommand request,
         CancellationToken cancellationToken)
     {
         try
         {
-            var dish = await dishRepository.FindByIdAsync(request.Id, cancellationToken);
+            var dish = await dishRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (dish is null || dish.IsDeleted)
             {
-                return Result.Failure(Error.NullValue, "Dish not found.");
+                return Result.Failure<DeleteDishResponse>(
+                    Error.NullValue,
+                    "Dish not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             dish.SoftDelete(currentUserService.UserId);
+            dishRepository.Update(dish);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
-            var deleteResult = await dishRepository.UpdateAsync(dish);
-            if (deleteResult.IsFailure)
+            var response = new DeleteDishResponse
             {
-                return Result.Failure(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
+                Id = request.Id,
+                Message = "Dish deleted successfully."
+            };
 
-            return Result.Success("Dish deleted successfully.");
+            return Result.Success(response, response.Message);
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting dish {DishId}", request.Id);
-            return Result.Failure(
+            return Result.Failure<DeleteDishResponse>(
                 Error.ServerError,
                 "An error occurred while deleting dish.");
         }

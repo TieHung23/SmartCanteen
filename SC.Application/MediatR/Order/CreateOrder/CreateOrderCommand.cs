@@ -12,5 +12,4 @@ public class OrderItemInput
 {
     public Guid DishId { get; set; }
     public int Quantity { get; set; }
-    public decimal UnitPrice { get; set; }
 }

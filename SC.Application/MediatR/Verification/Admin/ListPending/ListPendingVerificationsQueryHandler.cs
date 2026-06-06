@@ -10,8 +10,8 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Verification.Admin.ListPending;
 
 internal class ListPendingVerificationsQueryHandler(
-    IRepositoryBase<VerificationRequest, Guid> verificationRepository,
-    IRepositoryBase<UserAggregate, Guid> userRepository,
+    IGenericRepository<VerificationRequest, Guid> verificationRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
     ILogger<ListPendingVerificationsQueryHandler> logger)
     : IQueryHandler<ListPendingVerificationsQuery, PaginatedList<PendingVerificationItem>>
 {
@@ -22,7 +22,7 @@ internal class ListPendingVerificationsQueryHandler(
         try
         {
             var query = verificationRepository
-                .FindAll(v => v!.Status == VerificationStatus.Pending, cancellationToken);
+                .GetQueryable(v => v.Status == VerificationStatus.Pending);
 
             var total = await query.CountAsync(cancellationToken);
 
@@ -34,8 +34,8 @@ internal class ListPendingVerificationsQueryHandler(
 
             var userIds = page.Select(v => v!.UserId).Distinct().ToList();
             var users = await userRepository
-                .FindAll(u => userIds.Contains(u!.Id), cancellationToken)
-                .ToDictionaryAsync(u => u!.Id, u => u, cancellationToken);
+                .GetQueryable(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u, cancellationToken);
 
             var items = page.Select(v => new PendingVerificationItem(
                 v!.Id,

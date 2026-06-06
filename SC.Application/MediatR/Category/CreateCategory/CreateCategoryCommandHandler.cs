@@ -8,8 +8,9 @@ using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 namespace SC.Application.MediatR.Category.CreateCategory;
 
 internal class CreateCategoryCommandHandler(
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<CreateCategoryCommandHandler> logger
 ) : ICommandHandler<CreateCategoryCommand, CreateCategoryResponse>
 {
@@ -24,13 +25,10 @@ internal class CreateCategoryCommandHandler(
                 request.Description.Trim(),
                 currentUserService.UserId);
 
-            var createResult = await categoryRepository.AddAsync(category);
-            if (createResult.IsFailure)
-            {
-                return Result.Failure<CreateCategoryResponse>(
-                    createResult.Error ?? Error.ServerError,
-                    createResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await categoryRepository.AddAsync(category, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new CreateCategoryResponse
             {
@@ -43,6 +41,7 @@ internal class CreateCategoryCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error creating category");
             return Result.Failure<CreateCategoryResponse>(
                 Error.ServerError,
