@@ -11,6 +11,10 @@ public class VerificationRequestConfiguration : IEntityTypeConfiguration<Verific
     {
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(x => x.UserId).IsRequired();
         builder.HasIndex(x => x.UserId);
 

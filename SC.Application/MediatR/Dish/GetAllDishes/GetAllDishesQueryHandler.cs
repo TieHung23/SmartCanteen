@@ -31,11 +31,6 @@ internal class GetAllDishesQueryHandler(
                 query = query.Where(x => x.CategoryId == request.CategoryId.Value);
             }
 
-            if (request.MealId.HasValue)
-            {
-                query = query.Where(x => x.MealId == request.MealId.Value);
-            }
-
             if (request.IsActive.HasValue)
             {
                 query = query.Where(x => x.IsActive == request.IsActive.Value);
@@ -56,10 +51,7 @@ internal class GetAllDishesQueryHandler(
                 Name = d.Name,
                 Description = d.Description,
                 Price = d.Price.Amount,
-                Currency = d.Price.Currency,
-                StockQuantity = d.StockQuantity,
                 IsActive = d.IsActive,
-                MealId = d.MealId,
                 CategoryId = d.CategoryId
             }).ToList();
 

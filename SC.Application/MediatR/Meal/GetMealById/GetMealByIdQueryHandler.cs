@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -17,7 +18,11 @@ internal class GetMealByIdQueryHandler(
     {
         try
         {
-            var meal = await mealRepository.GetByIdAsync(request.Id, cancellationToken);
+            var meal = await mealRepository.GetQueryable(x => x.Id == request.Id)
+                .Include(x => x.MealTemplates)
+                    .ThenInclude(x => x.Settings)
+                .Include(x => x.DishMeals)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (meal is null)
             {
@@ -31,18 +36,28 @@ internal class GetMealByIdQueryHandler(
                 Id = meal.Id,
                 Name = meal.Name,
                 Description = meal.Description,
-                PriceAmount = meal.Price.Amount,
-                PriceCurrency = meal.Price.Currency,
                 IsActive = meal.IsActive,
                 AvailableFrom = meal.AvailableFrom,
                 AvailableTo = meal.AvailableTo,
                 AvailableForOrder = meal.AvailableForOrder,
-                MealSettings = meal.MealSettingsList
-                    .Where(m => !m.IsDeleted)
-                    .Select(m => new MealSettingDto
+                MealTemplates = meal.MealTemplates
+                    .Select(t => new MealTemplateDto
                     {
-                        CategoryId = m.CategoryId,
-                        Quantity = m.Quantity
+                        Name = t.Name,
+                        Settings = t.Settings.Select(s => new MealSettingDto
+                        {
+                            CategoryId = s.CategoryId,
+                            MinQuantity = s.MinQuantity,
+                            MaxQuantity = s.MaxQuantity,
+                            IsRequired = s.IsRequired
+                        }).ToList()
+                    })
+                    .ToList(),
+                Dishes = meal.DishMeals
+                    .Select(dm => new DishMealDto
+                    {
+                        DishId = dm.DishId,
+                        Quantity = dm.Quantity
                     })
                     .ToList()
             };

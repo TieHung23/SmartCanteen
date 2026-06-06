@@ -2,6 +2,7 @@ using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.Order.ValueObject;
 using SC.Domain.Domain.Order.Enum;
+using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 
 namespace SC.Domain.Domain.Order.AggregateRoot;
 
@@ -12,6 +13,7 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
     }
 
     public Guid MealId { get; set; }
+    public MealAggregate Meal { get; set; } = null!;
 
     public Guid? PaymentId { get; set; }
 
@@ -43,9 +45,9 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
-    public void AddDish(Guid dishId, int quantity, decimal unitPriceAmount, string unitPriceCurrency = "VND")
+    public void AddDish(Guid dishId, int quantity, decimal unitPriceAmount)
     {
-        OrderItems.Add(OrderItem.Create(dishId, quantity, unitPriceAmount, unitPriceCurrency));
+        OrderItems.Add(OrderItem.Create(dishId, quantity, unitPriceAmount));
     }
 
     public void AttachPayment(Guid paymentId, Guid updatedBy)

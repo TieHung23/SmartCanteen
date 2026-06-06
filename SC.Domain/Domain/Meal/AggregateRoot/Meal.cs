@@ -1,7 +1,7 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
-using SC.Domain.Domain.Meal.ValueObject;
-using SC.Domain.SharedKernel.ValueObjects;
+using SC.Domain.Domain.Dish.AggregateRoot;
+using SC.Domain.Domain.Meal.Entity;
 
 // ReSharper disable All
 
@@ -15,9 +15,9 @@ public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
 
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public Money Price { get; set; } = Money.Create(0);
     public bool IsActive { get; set; } = true;
-    public IList<MealSettings> MealSettingsList { get; set; } = new List<MealSettings>();
+    public ICollection<DishMeal> DishMeals { get; set; } = new List<DishMeal>();
+    public ICollection<MealTemplate> MealTemplates { get; set; } = new List<MealTemplate>();
     public DateTimeOffset AvailableFrom { get; set; }
     public DateTimeOffset AvailableTo { get; set; }
     public DateTimeOffset AvailableForOrder { get; set; }
@@ -26,14 +26,13 @@ public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Meal Create(string name, string description, Money price, DateTimeOffset availableFrom, DateTimeOffset availableTo, DateTimeOffset availableForOrder, Guid createdBy)
+    public static Meal Create(string name, string description, DateTimeOffset availableFrom, DateTimeOffset availableTo, DateTimeOffset availableForOrder, Guid createdBy)
     {
         return new Meal
         {
             Id = Guid.NewGuid(),
             Name = name,
             Description = description,
-            Price = price,
             AvailableFrom = availableFrom,
             AvailableTo = availableTo,
             AvailableForOrder = availableForOrder,
@@ -42,11 +41,10 @@ public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
         };
     }
 
-    public void Update(string name, string description, Money price, DateTimeOffset availableFrom, DateTimeOffset availableTo, DateTimeOffset availableForOrder, bool isActive, Guid updatedBy)
+    public void Update(string name, string description, DateTimeOffset availableFrom, DateTimeOffset availableTo, DateTimeOffset availableForOrder, bool isActive, Guid updatedBy)
     {
         Name = name;
         Description = description;
-        Price = price;
         AvailableFrom = availableFrom;
         AvailableTo = availableTo;
         AvailableForOrder = availableForOrder;
@@ -55,18 +53,28 @@ public class Meal : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
-    public void AddMealCategory(MealSettings mealSettings)
+    public void AddDishMeal(DishMeal dishMeal)
     {
-        MealSettingsList.Add(mealSettings);
+        DishMeals.Add(dishMeal);
     }
 
-    public void RemoveMealCategory(MealSettings mealSettings)
+    public void RemoveDishMeal(DishMeal dishMeal)
     {
-        MealSettingsList.Remove(mealSettings);
+        DishMeals.Remove(dishMeal);
     }
 
-    public void ClearMealCategories()
+    public void AddMealTemplate(MealTemplate mealTemplate)
     {
-        MealSettingsList.Clear();
+        MealTemplates.Add(mealTemplate);
+    }
+
+    public void RemoveMealTemplate(MealTemplate mealTemplate)
+    {
+        MealTemplates.Remove(mealTemplate);
+    }
+
+    public void ClearMealTemplates()
+    {
+        MealTemplates.Clear();
     }
 }

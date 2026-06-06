@@ -27,7 +27,6 @@ internal class GetOrderByIdQueryHandler(
             }
 
             var totalPrice = order.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity);
-            var currency = order.OrderItems.FirstOrDefault()?.UnitPrice.Currency ?? "VND";
 
             var response = new GetOrderByIdResponse
             {
@@ -37,13 +36,11 @@ internal class GetOrderByIdQueryHandler(
                 UserId = order.CreatedBy,
                 Status = (int)order.Status,
                 TotalPrice = totalPrice,
-                Currency = currency,
                 Items = order.OrderItems.Select(item => new OrderItemDto
                 {
                     DishId = item.DishId,
                     Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice.Amount,
-                    Currency = item.UnitPrice.Currency
+                    UnitPrice = item.UnitPrice.Amount
                 }).ToList(),
                 CreatedAtUtc = order.CreatedAtUtc,
                 UpdatedAtUtc = order.UpdatedAtUtc

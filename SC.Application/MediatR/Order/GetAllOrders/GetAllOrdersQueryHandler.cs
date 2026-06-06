@@ -48,7 +48,6 @@ internal class GetAllOrdersQueryHandler(
                 UserId = o.CreatedBy,
                 Status = (int)o.Status,
                 TotalPrice = o.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity),
-                Currency = o.OrderItems.FirstOrDefault()?.UnitPrice.Currency ?? "VND",
                 ItemCount = o.OrderItems.Count,
                 CreatedAtUtc = o.CreatedAtUtc
             }).ToList();

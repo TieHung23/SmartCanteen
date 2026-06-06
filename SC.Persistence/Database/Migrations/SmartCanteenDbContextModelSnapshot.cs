@@ -39,6 +39,10 @@ namespace SC.Persistence.Database.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("ImgUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -84,18 +88,14 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("MealId")
-                        .HasColumnType("uuid");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<int>("StockQuantity")
-                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -107,9 +107,27 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.ToTable("Dishes");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.DishMeal", b =>
+                {
+                    b.Property<Guid>("DishId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MealId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.HasKey("DishId", "MealId");
+
                     b.HasIndex("MealId");
 
-                    b.ToTable("Dishes");
+                    b.ToTable("DishMeal");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Logging.AggregateRoot.ApiLog", b =>
@@ -210,7 +228,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -228,6 +248,91 @@ namespace SC.Persistence.Database.Migrations
                     b.ToTable("Meals");
                 });
 
+            modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MealTemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MinQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("MealTemplateId");
+
+                    b.ToTable("MealSettings");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("MealId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MealId");
+
+                    b.ToTable("MealTemplate");
+                });
+
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -241,7 +346,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<Guid>("MealId")
                         .HasColumnType("uuid");
@@ -304,7 +411,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("Method")
                         .HasColumnType("integer");
@@ -362,7 +471,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -408,7 +519,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -450,7 +563,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<Guid?>("ReplacedByTokenId")
                         .HasColumnType("uuid");
@@ -524,7 +639,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
@@ -593,7 +710,9 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -631,6 +750,12 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
                 {
+                    b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Price", b1 =>
                         {
                             b1.Property<Guid>("DishId")
@@ -653,72 +778,73 @@ namespace SC.Persistence.Database.Migrations
                                 .HasForeignKey("DishId");
                         });
 
+                    b.Navigation("Category");
+
                     b.Navigation("Price")
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Meal.AggregateRoot.Meal", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.DishMeal", b =>
                 {
-                    b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Price", b1 =>
-                        {
-                            b1.Property<Guid>("MealId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<string>("Currency")
-                                .IsRequired()
-                                .HasMaxLength(10)
-                                .HasColumnType("character varying(10)");
-
-                            b1.HasKey("MealId");
-
-                            b1.ToTable("Meals");
-
-                            b1.WithOwner()
-                                .HasForeignKey("MealId");
-                        });
-
-                    b.OwnsMany("SC.Domain.Domain.Meal.ValueObject.MealSettings", "MealSettingsList", b1 =>
-                        {
-                            b1.Property<Guid>("MealId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<Guid>("CategoryId")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("uuid");
-
-                            b1.Property<bool>("IsDeleted")
-                                .HasColumnType("boolean");
-
-                            b1.Property<int>("Quantity")
-                                .HasColumnType("integer");
-
-                            b1.HasKey("MealId", "CategoryId");
-
-                            b1.ToTable("MealSettings");
-
-                            b1.WithOwner()
-                                .HasForeignKey("MealId");
-                        });
-
-                    b.Navigation("MealSettingsList");
-
-                    b.Navigation("Price")
+                    b.HasOne("SC.Domain.Domain.Dish.AggregateRoot.Dish", "Dish")
+                        .WithMany("DishMeals")
+                        .HasForeignKey("DishId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("SC.Domain.Domain.Meal.AggregateRoot.Meal", "Meal")
+                        .WithMany("DishMeals")
+                        .HasForeignKey("MealId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Dish");
+
+                    b.Navigation("Meal");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealSettings", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SC.Domain.Domain.Meal.Entity.MealTemplate", null)
+                        .WithMany("Settings")
+                        .HasForeignKey("MealTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealTemplate", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.Meal.AggregateRoot.Meal", "Meal")
+                        .WithMany("MealTemplates")
+                        .HasForeignKey("MealId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Meal");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
                 {
+                    b.HasOne("SC.Domain.Domain.Meal.AggregateRoot.Meal", "Meal")
+                        .WithMany()
+                        .HasForeignKey("MealId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("SC.Domain.Domain.Order.ValueObject.OrderItem", "OrderItems", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
                                 .HasColumnType("uuid");
 
                             b1.Property<Guid>("DishId")
-                                .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
                             b1.Property<int>("Quantity")
@@ -726,7 +852,15 @@ namespace SC.Persistence.Database.Migrations
 
                             b1.HasKey("OrderId", "DishId");
 
+                            b1.HasIndex("DishId");
+
                             b1.ToTable("OrderItem");
+
+                            b1.HasOne("SC.Domain.Domain.Dish.AggregateRoot.Dish", "Dish")
+                                .WithMany()
+                                .HasForeignKey("DishId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired();
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
@@ -756,9 +890,13 @@ namespace SC.Persistence.Database.Migrations
                                         .HasForeignKey("OrderItemOrderId", "OrderItemDishId");
                                 });
 
+                            b1.Navigation("Dish");
+
                             b1.Navigation("UnitPrice")
                                 .IsRequired();
                         });
+
+                    b.Navigation("Meal");
 
                     b.Navigation("OrderItems");
                 });
@@ -890,6 +1028,23 @@ namespace SC.Persistence.Database.Migrations
                         });
 
                     b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
+                {
+                    b.Navigation("DishMeals");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Meal.AggregateRoot.Meal", b =>
+                {
+                    b.Navigation("DishMeals");
+
+                    b.Navigation("MealTemplates");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealTemplate", b =>
+                {
+                    b.Navigation("Settings");
                 });
 #pragma warning restore 612, 618
         }

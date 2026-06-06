@@ -25,6 +25,8 @@ internal class CreateCategoryCommandHandler(
                 request.Description.Trim(),
                 currentUserService.UserId);
 
+            category.ImgUrl = request.ImgUrl;
+
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await categoryRepository.AddAsync(category, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -34,7 +36,8 @@ internal class CreateCategoryCommandHandler(
             {
                 Id = category.Id,
                 Name = category.Name,
-                Description = category.Description
+                Description = category.Description,
+                ImgUrl = category.ImgUrl
             };
 
             return Result.Success(response, "Category created successfully.");

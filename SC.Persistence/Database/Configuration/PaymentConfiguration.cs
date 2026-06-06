@@ -11,6 +11,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(x => x.GatewayOrderId)
             .IsRequired()
             .HasMaxLength(100);
