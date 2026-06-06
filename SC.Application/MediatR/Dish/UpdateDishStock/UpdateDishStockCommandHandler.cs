@@ -8,8 +8,9 @@ using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 namespace SC.Application.MediatR.Dish.UpdateDishStock;
 
 internal class UpdateDishStockCommandHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateDishStockCommandHandler> logger
 ) : ICommandHandler<UpdateDishStockCommand, UpdateDishStockResponse>
 {
@@ -19,21 +20,17 @@ internal class UpdateDishStockCommandHandler(
     {
         try
         {
-            var dish = await dishRepository.FindByIdAsync(request.Id, cancellationToken);
+            var dish = await dishRepository.GetByIdAsync(request.Id, cancellationToken);
             if (dish is null || dish.IsDeleted)
             {
                 return Result.Failure<UpdateDishStockResponse>(Error.NullValue, "Dish not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             dish.UpdateStock(request.StockQuantity, currentUserService.UserId);
-
-            var updateResult = await dishRepository.UpdateAsync(dish);
-            if (updateResult.IsFailure)
-            {
-                return Result.Failure<UpdateDishStockResponse>(
-                    updateResult.Error ?? Error.ServerError,
-                    updateResult.Message);
-            }
+            dishRepository.Update(dish);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new UpdateDishStockResponse
             {
@@ -46,6 +43,7 @@ internal class UpdateDishStockCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error updating dish stock {DishId}", request.Id);
             return Result.Failure<UpdateDishStockResponse>(
                 Error.ServerError,

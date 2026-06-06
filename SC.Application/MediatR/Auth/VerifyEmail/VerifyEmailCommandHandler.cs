@@ -10,9 +10,10 @@ using EmailVerificationTokenAggregate = SC.Domain.Domain.User.EmailVerificationT
 namespace SC.Application.MediatR.Auth.VerifyEmail;
 
 internal class VerifyEmailCommandHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<EmailVerificationTokenAggregate, Guid> tokenRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<EmailVerificationTokenAggregate, Guid> tokenRepository,
     IJwtTokenGenerator tokenGenerator,
+    IUnitOfWork unitOfWork,
     ILogger<VerifyEmailCommandHandler> logger) : ICommandHandler<VerifyEmailCommand, VerifyEmailResponse>
 {
     public async Task<Result<VerifyEmailResponse>> Handle(VerifyEmailCommand request, CancellationToken cancellationToken)
@@ -22,7 +23,7 @@ internal class VerifyEmailCommandHandler(
             var tokenHash = tokenGenerator.HashOpaqueToken(request.Token);
 
             var token = await tokenRepository
-                .FindAll(t => t!.TokenHash == tokenHash, cancellationToken)
+                .GetQueryable(t => t.TokenHash == tokenHash)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (token is null || !token.IsValid)
@@ -32,7 +33,7 @@ internal class VerifyEmailCommandHandler(
                     "The verification token is invalid or expired.");
             }
 
-            var user = await userRepository.FindByIdAsync(token.UserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(token.UserId, cancellationToken);
             if (user is null)
             {
                 return Result.Failure<VerifyEmailResponse>(
@@ -43,17 +44,11 @@ internal class VerifyEmailCommandHandler(
             user.ConfirmEmail();
             token.Consume();
 
-            var userUpdate = await userRepository.UpdateAsync(user);
-            if (userUpdate.IsFailure)
-                return Result.Failure<VerifyEmailResponse>(
-                    userUpdate.Error ?? Error.ServerError,
-                    userUpdate.Message);
-
-            var tokenUpdate = await tokenRepository.UpdateAsync(token);
-            if (tokenUpdate.IsFailure)
-                return Result.Failure<VerifyEmailResponse>(
-                    tokenUpdate.Error ?? Error.ServerError,
-                    tokenUpdate.Message);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            userRepository.Update(user);
+            tokenRepository.Update(token);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new VerifyEmailResponse
             {
@@ -64,6 +59,7 @@ internal class VerifyEmailCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error verifying email token");
             return Result.Failure<VerifyEmailResponse>(
                 Error.ServerError,

@@ -12,19 +12,26 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
     }
 
     public required BalanceSnapshot BalanceSnapshot { get; set; }
-    public required string GatewayTransactionId { get; set; }
+    public required string GatewayOrderId { get; set; }
+    public string? GatewayTransactionId { get; set; }
+    public decimal AmountVnd { get; set; }
+    public decimal ConvertedPoints { get; set; }
     public PaymentStatus Status { get; set; }
     public PaymentMethod Method { get; set; }
     public PaymentType Type { get; set; }
+    public string? FailureReason { get; set; }
     public Guid UserId { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset? CompletedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
     public static Payment Create(
         BalanceSnapshot balanceSnapshot,
-        string gatewayTransactionId,
+        string gatewayOrderId,
+        decimal amountVnd,
+        decimal convertedPoints,
         PaymentMethod method,
         Guid userId,
         Guid createdBy,
@@ -34,7 +41,9 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
         {
             Id = Guid.NewGuid(),
             BalanceSnapshot = balanceSnapshot,
-            GatewayTransactionId = gatewayTransactionId,
+            GatewayOrderId = gatewayOrderId,
+            AmountVnd = amountVnd,
+            ConvertedPoints = convertedPoints,
             Status = PaymentStatus.Pending,
             Method = method,
             UserId = userId,
@@ -50,9 +59,20 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public void MarkAsCompleted()
+    public void MarkAsCompleted(string? gatewayTransactionId, Guid updatedBy)
     {
         Status = PaymentStatus.Completed;
+        GatewayTransactionId = gatewayTransactionId;
+        CompletedAtUtc = DateTimeOffset.UtcNow;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+    }
+
+    public void MarkAsFailed(string? failureReason, Guid updatedBy)
+    {
+        Status = PaymentStatus.Failed;
+        FailureReason = failureReason;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
     }
 }

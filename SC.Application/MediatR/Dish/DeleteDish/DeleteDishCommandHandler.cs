@@ -8,8 +8,9 @@ using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 namespace SC.Application.MediatR.Dish.DeleteDish;
 
 internal class DeleteDishCommandHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteDishCommandHandler> logger
 ) : ICommandHandler<DeleteDishCommand, DeleteDishResponse>
 {
@@ -19,7 +20,7 @@ internal class DeleteDishCommandHandler(
     {
         try
         {
-            var dish = await dishRepository.FindByIdAsync(request.Id, cancellationToken);
+            var dish = await dishRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (dish is null || dish.IsDeleted)
             {
@@ -28,15 +29,11 @@ internal class DeleteDishCommandHandler(
                     "Dish not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             dish.SoftDelete(currentUserService.UserId);
-
-            var deleteResult = await dishRepository.UpdateAsync(dish);
-            if (deleteResult.IsFailure)
-            {
-                return Result.Failure<DeleteDishResponse>(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
+            dishRepository.Update(dish);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new DeleteDishResponse
             {
@@ -48,6 +45,7 @@ internal class DeleteDishCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting dish {DishId}", request.Id);
             return Result.Failure<DeleteDishResponse>(
                 Error.ServerError,

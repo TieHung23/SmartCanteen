@@ -8,7 +8,7 @@ using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 namespace SC.Application.MediatR.Setting.GetAllSettings;
 
 internal class GetAllSettingsQueryHandler(
-    IRepositoryBase<SettingAggregateRoot, Guid> settingRepository,
+    IGenericRepository<SettingAggregateRoot, Guid> settingRepository,
     ILogger<GetAllSettingsQueryHandler> logger
 ) : IQueryHandler<GetAllSettingsQuery, PaginatedList<GetAllSettingsResponse>>
 {
@@ -18,9 +18,7 @@ internal class GetAllSettingsQueryHandler(
     {
         try
         {
-            IQueryable<SettingAggregateRoot> query = settingRepository.FindAll(
-                x => !x.IsDeleted,
-                cancellationToken: cancellationToken)!;
+            IQueryable<SettingAggregateRoot> query = settingRepository.GetQueryable(x => !x.IsDeleted);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {

@@ -7,7 +7,7 @@ using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 namespace SC.Application.MediatR.Order.GetOrderById;
 
 internal class GetOrderByIdQueryHandler(
-    IRepositoryBase<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     ILogger<GetOrderByIdQueryHandler> logger
 ) : IQueryHandler<GetOrderByIdQuery, GetOrderByIdResponse>
 {
@@ -17,7 +17,7 @@ internal class GetOrderByIdQueryHandler(
     {
         try
         {
-            var order = await orderRepository.FindByIdAsync(request.Id, cancellationToken);
+            var order = await orderRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (order is null)
             {
@@ -33,6 +33,7 @@ internal class GetOrderByIdQueryHandler(
             {
                 Id = order.Id,
                 MealId = order.MealId,
+                PaymentId = order.PaymentId,
                 UserId = order.CreatedBy,
                 Status = (int)order.Status,
                 TotalPrice = totalPrice,

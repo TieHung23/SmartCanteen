@@ -8,8 +8,9 @@ using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 namespace SC.Application.MediatR.Category.DeleteCategory;
 
 internal class DeleteCategoryCommandHandler(
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteCategoryCommandHandler> logger
 ) : ICommandHandler<DeleteCategoryCommand, DeleteCategoryResponse>
 {
@@ -19,7 +20,7 @@ internal class DeleteCategoryCommandHandler(
     {
         try
         {
-            var category = await categoryRepository.FindByIdAsync(request.Id, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<DeleteCategoryResponse>(
@@ -27,15 +28,11 @@ internal class DeleteCategoryCommandHandler(
                     "Category not found.");
             }
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             category.SoftDelete(currentUserService.UserId);
-
-            var deleteResult = await categoryRepository.UpdateAsync(category);
-            if (deleteResult.IsFailure)
-            {
-                return Result.Failure<DeleteCategoryResponse>(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
+            categoryRepository.Update(category);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new DeleteCategoryResponse
             {
@@ -47,6 +44,7 @@ internal class DeleteCategoryCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting category {CategoryId}", request.Id);
             return Result.Failure<DeleteCategoryResponse>(
                 Error.ServerError,

@@ -9,8 +9,9 @@ using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 namespace SC.Application.MediatR.Order.UpdateOrder;
 
 internal class UpdateOrderCommandHandler(
-    IRepositoryBase<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateOrderCommandHandler> logger
 ) : ICommandHandler<UpdateOrderCommand, UpdateOrderResponse>
 {
@@ -20,7 +21,7 @@ internal class UpdateOrderCommandHandler(
     {
         try
         {
-            var order = await orderRepository.FindByIdAsync(request.Id, cancellationToken);
+            var order = await orderRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (order is null)
             {
@@ -40,15 +41,11 @@ internal class UpdateOrderCommandHandler(
             var currentUserId = currentUserService.UserId;
             var newStatus = (OrderStatus)request.Status;
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
             order.UpdateStatus(newStatus, currentUserId);
-
-            var updateResult = await orderRepository.UpdateAsync(order);
-            if (updateResult.IsFailure)
-            {
-                return Result.Failure<UpdateOrderResponse>(
-                    updateResult.Error ?? Error.ServerError,
-                    updateResult.Message);
-            }
+            orderRepository.Update(order);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new UpdateOrderResponse
             {
@@ -61,6 +58,7 @@ internal class UpdateOrderCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error updating order with id {OrderId}", request.Id);
             return Result.Failure<UpdateOrderResponse>(
                 Error.ServerError,

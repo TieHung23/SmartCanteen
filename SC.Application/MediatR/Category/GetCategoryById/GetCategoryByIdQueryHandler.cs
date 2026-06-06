@@ -7,7 +7,7 @@ using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 namespace SC.Application.MediatR.Category.GetCategoryById;
 
 internal class GetCategoryByIdQueryHandler(
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ILogger<GetCategoryByIdQueryHandler> logger
 ) : IQueryHandler<GetCategoryByIdQuery, GetCategoryByIdResponse>
 {
@@ -17,7 +17,7 @@ internal class GetCategoryByIdQueryHandler(
     {
         try
         {
-            var category = await categoryRepository.FindByIdAsync(request.Id, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<GetCategoryByIdResponse>(Error.NullValue, "Category not found.");

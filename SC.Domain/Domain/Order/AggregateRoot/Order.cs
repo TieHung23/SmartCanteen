@@ -48,6 +48,13 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
         OrderItems.Add(OrderItem.Create(dishId, quantity, unitPriceAmount, unitPriceCurrency));
     }
 
+    public void AttachPayment(Guid paymentId, Guid updatedBy)
+    {
+        PaymentId = paymentId;
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+    }
+
     public void RemoveDish(OrderItem orderItem)
     {
         OrderItems.Remove(orderItem);

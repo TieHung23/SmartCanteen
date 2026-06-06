@@ -10,8 +10,9 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Meal.CreateMeal;
 
 internal class CreateMealCommandHandler(
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<CreateMealCommandHandler> logger
 ) : ICommandHandler<CreateMealCommand, CreateMealResponse>
 {
@@ -60,13 +61,10 @@ internal class CreateMealCommandHandler(
                 meal.AddMealCategory(mealSetting);
             }
 
-            var addResult = await mealRepository.AddAsync(meal);
-            if (addResult.IsFailure)
-            {
-                return Result.Failure<CreateMealResponse>(
-                    addResult.Error ?? Error.ServerError,
-                    addResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await mealRepository.AddAsync(meal, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new CreateMealResponse
             {
@@ -79,6 +77,7 @@ internal class CreateMealCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error creating meal");
             return Result.Failure<CreateMealResponse>(
                 Error.ServerError,

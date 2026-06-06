@@ -8,7 +8,8 @@ using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 namespace SC.Application.MediatR.Order.DeleteOrder;
 
 internal class DeleteOrderCommandHandler(
-    IRepositoryBase<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteOrderCommandHandler> logger
 ) : ICommandHandler<DeleteOrderCommand, DeleteOrderResponse>
 {
@@ -18,25 +19,19 @@ internal class DeleteOrderCommandHandler(
     {
         try
         {
-            // Soft delete order by ID
-            var deleteResult = await orderRepository.SoftDeleteWithConditionAsync(
-                o => o.Id == request.Id);
-
-            if (deleteResult.IsFailure)
-            {
-                return Result.Failure<DeleteOrderResponse>(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
-
-            // Check if entity was found (SoftDeleteWithConditionAsync returns success even if count is 0)
-            var order = await orderRepository.FindByIdAsync(request.Id, cancellationToken);
+            var order = await orderRepository.GetByIdAsync(request.Id, cancellationToken);
             if (order is null)
             {
                 return Result.Failure<DeleteOrderResponse>(
                     Error.NullValue,
                     $"Order with id {request.Id} not found.");
             }
+
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            order.SoftDelete();
+            orderRepository.Update(order);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new DeleteOrderResponse
             {
@@ -48,6 +43,7 @@ internal class DeleteOrderCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting order with id {OrderId}", request.Id);
             return Result.Failure<DeleteOrderResponse>(
                 Error.ServerError,

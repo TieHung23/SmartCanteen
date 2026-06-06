@@ -11,17 +11,18 @@ using UserAggregate = SC.Domain.Domain.User.User;
 namespace SC.Application.MediatR.Verification.Admin.Approve;
 
 internal class ApproveVerificationCommandHandler(
-    IRepositoryBase<VerificationRequest, Guid> verificationRepository,
-    IRepositoryBase<UserAggregate, Guid> userRepository,
+    IGenericRepository<VerificationRequest, Guid> verificationRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
     ICurrentUserService currentUserService,
     IEmailSender emailSender,
+    IUnitOfWork unitOfWork,
     ILogger<ApproveVerificationCommandHandler> logger) : ICommandHandler<ApproveVerificationCommand, ApproveVerificationResponse>
 {
     public async Task<Result<ApproveVerificationResponse>> Handle(ApproveVerificationCommand request, CancellationToken cancellationToken)
     {
         try
         {
-            var verification = await verificationRepository.FindByIdAsync(request.Id, cancellationToken);
+            var verification = await verificationRepository.GetByIdAsync(request.Id, cancellationToken);
             if (verification is null)
                 return Result.Failure<ApproveVerificationResponse>(
                     Error.VerificationNotFound,
@@ -32,7 +33,7 @@ internal class ApproveVerificationCommandHandler(
                     Error.VerificationNotPending,
                     "Verification request is no longer pending.");
 
-            var user = await userRepository.FindByIdAsync(verification.UserId, cancellationToken);
+            var user = await userRepository.GetByIdAsync(verification.UserId, cancellationToken);
             if (user is null)
                 return Result.Failure<ApproveVerificationResponse>(
                     Error.VerificationNotFound,
@@ -42,17 +43,11 @@ internal class ApproveVerificationCommandHandler(
             verification.Approve(reviewerId);
             user.ActivateAfterIdentityApproved();
 
-            var verifUpdate = await verificationRepository.UpdateAsync(verification);
-            if (verifUpdate.IsFailure)
-                return Result.Failure<ApproveVerificationResponse>(
-                    verifUpdate.Error ?? Error.ServerError,
-                    verifUpdate.Message);
-
-            var userUpdate = await userRepository.UpdateAsync(user);
-            if (userUpdate.IsFailure)
-                return Result.Failure<ApproveVerificationResponse>(
-                    userUpdate.Error ?? Error.ServerError,
-                    userUpdate.Message);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            verificationRepository.Update(verification);
+            userRepository.Update(user);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             try
             {
@@ -73,10 +68,12 @@ internal class ApproveVerificationCommandHandler(
         }
         catch (InvalidOperationException ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             return Result.Failure<ApproveVerificationResponse>(Error.InvalidValue, ex.Message);
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error approving verification {Id}", request.Id);
             return Result.Failure<ApproveVerificationResponse>(
                 Error.ServerError,

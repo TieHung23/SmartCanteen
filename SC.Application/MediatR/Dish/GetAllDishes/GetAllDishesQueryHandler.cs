@@ -8,7 +8,7 @@ using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 namespace SC.Application.MediatR.Dish.GetAllDishes;
 
 internal class GetAllDishesQueryHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ILogger<GetAllDishesQueryHandler> logger
 ) : IQueryHandler<GetAllDishesQuery, PaginatedList<GetAllDishesResponse>>
 {
@@ -18,9 +18,7 @@ internal class GetAllDishesQueryHandler(
     {
         try
         {
-            IQueryable<DishAggregateRoot> query = dishRepository.FindAll(
-                x => !x.IsDeleted,
-                cancellationToken: cancellationToken)!;
+            IQueryable<DishAggregateRoot> query = dishRepository.GetQueryable(x => !x.IsDeleted);
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {

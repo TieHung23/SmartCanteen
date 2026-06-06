@@ -7,7 +7,7 @@ using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 namespace SC.Application.MediatR.Dish.GetDishById;
 
 internal class GetDishByIdQueryHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ILogger<GetDishByIdQueryHandler> logger
 ) : IQueryHandler<GetDishByIdQuery, GetDishByIdResponse>
 {
@@ -17,7 +17,7 @@ internal class GetDishByIdQueryHandler(
     {
         try
         {
-            var dish = await dishRepository.FindByIdAsync(request.Id, cancellationToken);
+            var dish = await dishRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (dish is null || dish.IsDeleted)
             {

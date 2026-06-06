@@ -11,10 +11,11 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Dish.UpdateDish;
 
 internal class UpdateDishCommandHandler(
-    IRepositoryBase<DishAggregateRoot, Guid> dishRepository,
-    IRepositoryBase<CategoryAggregateRoot, Guid> categoryRepository,
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateDishCommandHandler> logger
 ) : ICommandHandler<UpdateDishCommand, UpdateDishResponse>
 {
@@ -24,19 +25,19 @@ internal class UpdateDishCommandHandler(
     {
         try
         {
-            var dish = await dishRepository.FindByIdAsync(request.Id, cancellationToken);
+            var dish = await dishRepository.GetByIdAsync(request.Id, cancellationToken);
             if (dish is null || dish.IsDeleted)
             {
                 return Result.Failure<UpdateDishResponse>(Error.NullValue, "Dish not found.");
             }
 
-            var category = await categoryRepository.FindByIdAsync(request.CategoryId, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.CategoryId, cancellationToken);
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<UpdateDishResponse>(Error.NullValue, "Category not found.");
             }
 
-            var meal = await mealRepository.FindByIdAsync(request.MealId, cancellationToken);
+            var meal = await mealRepository.GetByIdAsync(request.MealId, cancellationToken);
             if (meal is null || meal.IsDeleted || !meal.IsActive)
             {
                 return Result.Failure<UpdateDishResponse>(Error.NullValue, "Meal not found.");
@@ -52,13 +53,10 @@ internal class UpdateDishCommandHandler(
                 request.IsActive,
                 currentUserService.UserId);
 
-            var updateResult = await dishRepository.UpdateAsync(dish);
-            if (updateResult.IsFailure)
-            {
-                return Result.Failure<UpdateDishResponse>(
-                    updateResult.Error ?? Error.ServerError,
-                    updateResult.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            dishRepository.Update(dish);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new UpdateDishResponse
             {
@@ -77,6 +75,7 @@ internal class UpdateDishCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error updating dish {DishId}", request.Id);
             return Result.Failure<UpdateDishResponse>(
                 Error.ServerError,

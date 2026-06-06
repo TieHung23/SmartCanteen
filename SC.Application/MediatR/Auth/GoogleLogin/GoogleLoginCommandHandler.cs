@@ -13,11 +13,12 @@ using RefreshTokenAggregate = SC.Domain.Domain.User.RefreshToken;
 namespace SC.Application.MediatR.Auth.GoogleLogin;
 
 internal class GoogleLoginCommandHandler(
-    IRepositoryBase<UserAggregate, Guid> userRepository,
-    IRepositoryBase<RefreshTokenAggregate, Guid> refreshTokenRepository,
+    IGenericRepository<UserAggregate, Guid> userRepository,
+    IGenericRepository<RefreshTokenAggregate, Guid> refreshTokenRepository,
     IGoogleTokenValidator googleTokenValidator,
     IJwtTokenGenerator tokenGenerator,
     IConfiguration configuration,
+    IUnitOfWork unitOfWork,
     ILogger<GoogleLoginCommandHandler> logger) : ICommandHandler<GoogleLoginCommand, AuthTokensDto>
 {
     public async Task<Result<AuthTokensDto>> Handle(GoogleLoginCommand request, CancellationToken cancellationToken)
@@ -48,7 +49,7 @@ internal class GoogleLoginCommandHandler(
             }
 
             var user = await userRepository
-                .FindAll(u => u!.Email == email, cancellationToken)
+                .GetQueryable(u => u.Email == email)
                 .FirstOrDefaultAsync(cancellationToken);
 
             var isNewUser = user is null;
@@ -74,26 +75,19 @@ internal class GoogleLoginCommandHandler(
 
             user!.RecordLogin();
 
-            // Persist the user before the refresh token so the token's foreign key resolves.
-            var persistUser = isNewUser
-                ? await userRepository.AddAsync(user)
-                : await userRepository.UpdateAsync(user);
-            if (persistUser.IsFailure)
-            {
-                return Result.Failure<AuthTokensDto>(
-                    persistUser.Error ?? Error.ServerError, persistUser.Message);
-            }
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            if (isNewUser)
+                await userRepository.AddAsync(user, cancellationToken);
+            else
+                userRepository.Update(user);
 
             var refreshOpaque = tokenGenerator.GenerateOpaqueToken();
             var refreshTtl = TimeSpan.FromDays(configuration.GetValue("Jwt:RefreshTokenDays", 7));
             var refreshToken = RefreshTokenAggregate.Issue(user.Id, refreshOpaque.TokenHash, refreshTtl);
 
-            var saveRefresh = await refreshTokenRepository.AddAsync(refreshToken);
-            if (saveRefresh.IsFailure)
-            {
-                return Result.Failure<AuthTokensDto>(
-                    saveRefresh.Error ?? Error.ServerError, saveRefresh.Message);
-            }
+            await refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var accessToken = tokenGenerator.GenerateAccessToken(
                 user.Id,
@@ -111,6 +105,7 @@ internal class GoogleLoginCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error during Google sign-in");
             return Result.Failure<AuthTokensDto>(
                 Error.ServerError, "An error occurred while signing in with Google.");
@@ -130,7 +125,7 @@ internal class GoogleLoginCommandHandler(
         if (studentId is not null)
         {
             var studentIdTaken = await userRepository
-                .FindAll(u => u!.StudentId == studentId, cancellationToken)
+                .GetQueryable(u => u.StudentId == studentId)
                 .AnyAsync(cancellationToken);
 
             if (studentIdTaken)

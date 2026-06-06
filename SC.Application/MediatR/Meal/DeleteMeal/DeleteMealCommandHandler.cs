@@ -8,7 +8,8 @@ using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
 namespace SC.Application.MediatR.Meal.DeleteMeal;
 
 internal class DeleteMealCommandHandler(
-    IRepositoryBase<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
+    IUnitOfWork unitOfWork,
     ILogger<DeleteMealCommandHandler> logger
 ) : ICommandHandler<DeleteMealCommand, DeleteMealResponse>
 {
@@ -18,25 +19,19 @@ internal class DeleteMealCommandHandler(
     {
         try
         {
-            // Soft delete meal by ID
-            var deleteResult = await mealRepository.SoftDeleteWithConditionAsync(
-                m => m.Id == request.Id);
-
-            if (deleteResult.IsFailure)
-            {
-                return Result.Failure<DeleteMealResponse>(
-                    deleteResult.Error ?? Error.ServerError,
-                    deleteResult.Message);
-            }
-
-            // Check if entity was found (SoftDeleteWithConditionAsync returns success even if count is 0)
-            var meal = await mealRepository.FindByIdAsync(request.Id, cancellationToken);
+            var meal = await mealRepository.GetByIdAsync(request.Id, cancellationToken);
             if (meal is null)
             {
                 return Result.Failure<DeleteMealResponse>(
                     Error.NullValue,
                     $"Meal with id {request.Id} not found.");
             }
+
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            meal.SoftDelete();
+            mealRepository.Update(meal);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
 
             var response = new DeleteMealResponse
             {
@@ -48,6 +43,7 @@ internal class DeleteMealCommandHandler(
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error deleting meal with id {MealId}", request.Id);
             return Result.Failure<DeleteMealResponse>(
                 Error.ServerError,
