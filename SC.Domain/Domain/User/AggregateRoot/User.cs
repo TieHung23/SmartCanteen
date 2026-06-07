@@ -30,7 +30,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public string? GoogleSubjectId { get; set; }
     public string? ImgUrl { get; set; }
     public required Role Role { get; set; } = Role.User;
-    public required UserCategory Category { get; set; } = UserCategory.Student;
     public required AccountStatus Status { get; set; } = AccountStatus.PendingEmailVerification;
     public bool EmailVerified { get; set; }
     public string? StudentId { get; set; }
@@ -51,7 +50,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         string name,
         string email,
         string passwordHash,
-        UserCategory category,
         string? studentId = null,
         DateOnly? dateOfBirth = null,
         string? majorOrClass = null,
@@ -66,7 +64,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
             Email = email,
             PasswordHash = passwordHash,
             Role = Role.User,
-            Category = category,
             Status = AccountStatus.PendingEmailVerification,
             StudentId = studentId,
             DateOfBirth = dateOfBirth,
@@ -140,7 +137,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         string name,
         string email,
         string googleSubjectId,
-        UserCategory category,
         string? studentId,
         string? imgUrl)
     {
@@ -153,7 +149,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
             GoogleSubjectId = googleSubjectId,
             ImgUrl = imgUrl,
             Role = Role.User,
-            Category = category,
             Status = AccountStatus.Active,
             EmailVerified = true,
             StudentId = studentId,
@@ -194,21 +189,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
 
         studentId = match.Value.ToUpperInvariant();
         return true;
-    }
-
-    /// <summary>
-    /// Resolves the user category for a Google FPT sign-in: <c>@fe.edu.vn</c> is a lecturer,
-    /// an email carrying a student code is a student, anything else is staff.
-    /// </summary>
-    public static UserCategory ResolveCategoryFromFptEmail(string email, bool hasStudentCode)
-    {
-        if (!string.IsNullOrWhiteSpace(email)
-            && email.EndsWith(LecturerEmailDomain, StringComparison.OrdinalIgnoreCase))
-        {
-            return UserCategory.Lecturer;
-        }
-
-        return hasStudentCode ? UserCategory.Student : UserCategory.Staff;
     }
 
     public void UpdateBalance(Money amount)

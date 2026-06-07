@@ -8,4 +8,5 @@ public class UpdateDishResponse
     public decimal Price { get; set; }
     public bool IsActive { get; set; }
     public Guid CategoryId { get; set; }
+    public string? ImgUrl { get; set; }
 }

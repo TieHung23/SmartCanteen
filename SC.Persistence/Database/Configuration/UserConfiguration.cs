@@ -46,10 +46,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasConversion<int>();
 
-        builder.Property(x => x.Category)
-            .IsRequired()
-            .HasConversion<int>();
-
         builder.Property(x => x.EmailVerified)
             .IsRequired();
 

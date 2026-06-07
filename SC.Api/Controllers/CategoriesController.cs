@@ -7,6 +7,7 @@ using SC.Application.MediatR.Category.DeleteCategory;
 using SC.Application.MediatR.Category.GetAllCategories;
 using SC.Application.MediatR.Category.GetCategoryById;
 using SC.Application.MediatR.Category.UpdateCategory;
+using SC.Infrastructure.Services.Cloudinary;
 
 namespace SC.Api.Controllers;
 
@@ -14,13 +15,8 @@ namespace SC.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
 [Authorize]
-public class CategoriesController(IMediator mediator) : ControllerBase
+public class CategoriesController(IMediator mediator, ICloundinaryUpload cloudinaryUpload) : ControllerBase
 {
-    /// <summary>
-    /// Get all categories with pagination and optional search by name
-    /// </summary>
-    /// <param name="request">Pagination and search parameters</param>
-    /// <returns>Paginated list of categories</returns>
     [HttpGet]
     public async Task<IActionResult> GetAllCategories(
         [FromQuery] GetAllCategoriesQuery request)
@@ -35,11 +31,6 @@ public class CategoriesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Get a specific category by ID
-    /// </summary>
-    /// <param name="id">The category ID</param>
-    /// <returns>Category details</returns>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetCategoryById([FromRoute] Guid id)
     {
@@ -54,14 +45,27 @@ public class CategoriesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Create a new category
-    /// </summary>
-    /// <param name="command">Category creation data</param>
-    /// <returns>Created category</returns>
     [HttpPost]
-    public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryCommand command)
+    public async Task<IActionResult> CreateCategory(
+        [FromForm] string name,
+        [FromForm] string description,
+        IFormFile? image)
     {
+        string? imgUrl = null;
+        if (image is not null)
+        {
+            await using var stream = image.OpenReadStream();
+            var uploadResult = await cloudinaryUpload.UploadFileAsync(stream, image.FileName);
+            imgUrl = uploadResult.ViewUrl;
+        }
+
+        var command = new CreateCategoryCommand
+        {
+            Name = name,
+            Description = description,
+            ImgUrl = imgUrl
+        };
+
         var result = await mediator.Send(command);
 
         if (result.IsFailure)
@@ -72,16 +76,29 @@ public class CategoriesController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetCategoryById), new { id = result.Value!.Id }, result);
     }
 
-    /// <summary>
-    /// Update an existing category
-    /// </summary>
-    /// <param name="id">The category ID</param>
-    /// <param name="command">Updated category data</param>
-    /// <returns>Updated category</returns>
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateCategory([FromRoute] Guid id, [FromBody] UpdateCategoryCommand command)
+    public async Task<IActionResult> UpdateCategory(
+        [FromRoute] Guid id,
+        [FromForm] string name,
+        [FromForm] string description,
+        IFormFile? image)
     {
-        command.Id = id;
+        string? imgUrl = null;
+        if (image is not null)
+        {
+            await using var stream = image.OpenReadStream();
+            var uploadResult = await cloudinaryUpload.UploadFileAsync(stream, image.FileName);
+            imgUrl = uploadResult.ViewUrl;
+        }
+
+        var command = new UpdateCategoryCommand
+        {
+            Id = id,
+            Name = name,
+            Description = description,
+            ImgUrl = imgUrl
+        };
+
         var result = await mediator.Send(command);
 
         if (result.IsFailure)
@@ -92,11 +109,6 @@ public class CategoriesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Delete a category (soft delete)
-    /// </summary>
-    /// <param name="id">The category ID</param>
-    /// <returns>Success or failure result</returns>
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteCategory([FromRoute] Guid id)
     {

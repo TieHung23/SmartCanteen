@@ -6,8 +6,6 @@ public record TopUpWalletResult(
     Guid PaymentId,
     decimal AmountVnd,
     decimal ConvertedPoints,
-    decimal BalanceBefore,
-    decimal BalanceAfter,
     int Method,
     string Status,
     string GatewayOrderId,
@@ -18,8 +16,7 @@ public record CompletePaymentResult(
     Guid PaymentId,
     string GatewayOrderId,
     string Status,
-    decimal ConvertedPoints,
-    decimal BalanceAfter);
+    decimal ConvertedPoints);
 
 public interface IPaymentService
 {

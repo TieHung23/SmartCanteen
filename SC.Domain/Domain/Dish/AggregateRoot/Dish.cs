@@ -17,6 +17,7 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public bool IsActive { get; set; } = true;
     public Guid CategoryId { get; set; }
     public CategoryAggregate Category { get; set; } = null!;
+    public string? ImgUrl { get; set; }
     public ICollection<DishMeal> DishMeals { get; set; } = new List<DishMeal>();
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
@@ -28,7 +29,8 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
         string description,
         Money price,
         Guid categoryId,
-        Guid createdBy)
+        Guid createdBy,
+        string? imgUrl = null)
     {
         return new Dish
         {
@@ -37,6 +39,7 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
             Description = description,
             Price = price,
             CategoryId = categoryId,
+            ImgUrl = imgUrl,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy
         };
@@ -48,13 +51,15 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
         Money price,
         Guid categoryId,
         bool isActive,
-        Guid updatedBy)
+        Guid updatedBy,
+        string? imgUrl = null)
     {
         Name = name;
         Description = description;
         Price = price;
         CategoryId = categoryId;
         IsActive = isActive;
+        ImgUrl = imgUrl;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

@@ -3,12 +3,11 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
-using SC.Domain.Domain.Payment.Enum;
-using SC.Domain.Domain.Payment.ValueObject;
+using SC.Domain.Domain.WalletTransaction.Entity;
+using SC.Domain.Domain.WalletTransaction.Enum;
 using SC.Domain.SharedKernel.ValueObjects;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
-using PaymentAggregateRoot = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 using UserAggregateRoot = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Order.CreateOrder;
@@ -17,7 +16,7 @@ internal class CreateOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<UserAggregateRoot, Guid> userRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
-    IGenericRepository<PaymentAggregateRoot, Guid> paymentRepository,
+    IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<CreateOrderCommandHandler> logger
@@ -101,19 +100,15 @@ internal class CreateOrderCommandHandler(
             var newBalance = Money.Create(balanceAfter, user.Balance.Currency);
             user.Balance = newBalance;
 
-            var payment = PaymentAggregateRoot.Create(
-                BalanceSnapshot.Create(-totalPrice, balanceBefore, balanceAfter),
-                $"ORDER-{order.Id:N}",
-                totalPrice,
-                totalPrice,
-                PaymentMethod.Wallet,
+            var transaction = WalletTransaction.Create(
                 currentUserId,
-                currentUserId,
-                PaymentType.OrderPayment);
-            payment.MarkAsCompleted($"WALLET-{order.Id:N}", currentUserId);
+                -totalPrice,
+                balanceBefore,
+                balanceAfter,
+                WalletTransactionType.OrderPayment);
 
-            await paymentRepository.AddAsync(payment, cancellationToken);
-            order.AttachPayment(payment.Id, currentUserId);
+            await walletTransactionRepository.AddAsync(transaction, cancellationToken);
+            order.AttachTransaction(transaction.Id, currentUserId);
             userRepository.Update(user);
             await orderRepository.AddAsync(order, cancellationToken);
 
@@ -123,7 +118,7 @@ internal class CreateOrderCommandHandler(
             var response = new CreateOrderResponse
             {
                 Id = order.Id,
-                PaymentId = payment.Id,
+                TransactionId = transaction.Id,
                 TotalPrice = totalPrice,
                 Message = "Order created successfully and wallet debited.",
                 UserRemainingBalance = newBalance.Amount

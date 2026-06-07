@@ -34,8 +34,6 @@ internal class TopUpWalletCommandHandler(
                 PaymentId = value.PaymentId,
                 AmountVnd = value.AmountVnd,
                 ConvertedPoints = value.ConvertedPoints,
-                BalanceBefore = value.BalanceBefore,
-                BalanceAfter = value.BalanceAfter,
                 Method = value.Method,
                 Status = value.Status,
                 GatewayOrderId = value.GatewayOrderId,

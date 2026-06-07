@@ -30,7 +30,7 @@ internal class UpdateCategoryCommandHandler(
                 request.Name.Trim(),
                 request.Description.Trim(),
                 currentUserService.UserId,
-                request.ImgUrl);
+                request.ImgUrl ?? category.ImgUrl);
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             categoryRepository.Update(category);

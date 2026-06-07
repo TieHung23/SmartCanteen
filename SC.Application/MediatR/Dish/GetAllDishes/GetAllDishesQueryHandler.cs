@@ -52,7 +52,8 @@ internal class GetAllDishesQueryHandler(
                 Description = d.Description,
                 Price = d.Price.Amount,
                 IsActive = d.IsActive,
-                CategoryId = d.CategoryId
+                CategoryId = d.CategoryId,
+                ImgUrl = d.ImgUrl
             }).ToList();
 
             var paginatedResult = new PaginatedList<GetAllDishesResponse>(

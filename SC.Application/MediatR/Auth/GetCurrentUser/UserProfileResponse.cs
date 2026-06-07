@@ -8,7 +8,6 @@ public record UserProfileResponse(
     string Email,
     string? ImgUrl,
     Role Role,
-    UserCategory Category,
     AccountStatus Status,
     bool EmailVerified,
     string? StudentId,
