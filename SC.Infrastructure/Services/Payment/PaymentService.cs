@@ -5,7 +5,8 @@ using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Payment.Enum;
-using SC.Domain.Domain.Payment.ValueObject;
+using SC.Domain.Domain.WalletTransaction.Entity;
+using SC.Domain.Domain.WalletTransaction.Enum;
 using SC.Domain.SharedKernel.ValueObjects;
 using PaymentAggregate = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
@@ -16,6 +17,7 @@ namespace SC.Infrastructure.Services.Payment;
 public class PaymentService(
     IGenericRepository<UserAggregate, Guid> userRepository,
     IGenericRepository<PaymentAggregate, Guid> paymentRepository,
+    IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
@@ -126,13 +128,10 @@ public class PaymentService(
             }
 
             var convertedPoints = amountVnd / vndPerPoint;
-            var balanceBefore = user.Balance.Amount;
-            var balanceAfter = balanceBefore + convertedPoints;
             var gatewayOrderId = $"SC-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
             var paymentContent = gatewayOrderId;
 
             var payment = PaymentAggregate.Create(
-                BalanceSnapshot.Create(convertedPoints, balanceBefore, balanceAfter),
                 gatewayOrderId,
                 amountVnd,
                 convertedPoints,
@@ -150,8 +149,6 @@ public class PaymentService(
                 payment.Id,
                 amountVnd,
                 convertedPoints,
-                balanceBefore,
-                balanceAfter,
                 method,
                 payment.Status.ToString(),
                 payment.GatewayOrderId,
@@ -217,8 +214,7 @@ public class PaymentService(
                         payment.Id,
                         payment.GatewayOrderId,
                         payment.Status.ToString(),
-                        payment.ConvertedPoints,
-                        payment.BalanceSnapshot.BalanceAfter),
+                        payment.ConvertedPoints),
                     "Payment was already completed.");
             }
 
@@ -238,12 +234,24 @@ public class PaymentService(
                     "Payment user not found.");
             }
 
-            user.Balance = Money.Create(payment.BalanceSnapshot.BalanceAfter, user.Balance.Currency);
+            var balanceBefore = user.Balance.Amount;
+            var balanceAfter = balanceBefore + payment.ConvertedPoints;
+
+            user.Balance = Money.Create(balanceAfter, user.Balance.Currency);
             payment.MarkAsCompleted(GetValue(data, "referenceCode"), payment.UserId);
+
+            var transaction = WalletTransaction.Create(
+                user.Id,
+                payment.ConvertedPoints,
+                balanceBefore,
+                balanceAfter,
+                WalletTransactionType.TopUp,
+                payment.Id);
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             paymentRepository.Update(payment);
             userRepository.Update(user);
+            await walletTransactionRepository.AddAsync(transaction, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 
@@ -252,8 +260,7 @@ public class PaymentService(
                     payment.Id,
                     payment.GatewayOrderId,
                     payment.Status.ToString(),
-                    payment.ConvertedPoints,
-                    user.Balance.Amount),
+                    payment.ConvertedPoints),
                 "SePay payment completed successfully.");
         }
         catch (Exception ex)

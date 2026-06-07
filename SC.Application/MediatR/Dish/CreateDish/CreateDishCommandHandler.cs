@@ -35,7 +35,8 @@ internal class CreateDishCommandHandler(
                 request.Description.Trim(),
                 Money.Create(request.Price),
                 request.CategoryId,
-                currentUserService.UserId);
+                currentUserService.UserId,
+                request.ImgUrl);
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await dishRepository.AddAsync(dish, cancellationToken);
@@ -49,7 +50,8 @@ internal class CreateDishCommandHandler(
                 Description = dish.Description,
                 Price = dish.Price.Amount,
                 IsActive = dish.IsActive,
-                CategoryId = dish.CategoryId
+                CategoryId = dish.CategoryId,
+                ImgUrl = dish.ImgUrl
             };
 
             return Result.Success(response, "Dish created successfully.");

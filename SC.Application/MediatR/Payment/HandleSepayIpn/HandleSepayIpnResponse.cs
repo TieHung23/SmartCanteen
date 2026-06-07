@@ -6,5 +6,4 @@ public class HandleSepayIpnResponse
     public string GatewayOrderId { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public decimal ConvertedPoints { get; set; }
-    public decimal BalanceAfter { get; set; }
 }

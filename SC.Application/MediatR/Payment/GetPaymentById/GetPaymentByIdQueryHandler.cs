@@ -36,8 +36,6 @@ internal class GetPaymentByIdQueryHandler(
                 GatewayTransactionId = payment.GatewayTransactionId,
                 AmountVnd = payment.AmountVnd,
                 ConvertedPoints = payment.ConvertedPoints,
-                BalanceBefore = payment.BalanceSnapshot.BalanceBefore,
-                BalanceAfter = payment.BalanceSnapshot.BalanceAfter,
                 Method = (int)payment.Method,
                 Type = (int)payment.Type,
                 Status = payment.Status.ToString(),

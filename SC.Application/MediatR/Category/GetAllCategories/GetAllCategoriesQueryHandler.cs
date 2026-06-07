@@ -42,7 +42,8 @@ internal class GetAllCategoriesQueryHandler(
             {
                 Id = c.Id,
                 Name = c.Name,
-                Description = c.Description
+                Description = c.Description,
+                ImgUrl = c.ImgUrl
             }).ToList();
 
             var paginatedResult = new PaginatedList<GetAllCategoriesResponse>(

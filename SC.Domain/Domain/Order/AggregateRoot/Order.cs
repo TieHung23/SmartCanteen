@@ -15,7 +15,7 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid MealId { get; set; }
     public MealAggregate Meal { get; set; } = null!;
 
-    public Guid? PaymentId { get; set; }
+    public Guid? WalletTransactionId { get; set; }
 
     public IList<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
@@ -50,9 +50,9 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
         OrderItems.Add(OrderItem.Create(dishId, quantity, unitPriceAmount));
     }
 
-    public void AttachPayment(Guid paymentId, Guid updatedBy)
+    public void AttachTransaction(Guid walletTransactionId, Guid updatedBy)
     {
-        PaymentId = paymentId;
+        WalletTransactionId = walletTransactionId;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

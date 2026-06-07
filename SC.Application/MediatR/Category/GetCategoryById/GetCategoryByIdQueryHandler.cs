@@ -28,6 +28,7 @@ internal class GetCategoryByIdQueryHandler(
                 Id = category.Id,
                 Name = category.Name,
                 Description = category.Description,
+                ImgUrl = category.ImgUrl,
                 CreatedAtUtc = category.CreatedAtUtc,
                 UpdatedAtUtc = category.UpdatedAtUtc,
                 CreatedBy = category.CreatedBy,

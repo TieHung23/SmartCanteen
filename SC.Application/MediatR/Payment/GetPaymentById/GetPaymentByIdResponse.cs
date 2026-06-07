@@ -8,8 +8,6 @@ public class GetPaymentByIdResponse
     public string? GatewayTransactionId { get; set; }
     public decimal AmountVnd { get; set; }
     public decimal ConvertedPoints { get; set; }
-    public decimal BalanceBefore { get; set; }
-    public decimal BalanceAfter { get; set; }
     public int Method { get; set; }
     public int Type { get; set; }
     public string Status { get; set; } = string.Empty;

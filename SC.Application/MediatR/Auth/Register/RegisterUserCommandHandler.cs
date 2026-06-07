@@ -60,7 +60,6 @@ internal class RegisterUserCommandHandler(
                 name: request.Name.Trim(),
                 email: normalizedEmail,
                 passwordHash: passwordHash,
-                category: request.Category,
                 studentId: string.IsNullOrWhiteSpace(request.StudentId) ? null : request.StudentId.Trim(),
                 dateOfBirth: request.DateOfBirth,
                 majorOrClass: string.IsNullOrWhiteSpace(request.MajorOrClass) ? null : request.MajorOrClass.Trim(),

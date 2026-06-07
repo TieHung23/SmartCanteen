@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using FluentValidation;
-using SC.Domain.Domain.User.Enum;
 using UserAggregate = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Auth.Register;
@@ -37,8 +36,6 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .Must(p => p != null && PasswordSpecialCharRegex.IsMatch(p))
                 .WithMessage("Password must contain at least one special character.");
 
-        RuleFor(x => x.Category).IsInEnum();
-
         RuleFor(x => x.Gender!.Value)
             .IsInEnum()
             .When(x => x.Gender.HasValue);
@@ -49,10 +46,6 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .GreaterThan(_ => DateOnly.FromDateTime(DateTime.UtcNow.Date).AddYears(-100))
                 .WithMessage("Date of birth must be within the last 100 years.")
             .When(x => x.DateOfBirth.HasValue);
-
-        RuleFor(x => x.StudentId)
-            .NotEmpty().WithMessage("StudentId is required for Student category.")
-            .When(x => x.Category == UserCategory.Student);
 
         RuleFor(x => x.StudentId)
             .MaximumLength(50)

@@ -42,7 +42,8 @@ internal class UpdateDishCommandHandler(
                 Money.Create(request.Price),
                 request.CategoryId,
                 request.IsActive,
-                currentUserService.UserId);
+                currentUserService.UserId,
+                request.ImgUrl ?? dish.ImgUrl);
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             dishRepository.Update(dish);
@@ -56,7 +57,8 @@ internal class UpdateDishCommandHandler(
                 Description = dish.Description,
                 Price = dish.Price.Amount,
                 IsActive = dish.IsActive,
-                CategoryId = dish.CategoryId
+                CategoryId = dish.CategoryId,
+                ImgUrl = dish.ImgUrl
             };
 
             return Result.Success(response, "Dish updated successfully.");

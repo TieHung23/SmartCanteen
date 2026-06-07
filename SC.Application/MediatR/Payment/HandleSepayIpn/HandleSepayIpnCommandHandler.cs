@@ -34,8 +34,7 @@ internal class HandleSepayIpnCommandHandler(
                     PaymentId = value.PaymentId,
                     GatewayOrderId = value.GatewayOrderId,
                     Status = value.Status,
-                    ConvertedPoints = value.ConvertedPoints,
-                    BalanceAfter = value.BalanceAfter
+                    ConvertedPoints = value.ConvertedPoints
                 },
                 result.Message);
         }
