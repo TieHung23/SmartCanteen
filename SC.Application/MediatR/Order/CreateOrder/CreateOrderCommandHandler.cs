@@ -5,16 +5,14 @@ using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.WalletTransaction.Entity;
 using SC.Domain.Domain.WalletTransaction.Enum;
-using SC.Domain.SharedKernel.ValueObjects;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
-using UserAggregateRoot = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Order.CreateOrder;
 
 internal class CreateOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
-    IGenericRepository<UserAggregateRoot, Guid> userRepository,
+    IUserRepository userRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
     ICurrentUserService currentUserService,
@@ -43,15 +41,6 @@ internal class CreateOrderCommandHandler(
             }
 
             var currentUserId = currentUserService.UserId;
-            var user = await userRepository.GetByIdAsync(currentUserId, cancellationToken);
-
-            if (user is null)
-            {
-                return Result.Failure<CreateOrderResponse>(
-                    Error.NullValue,
-                    "User not found.");
-            }
-
             var dishIds = request.Items.Select(item => item.DishId).Distinct().ToList();
             var dishes = dishRepository.GetQueryable(dish => dishIds.Contains(dish.Id))
                 .ToList()
@@ -78,14 +67,41 @@ internal class CreateOrderCommandHandler(
                 return dish.Price.Amount * item.Quantity;
             });
 
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await unitOfWork.LockUserAsync(currentUserId, cancellationToken);
+
+            var user = await userRepository.GetByIdAsync(
+                currentUserId,
+                cancellationToken);
+
+            if (user is null)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result.Failure<CreateOrderResponse>(
+                    Error.NullValue,
+                    "User not found.");
+            }
+
             if (user.Balance.Amount < totalPrice)
             {
+                await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<CreateOrderResponse>(
                     Error.InvalidValue,
                     $"Insufficient balance. Required: {totalPrice}, Available: {user.Balance.Amount}");
             }
 
-            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            var balanceAfter = await unitOfWork.TryDebitUserBalanceAsync(
+                currentUserId,
+                totalPrice,
+                cancellationToken);
+
+            if (balanceAfter is null)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result.Failure<CreateOrderResponse>(
+                    Error.InvalidValue,
+                    "Insufficient balance.");
+            }
 
             var order = OrderAggregateRoot.Create(request.MealId, currentUserId);
 
@@ -95,21 +111,17 @@ internal class CreateOrderCommandHandler(
                 order.AddDish(item.DishId, item.Quantity, dish.Price.Amount);
             }
 
-            var balanceBefore = user.Balance.Amount;
-            var balanceAfter = balanceBefore - totalPrice;
-            var newBalance = Money.Create(balanceAfter, user.Balance.Currency);
-            user.Balance = newBalance;
+            var balanceBefore = balanceAfter.Value + totalPrice;
 
             var transaction = WalletTransaction.Create(
                 currentUserId,
                 -totalPrice,
                 balanceBefore,
-                balanceAfter,
+                balanceAfter.Value,
                 WalletTransactionType.OrderPayment);
 
             await walletTransactionRepository.AddAsync(transaction, cancellationToken);
             order.AttachTransaction(transaction.Id, currentUserId);
-            userRepository.Update(user);
             await orderRepository.AddAsync(order, cancellationToken);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -121,7 +133,7 @@ internal class CreateOrderCommandHandler(
                 TransactionId = transaction.Id,
                 TotalPrice = totalPrice,
                 Message = "Order created successfully and wallet debited.",
-                UserRemainingBalance = newBalance.Amount
+                UserRemainingBalance = balanceAfter.Value
             };
 
             return Result.Success(response, "Order created successfully.");

@@ -10,6 +10,10 @@ public sealed class SePayOptions
 
     public string SecretKey { get; set; } = string.Empty;
 
+    public string WebhookSecret { get; set; } = string.Empty;
+
+    public int WebhookTimestampToleranceSeconds { get; set; } = 300;
+
     public string BankName { get; set; } = string.Empty;
 
     public string BankAccountNumber { get; set; } = string.Empty;

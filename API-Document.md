@@ -747,6 +747,15 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
 **Auth:** AllowAnonymous  
 **Body:** Raw `JsonElement` object (SePay webhook payload)
 
+**Required headers:**
+```text
+X-SePay-Timestamp: Unix timestamp in seconds
+X-SePay-Signature: sha256=<HMAC-SHA256 hex digest>
+```
+
+The signature is calculated from `{timestamp}.{raw_request_body}` using
+`SePay:WebhookSecret`. Requests outside the configured timestamp tolerance are rejected.
+
 **Response:**
 ```json
 {

@@ -34,6 +34,9 @@ public class WalletTransactionConfiguration : IEntityTypeConfiguration<WalletTra
             .HasConversion<int>();
 
         builder.Property(x => x.PaymentId);
+        builder.HasIndex(x => x.PaymentId)
+            .IsUnique()
+            .HasFilter("\"PaymentId\" IS NOT NULL");
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();

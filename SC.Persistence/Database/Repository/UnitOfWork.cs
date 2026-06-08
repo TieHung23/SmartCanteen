@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using SC.Domain.Abstraction.Repositories;
 
@@ -19,6 +20,105 @@ public class UnitOfWork(SmartCanteenDbContext context, ILogger<UnitOfWork> logge
     {
         _logger.LogInformation("Beginning database transaction");
         await _context.Database.BeginTransactionAsync(cancellationToken);
+    }
+
+    public async Task LockUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+        command.CommandText =
+            """
+            SELECT 1
+            FROM "Users"
+            WHERE "Id" = @userId
+            FOR UPDATE
+            """;
+
+        var userIdParameter = command.CreateParameter();
+        userIdParameter.ParameterName = "userId";
+        userIdParameter.Value = userId;
+        command.Parameters.Add(userIdParameter);
+
+        await command.ExecuteScalarAsync(cancellationToken);
+    }
+
+    public async Task<decimal?> TryDebitUserBalanceAsync(
+        Guid userId,
+        decimal amount,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+        command.CommandText =
+            """
+            UPDATE "Users"
+            SET "Balance_Amount" = "Balance_Amount" - @amount
+            WHERE "Id" = @userId
+              AND "Balance_Amount" >= @amount
+            RETURNING "Balance_Amount";
+            """;
+
+        var userIdParameter = command.CreateParameter();
+        userIdParameter.ParameterName = "userId";
+        userIdParameter.Value = userId;
+        command.Parameters.Add(userIdParameter);
+
+        var amountParameter = command.CreateParameter();
+        amountParameter.ParameterName = "amount";
+        amountParameter.Value = amount;
+        command.Parameters.Add(amountParameter);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is null or DBNull ? null : Convert.ToDecimal(result);
+    }
+
+    public async Task<decimal?> TryCreditUserBalanceAsync(
+        Guid userId,
+        decimal amount,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+        command.CommandText =
+            """
+            UPDATE "Users"
+            SET "Balance_Amount" = "Balance_Amount" + @amount
+            WHERE "Id" = @userId
+            RETURNING "Balance_Amount";
+            """;
+
+        var userIdParameter = command.CreateParameter();
+        userIdParameter.ParameterName = "userId";
+        userIdParameter.Value = userId;
+        command.Parameters.Add(userIdParameter);
+
+        var amountParameter = command.CreateParameter();
+        amountParameter.ParameterName = "amount";
+        amountParameter.Value = amount;
+        command.Parameters.Add(amountParameter);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is null or DBNull ? null : Convert.ToDecimal(result);
     }
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)

@@ -442,6 +442,10 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("GatewayOrderId")
                         .IsUnique();
 
+                    b.HasIndex("GatewayTransactionId")
+                        .IsUnique()
+                        .HasFilter("\"GatewayTransactionId\" IS NOT NULL");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Payments");
@@ -794,6 +798,10 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PaymentId")
+                        .IsUnique()
+                        .HasFilter("\"PaymentId\" IS NOT NULL");
 
                     b.HasIndex("UserId");
 

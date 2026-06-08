@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Services.Payment;
@@ -7,7 +8,6 @@ using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Payment.Enum;
 using SC.Domain.Domain.WalletTransaction.Entity;
 using SC.Domain.Domain.WalletTransaction.Enum;
-using SC.Domain.SharedKernel.ValueObjects;
 using PaymentAggregate = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 using UserAggregate = SC.Domain.Domain.User.User;
@@ -171,6 +171,8 @@ public class PaymentService(
         IReadOnlyDictionary<string, string> data,
         CancellationToken cancellationToken = default)
     {
+        PaymentAggregate? payment = null;
+
         try
         {
             var transferType = GetValue(data, "transferType");
@@ -189,7 +191,7 @@ public class PaymentService(
                     "SePay payment code is missing.");
             }
 
-            var payment = await paymentRepository.GetQueryable(
+            payment = await paymentRepository.GetQueryable(
                 x => x.GatewayOrderId == orderId)
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -218,6 +220,14 @@ public class PaymentService(
                     "Payment was already completed.");
             }
 
+            var gatewayTransactionId = GetValue(data, "id");
+            if (string.IsNullOrWhiteSpace(gatewayTransactionId))
+            {
+                return Result.Failure<CompletePaymentResult>(
+                    Error.InvalidValue,
+                    "SePay transaction ID is missing.");
+            }
+
             if (!decimal.TryParse(GetValue(data, "transferAmount"), out var amountVnd)
                 || amountVnd != payment.AmountVnd)
             {
@@ -226,31 +236,34 @@ public class PaymentService(
                     "SePay transfer amount does not match payment.");
             }
 
-            var user = await userRepository.GetByIdAsync(payment.UserId, cancellationToken);
-            if (user is null)
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await unitOfWork.LockUserAsync(payment.UserId, cancellationToken);
+
+            var balanceAfter = await unitOfWork.TryCreditUserBalanceAsync(
+                payment.UserId,
+                payment.ConvertedPoints,
+                cancellationToken);
+
+            if (balanceAfter is null)
             {
+                await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<CompletePaymentResult>(
                     Error.NullValue,
                     "Payment user not found.");
             }
 
-            var balanceBefore = user.Balance.Amount;
-            var balanceAfter = balanceBefore + payment.ConvertedPoints;
-
-            user.Balance = Money.Create(balanceAfter, user.Balance.Currency);
-            payment.MarkAsCompleted(GetValue(data, "referenceCode"), payment.UserId);
+            var balanceBefore = balanceAfter.Value - payment.ConvertedPoints;
+            payment.MarkAsCompleted(gatewayTransactionId, payment.UserId);
 
             var transaction = WalletTransaction.Create(
-                user.Id,
+                payment.UserId,
                 payment.ConvertedPoints,
                 balanceBefore,
-                balanceAfter,
+                balanceAfter.Value,
                 WalletTransactionType.TopUp,
                 payment.Id);
 
-            await unitOfWork.BeginTransactionAsync(cancellationToken);
             paymentRepository.Update(payment);
-            userRepository.Update(user);
             await walletTransactionRepository.AddAsync(transaction, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
@@ -262,6 +275,46 @@ public class PaymentService(
                     payment.Status.ToString(),
                     payment.ConvertedPoints),
                 "SePay payment completed successfully.");
+        }
+        catch (DbUpdateException ex)
+            when (payment is not null
+                && IsUniqueViolation(ex, "IX_WalletTransaction_PaymentId"))
+        {
+            await unitOfWork.RollbackAsync(cancellationToken);
+
+            var persistedPayment = await paymentRepository
+                .GetQueryable(x => x.Id == payment.Id)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (persistedPayment?.Status == PaymentStatus.Completed)
+            {
+                logger.LogInformation(
+                    "SePay payment {PaymentId} was completed by another callback.",
+                    payment.Id);
+
+                return Result.Success(
+                    new CompletePaymentResult(
+                        persistedPayment.Id,
+                        persistedPayment.GatewayOrderId,
+                        persistedPayment.Status.ToString(),
+                        persistedPayment.ConvertedPoints),
+                    "Payment was already completed.");
+            }
+
+            logger.LogError(ex, "Duplicate wallet transaction detected for payment {PaymentId}", payment.Id);
+            return Result.Failure<CompletePaymentResult>(
+                Error.ServerError,
+                "Payment completion could not be confirmed.");
+        }
+        catch (DbUpdateException ex)
+            when (IsUniqueViolation(ex, "IX_Payments_GatewayTransactionId"))
+        {
+            await unitOfWork.RollbackAsync(cancellationToken);
+            logger.LogWarning(ex, "SePay transaction was already linked to another payment.");
+            return Result.Failure<CompletePaymentResult>(
+                Error.InvalidValue,
+                "SePay transaction was already processed.");
         }
         catch (Exception ex)
         {
@@ -320,5 +373,11 @@ public class PaymentService(
         return content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault(part => part.StartsWith("SC-", StringComparison.OrdinalIgnoreCase))
             ?? string.Empty;
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException exception, string constraintName)
+    {
+        return exception.InnerException is DbException { SqlState: "23505" } databaseException
+            && databaseException.Message.Contains(constraintName, StringComparison.Ordinal);
     }
 }
