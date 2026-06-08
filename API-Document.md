@@ -187,6 +187,29 @@ Gender: `0=Male, 1=Female, 2=Other`
 Role: `0=User, 1=Admin`  
 AccountStatus: `0=Active, 1=Disabled`
 
+### `PUT /api/auth/me`
+**Auth:** Authorize
+
+**Request body:**
+```json
+{
+  "name": "string",
+  "imgUrl": "https://example.com/avatar.jpg | null",
+  "studentId": "string | null",
+  "dateOfBirth": "2000-01-15 | null",
+  "majorOrClass": "string | null",
+  "phoneNumber": "0912345678 | null",
+  "address": "string | null",
+  "gender": 1 | null
+}
+```
+Gender: `1=Male, 2=Female, 3=Other`
+
+Optional string fields are cleared when sent as `null` or an empty string. Email, role,
+account status, email verification status and balance cannot be changed by this endpoint.
+
+**Response:** Same profile shape as `GET /api/auth/me`.
+
 ---
 
 ## Categories
