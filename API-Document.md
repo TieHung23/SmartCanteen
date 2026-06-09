@@ -767,15 +767,323 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
 |---|---|---|---|
 | Order placed | `POST /api/orders` | `OrderPayment` | Negative (debit) |
 | Top-up confirmed via SePay | `POST /api/payments/sepay/ipn` | `TopUp` | Positive (credit) |
-| Refund (future) | — | `Refund` | Positive (credit) |
+| Refund approved | `POST /api/manager/refunds/{id}/approve` | `Refund` | Positive (credit) |
+
+---
+
+## Refund Policies
+
+Refund policies are stored internally as multiple `Settings` rows grouped by `Group` and `Scope`. The frontend must use the dedicated policy APIs instead of reading or modifying individual rows.
+
+### `GET /api/refund-policies`
+**Auth:** Authorize
+
+Only active, valid policies are returned.
+
+**Response:**
+```json
+{
+  "value": [
+    {
+      "code": "MISSING_ITEM",
+      "name": "Missing item",
+      "description": "Refund when an order is missing an item",
+      "percent": 5,
+      "requiresImage": true
+    }
+  ],
+  "isSuccess": true,
+  "isFailure": false,
+  "message": "Refund policies retrieved successfully.",
+  "error": {}
+}
+```
+
+The frontend submits `code` as `policyCode`. The user must not submit the percentage or refund amount.
+
+### `GET /api/manager/refund-policies`
+**Auth:** Manager
+
+Returns the same policy DTO as `GET /api/refund-policies`.
+
+### `POST /api/manager/refund-policies`
+**Auth:** Manager
+
+**Request body:**
+
+```json
+{
+  "code": "MISSING_ITEM",
+  "name": "Missing item",
+  "description": "Refund when an order is missing an item",
+  "percent": 5,
+  "requiresImage": true
+}
+```
+
+The backend creates these internal setting rows atomically:
+
+```text
+REFUND_POLICY | MISSING_ITEM | NAME           | Missing item | string
+REFUND_POLICY | MISSING_ITEM | DESCRIPTION    | Refund...    | string
+REFUND_POLICY | MISSING_ITEM | PERCENT        | 5            | decimal
+REFUND_POLICY | MISSING_ITEM | REQUIRES_IMAGE | true         | bool
+```
+
+### `PUT /api/manager/refund-policies/{code}`
+**Auth:** Manager
+
+Example: `PUT /api/manager/refund-policies/MISSING_ITEM`
+
+**Request body:**
+
+```json
+{
+  "name": "Missing item",
+  "description": "Refund when an order is missing an item",
+  "percent": 10,
+  "requiresImage": true
+}
+```
+
+All rows in the policy scope are updated in one database transaction.
+
+### `DELETE /api/manager/refund-policies/{code}`
+**Auth:** Manager
+
+Soft-deletes all setting rows in the policy scope. Existing refund requests remain unchanged because they store snapshot values.
+
+---
+
+## User Refund Requests
+
+All endpoints below require an authenticated user.
+
+RefundRequestStatus: `1=Pending`, `2=Approved`, `3=Rejected`.
+
+### `POST /api/refunds`
+**Auth:** Authorize
+**Content-Type:** `multipart/form-data`
+
+**Form fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `orderId` | `guid` | Yes | Order belonging to the current user |
+| `policyCode` | `string` | Yes | Code returned by `GET /api/refund-policies` |
+| `description` | `string` | Yes | User's explanation |
+| `images` | `file[]` | Conditional | Required when `requiresImage=true`; maximum 5 images |
+
+Example frontend request:
+
+```javascript
+const formData = new FormData();
+formData.append("orderId", orderId);
+formData.append("policyCode", policyCode);
+formData.append("description", description);
+images.forEach((image) => formData.append("images", image));
+
+await fetch("/api/refunds", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${accessToken}`
+  },
+  body: formData
+});
+```
+
+Do not manually set `Content-Type` when using `FormData`; the browser adds the multipart boundary.
+
+**201 Response:**
+```json
+{
+  "value": {
+    "id": "refund-request-guid",
+    "orderId": "order-guid",
+    "policyCode": "MISSING_ITEM",
+    "policyName": "Missing item",
+    "refundPercent": 5,
+    "orderAmount": 100,
+    "refundAmount": 5,
+    "status": "Pending",
+    "imageUrls": [
+      "https://example.com/refund-image.jpg"
+    ],
+    "createdAtUtc": "2026-06-09T10:00:00Z"
+  },
+  "isSuccess": true,
+  "isFailure": false,
+  "message": "Refund request submitted successfully.",
+  "error": {}
+}
+```
+
+The backend calculates and snapshots the policy and order values. Later policy changes do not affect an existing request.
+
+Common `400` cases:
+
+- Order does not belong to the current user.
+- Order already has a `Pending` or `Approved` refund request.
+- Policy is missing, deleted, or invalid.
+- A required image is missing.
+- An uploaded file is invalid.
+
+### `GET /api/refunds`
+**Auth:** Authorize
+**Query:** `?status=1&pageNumber=1&pageSize=10`
+
+`status` is optional and uses the numeric RefundRequestStatus values.
+
+**Paginated response item:**
+```json
+{
+  "id": "refund-request-guid",
+  "orderId": "order-guid",
+  "policyName": "Missing item",
+  "refundPercent": 5,
+  "orderAmount": 100,
+  "refundAmount": 5,
+  "status": "Pending",
+  "imageCount": 1,
+  "createdAtUtc": "2026-06-09T10:00:00Z",
+  "reviewedAtUtc": null
+}
+```
+
+### `GET /api/refunds/{id}`
+**Auth:** Authorize
+
+`id` is the Refund Request ID. The current user can only retrieve their own request.
+
+**Response:**
+```json
+{
+  "value": {
+    "id": "refund-request-guid",
+    "orderId": "order-guid",
+    "policyCode": "MISSING_ITEM",
+    "policyName": "Missing item",
+    "refundPercent": 5,
+    "orderAmount": 100,
+    "refundAmount": 5,
+    "description": "One item was missing from the order",
+    "status": "Pending",
+    "images": [
+      {
+        "id": "image-guid",
+        "imageUrl": "https://example.com/refund-image.jpg",
+        "fileName": "evidence.jpg"
+      }
+    ],
+    "reviewedBy": null,
+    "reviewedAtUtc": null,
+    "rejectionReason": null,
+    "walletTransactionId": null,
+    "createdAtUtc": "2026-06-09T10:00:00Z"
+  },
+  "isSuccess": true,
+  "isFailure": false,
+  "message": "Refund request retrieved successfully.",
+  "error": {}
+}
+```
+
+---
+
+## Manager Refund Requests
+
+All endpoints below require `Role=Manager` or `Role=Admin`.
+Prefix: `/api/manager/refunds`
+
+### `GET /api/manager/refunds`
+**Auth:** Manager, Admin
+**Query:** `?status=1&pageNumber=1&pageSize=10`
+
+**Paginated response item:**
+```json
+{
+  "id": "refund-request-guid",
+  "orderId": "order-guid",
+  "userId": "user-guid",
+  "policyName": "Missing item",
+  "refundPercent": 5,
+  "orderAmount": 100,
+  "refundAmount": 5,
+  "status": "Pending",
+  "imageCount": 1,
+  "createdAtUtc": "2026-06-09T10:00:00Z",
+  "reviewedAtUtc": null
+}
+```
+
+### `GET /api/manager/refunds/{id}`
+**Auth:** Manager, Admin
+
+Returns the refund detail with the additional `userId` field.
+
+Important: `{id}` is the Refund Request ID returned by the manager list API, not `orderId`.
+
+### `POST /api/manager/refunds/{id}/approve`
+**Auth:** Manager, Admin
+**No request body.**
+
+Approval credits the wallet and creates a `WalletTransaction` with type `Refund`.
+
+**Response:**
+```json
+{
+  "value": {
+    "id": "refund-request-guid",
+    "walletTransactionId": "wallet-transaction-guid",
+    "refundAmount": 5,
+    "balanceAfter": 150,
+    "status": "Approved"
+  },
+  "isSuccess": true,
+  "isFailure": false,
+  "message": "Refund request approved and wallet credited successfully.",
+  "error": {}
+}
+```
+
+An already approved or rejected request cannot be approved again.
+
+### `POST /api/manager/refunds/{id}/reject`
+**Auth:** Manager, Admin
+
+**Request body:**
+```json
+{
+  "reason": "Insufficient evidence for the refund request"
+}
+```
+
+`reason` is required and has a maximum length of 1000 characters.
+
+**Response:**
+```json
+{
+  "value": {
+    "id": "refund-request-guid",
+    "status": "Rejected",
+    "rejectionReason": "Insufficient evidence for the refund request"
+  },
+  "isSuccess": true,
+  "isFailure": false,
+  "message": "Refund request rejected successfully.",
+  "error": {}
+}
+```
+
+Rejecting a request does not change the wallet or create a WalletTransaction.
 
 ---
 
 ## Settings
 
 ### `GET /api/settings`
-**Auth:** Authorize  
-**Query:** `?code=string&name=string&group=string&type=string&pageNumber=1&pageSize=10`
+**Auth:** Manager
+**Query:** `?code=string&name=string&group=string&scope=string&type=string&pageNumber=1&pageSize=10`
 
 **Paginated response items:**
 ```json
@@ -785,13 +1093,14 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
   "name": "string",
   "description": "string",
   "group": "string",
+  "scope": "string",
   "value": "string",
   "type": "string"
 }
 ```
 
 ### `GET /api/settings/{id}`
-**Auth:** Authorize  
+**Auth:** Manager
 
 **Response:**
 ```json
@@ -802,6 +1111,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
     "name": "string",
     "description": "string",
     "group": "string",
+    "scope": "string",
     "value": "string",
     "type": "string"
   },
@@ -811,7 +1121,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
 ```
 
 ### `POST /api/settings`
-**Auth:** Authorize  
+**Auth:** Manager
 
 **Request body:**
 ```json
@@ -820,6 +1130,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
   "name": "string",
   "description": "string | null",
   "group": "string",
+  "scope": "string",
   "value": "string",
   "type": "string"
 }
@@ -834,6 +1145,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
     "name": "string",
     "description": "string",
     "group": "string",
+    "scope": "string",
     "value": "string",
     "type": "string"
   },
@@ -843,7 +1155,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
 ```
 
 ### `PUT /api/settings/{id}`
-**Auth:** Authorize  
+**Auth:** Manager
 
 **Request body:**
 ```json
@@ -851,6 +1163,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
   "name": "string",
   "description": "string | null",
   "group": "string",
+  "scope": "string",
   "value": "string",
   "type": "string"
 }
@@ -865,6 +1178,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
     "name": "string",
     "description": "string",
     "group": "string",
+    "scope": "string",
     "value": "string",
     "type": "string"
   },
@@ -874,7 +1188,7 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
 ```
 
 ### `DELETE /api/settings/{id}`
-**Auth:** Authorize  
+**Auth:** Manager
 
 **Response:**
 ```json
@@ -887,6 +1201,8 @@ Each **top-up Payment** may produce a `WalletTransaction` (type `TopUp`) when th
   "message": "string"
 }
 ```
+
+Rows with `group=REFUND_POLICY` are read-only through the generic Settings API. Use `/api/manager/refund-policies` to create, update, or delete a complete policy.
 
 ---
 

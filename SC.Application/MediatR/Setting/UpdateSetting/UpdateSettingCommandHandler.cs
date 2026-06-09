@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Application.MediatR.RefundPolicy;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
@@ -26,10 +27,25 @@ internal class UpdateSettingCommandHandler(
                 return Result.Failure<UpdateSettingResponse>(Error.NullValue, "Setting not found.");
             }
 
+            if (string.Equals(
+                    setting.Group,
+                    RefundPolicyConstants.Group,
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    request.Group.Trim(),
+                    RefundPolicyConstants.Group,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Failure<UpdateSettingResponse>(
+                    Error.Forbidden,
+                    "Refund policy settings must be managed through the refund policy API.");
+            }
+
             setting.Update(
                 request.Name.Trim(),
                 request.Description?.Trim() ?? string.Empty,
                 request.Group.Trim(),
+                request.Scope.Trim(),
                 request.Value.Trim(),
                 request.Type.Trim(),
                 currentUserService.UserId);
@@ -46,6 +62,7 @@ internal class UpdateSettingCommandHandler(
                 Name = setting.Name,
                 Description = setting.Description,
                 Group = setting.Group,
+                Scope = setting.Scope,
                 Value = setting.Value,
                 Type = setting.Type
             };

@@ -857,6 +857,48 @@ pageSize: int (default: 10)
 
 ---
 
+## POST /api/auth/google
+
+- Controller: SC.Api.Controllers.AuthController
+- Action: Google
+- RequestType: GoogleLoginCommand
+- ResponseType: Result<AuthTokensDto>
+
+### Request JSON
+
+```json
+{
+  "idToken": "google-id-token"
+}
+```
+
+### Response JSON
+
+```json
+{
+  "value": {
+    "accessToken": "jwt-access-token",
+    "accessTokenExpiresAt": "2026-05-24T11:00:00Z",
+    "refreshToken": "opaque-refresh-token",
+    "refreshTokenExpiresAt": "2026-05-31T10:00:00Z"
+  },
+  "message": "Google sign-in successful.",
+  "isSuccess": true,
+  "isFailure": false,
+  "error": {}
+}
+```
+
+### Notes
+
+- Status codes: 200 (success), 400 (invalid/expired Google token, unverified email, non-FPT account, suspended account, failure)
+- Authorization: None required ([AllowAnonymous])
+- Only FPT University Google accounts are accepted
+- New users may be created from the Google account profile
+- Source: SC.Api/Controllers/AuthController.cs
+
+---
+
 ## GET /api/auth/verify-email
 
 - Controller: SC.Api.Controllers.AuthController
@@ -948,6 +990,131 @@ documentTypes: List<DocumentType> (must match file count)
 
 ---
 
+## GET /api/payments/{id}
+
+- Controller: SC.Api.Controllers.PaymentsController
+- Action: GetPaymentById
+- RequestType: Guid (route parameter)
+- ResponseType: Result<GetPaymentByIdResponse>
+
+### Response JSON
+
+```json
+{
+  "value": {
+    "paymentId": "550e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440200",
+    "gatewayOrderId": "SC-20260524-000001",
+    "gatewayTransactionId": "SEPAY-TRANSACTION-001",
+    "amountVnd": 50000,
+    "convertedPoints": 50000,
+    "balanceBefore": 10000,
+    "balanceAfter": 60000,
+    "method": 1,
+    "type": 1,
+    "status": "Completed",
+    "failureReason": null,
+    "createdAtUtc": "2026-05-24T10:00:00Z",
+    "completedAtUtc": "2026-05-24T10:05:00Z"
+  },
+  "message": "Payment retrieved successfully.",
+  "isSuccess": true,
+  "isFailure": false,
+  "error": {}
+}
+```
+
+### Notes
+
+- Status codes: 200 (success), 404 (not found/failure)
+- Authorization: Required ([Authorize])
+- Source: SC.Api/Controllers/PaymentsController.cs
+
+---
+
+## POST /api/payments/top-up
+
+- Controller: SC.Api.Controllers.PaymentsController
+- Action: TopUpWallet
+- RequestType: TopUpWalletCommand
+- ResponseType: Result<TopUpWalletResponse>
+
+### Request JSON
+
+```json
+{
+  "amountVnd": 50000,
+  "method": 1
+}
+```
+
+### Response JSON
+
+```json
+{
+  "value": {
+    "paymentId": "550e8400-e29b-41d4-a716-446655440000",
+    "amountVnd": 50000,
+    "convertedPoints": 50000,
+    "balanceBefore": 10000,
+    "balanceAfter": 10000,
+    "method": 1,
+    "status": "Pending",
+    "gatewayOrderId": "SC-20260524-000001",
+    "paymentContent": "SC-20260524-000001",
+    "payUrl": null
+  },
+  "message": "Top-up request created successfully.",
+  "isSuccess": true,
+  "isFailure": false,
+  "error": {}
+}
+```
+
+### Notes
+
+- Status codes: 200 (success), 400 (validation/failure)
+- Authorization: Required ([Authorize])
+- Validation: amountVnd must be greater than 0; method must be between 1 and 4
+- Source: SC.Api/Controllers/PaymentsController.cs
+
+---
+
+## POST /api/payments/sepay/ipn
+
+- Controller: SC.Api.Controllers.PaymentsController
+- Action: HandleSepayIpn
+- RequestType: JSON object
+- ResponseType: anonymous success object
+
+### Request JSON
+
+```json
+{
+  "gatewayOrderId": "SC-20260524-000001",
+  "gatewayTransactionId": "SEPAY-TRANSACTION-001",
+  "amount": "50000",
+  "content": "SC-20260524-000001"
+}
+```
+
+### Response JSON
+
+```json
+{
+  "success": true
+}
+```
+
+### Notes
+
+- Status codes: 200 (success), 400 (payload is not a JSON object or failure)
+- Authorization: None required ([AllowAnonymous])
+- Payload is accepted as a JSON object and converted to a dictionary of string values
+- Source: SC.Api/Controllers/PaymentsController.cs
+
+---
+
 ## GET /api/admin/verifications
 
 - Controller: SC.Api.Controllers.Admin.VerificationAdminController
@@ -1018,7 +1185,7 @@ documentTypes: List<DocumentType> (must match file count)
 
 ## Summary
 
-**Total Endpoints**: 44
+**Total Endpoints**: 42
 **Base URL**: `api/` (v1.0)
 **Authentication**:
 

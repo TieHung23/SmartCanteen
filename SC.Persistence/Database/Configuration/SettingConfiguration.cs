@@ -29,6 +29,10 @@ public class SettingConfiguration : IEntityTypeConfiguration<Setting>
         builder.Property(x => x.Group)
             .IsRequired()
             .HasMaxLength(100);
+
+        builder.Property(x => x.Scope)
+            .IsRequired()
+            .HasMaxLength(100);
             
         builder.Property(x => x.Type)
             .IsRequired()
@@ -36,6 +40,10 @@ public class SettingConfiguration : IEntityTypeConfiguration<Setting>
 
         builder.Property(x => x.Value)
             .IsRequired();
+
+        builder.HasIndex(x => new { x.Group, x.Scope, x.Code })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Ignore(x => x.DomainEvents);
     }

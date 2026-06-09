@@ -33,6 +33,7 @@ internal class GetSettingByIdQueryHandler(
                 Name = setting.Name,
                 Description = setting.Description,
                 Group = setting.Group,
+                Scope = setting.Scope,
                 Value = setting.Value,
                 Type = setting.Type
             };

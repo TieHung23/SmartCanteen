@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Application.MediatR.RefundPolicy;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
@@ -27,6 +28,16 @@ internal class DeleteSettingCommandHandler(
                 return Result.Failure<DeleteSettingResponse>(
                     Error.NullValue,
                     "Setting not found.");
+            }
+
+            if (string.Equals(
+                    setting.Group,
+                    RefundPolicyConstants.Group,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Failure<DeleteSettingResponse>(
+                    Error.Forbidden,
+                    "Refund policy settings must be managed through the refund policy API.");
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
