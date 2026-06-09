@@ -1,5 +1,3 @@
-using System.Data.Common;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -38,28 +36,9 @@ internal class UpdateProfileCommandHandler(
                     "User not found.");
             }
 
-            var normalizedStudentId = NormalizeOptional(request.StudentId)?.ToUpperInvariant();
-            if (normalizedStudentId is not null)
-            {
-                var studentIdTaken = await userRepository
-                    .GetQueryable(candidate =>
-                        candidate.Id != userId
-                        && candidate.StudentId != null
-                        && candidate.StudentId.ToUpper() == normalizedStudentId)
-                    .AnyAsync(cancellationToken);
-
-                if (studentIdTaken)
-                {
-                    return Result.Failure<UpdateProfileResponse>(
-                        Error.StudentIdAlreadyUsed,
-                        "Student ID is already linked to another account.");
-                }
-            }
-
             user.UpdateProfile(
                 request.Name.Trim(),
                 NormalizeOptional(request.ImgUrl),
-                normalizedStudentId,
                 request.DateOfBirth,
                 NormalizeOptional(request.MajorOrClass),
                 NormalizeOptional(request.PhoneNumber),
@@ -87,20 +66,6 @@ internal class UpdateProfileCommandHandler(
                 user.LastLoginAt);
 
             return Result.Success(response, "Profile updated successfully.");
-        }
-        catch (DbUpdateException ex)
-            when (ex.InnerException is DbException { SqlState: "23505" } databaseException
-                && databaseException.Message.Contains(
-                    "IX_Users_StudentId",
-                    StringComparison.Ordinal))
-        {
-            logger.LogWarning(
-                ex,
-                "Student ID conflict while updating profile for user {UserId}",
-                currentUserService.UserId);
-            return Result.Failure<UpdateProfileResponse>(
-                Error.StudentIdAlreadyUsed,
-                "Student ID is already linked to another account.");
         }
         catch (Exception ex)
         {

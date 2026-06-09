@@ -22,10 +22,6 @@ public class UpdateProfileCommandValidator : AbstractValidator<UpdateProfileComm
             .WithMessage("Image URL must be a valid HTTP or HTTPS URL.")
             .When(x => !string.IsNullOrWhiteSpace(x.ImgUrl));
 
-        RuleFor(x => x.StudentId)
-            .MaximumLength(50)
-            .When(x => !string.IsNullOrWhiteSpace(x.StudentId));
-
         RuleFor(x => x.DateOfBirth!.Value)
             .LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow.Date).AddYears(-10))
                 .WithMessage("Date of birth must indicate the user is at least 10 years old.")

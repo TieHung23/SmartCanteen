@@ -106,7 +106,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public void UpdateProfile(
         string name,
         string? imgUrl,
-        string? studentId,
         DateOnly? dateOfBirth,
         string? majorOrClass,
         string? phoneNumber,
@@ -115,7 +114,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
     {
         Name = name;
         ImgUrl = imgUrl;
-        StudentId = studentId;
         DateOfBirth = dateOfBirth;
         MajorOrClass = majorOrClass;
         PhoneNumber = phoneNumber;

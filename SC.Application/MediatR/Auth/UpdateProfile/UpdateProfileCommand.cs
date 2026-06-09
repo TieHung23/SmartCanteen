@@ -6,7 +6,6 @@ namespace SC.Application.MediatR.Auth.UpdateProfile;
 public record UpdateProfileCommand(
     string Name,
     string? ImgUrl = null,
-    string? StudentId = null,
     DateOnly? DateOfBirth = null,
     string? MajorOrClass = null,
     string? PhoneNumber = null,
