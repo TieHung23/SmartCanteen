@@ -34,6 +34,12 @@ public class CreateSettingCommandValidator : AbstractValidator<CreateSettingComm
             .NotEmpty()
             .MaximumLength(100);
 
+        RuleFor(x => x.Scope)
+            .NotEmpty()
+            .MaximumLength(100)
+            .Matches("^[A-Za-z0-9_.-]+$")
+            .WithMessage("Scope must contain only letters, numbers, underscore, dot, or hyphen.");
+
         RuleFor(x => x.Type)
             .NotEmpty()
             .MaximumLength(50)
@@ -49,6 +55,7 @@ public class CreateSettingCommandValidator : AbstractValidator<CreateSettingComm
             .NotEmpty()
             .Must((command, value) => IsValidValueByType(command.Type, value))
             .WithMessage("Value is not valid for the specified Type.");
+
     }
 
     private static bool IsValidValueByType(string? type, string? value)

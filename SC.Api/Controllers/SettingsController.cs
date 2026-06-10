@@ -13,7 +13,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Manager")]
 public class SettingsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

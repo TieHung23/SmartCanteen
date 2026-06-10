@@ -8,6 +8,7 @@ public class GetAllSettingsQuery : PaginationParams, IQuery<PaginatedList<GetAll
     public string? Code { get; set; }
     public string? Name { get; set; }
     public string? Group { get; set; }
+    public string? Scope { get; set; }
     public string? Type { get; set; }
 
     public GetAllSettingsQuery()
@@ -20,13 +21,14 @@ public class GetAllSettingsQuery : PaginationParams, IQuery<PaginatedList<GetAll
         string? code = null,
         string? name = null,
         string? group = null,
+        string? scope = null,
         string? type = null)
         : base(pageNumber, pageSize)
     {
         Code = code;
         Name = name;
         Group = group;
+        Scope = scope;
         Type = type;
     }
 }
-
