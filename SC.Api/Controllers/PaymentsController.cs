@@ -100,8 +100,8 @@ public class PaymentsController(
             }
 
             var data = ToDictionary(document.RootElement);
-            var isTestMode = Request.Headers.UserAgent.ToString()
-                .StartsWith("SePay-Testmode-Webhook/", StringComparison.OrdinalIgnoreCase);
+            var userAgent = Request.Headers["User-Agent"].ToString();
+            var isTestMode = userAgent.StartsWith("SePay-Testmode-Webhook/", StringComparison.OrdinalIgnoreCase);
             var hasPaymentCode = data.TryGetValue("code", out var code)
                     && code.StartsWith("SC-", StringComparison.OrdinalIgnoreCase)
                 || data.TryGetValue("content", out var content)

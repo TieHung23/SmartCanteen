@@ -62,10 +62,10 @@ Paginated response shape:
   "majorOrClass": "string | null",
   "phoneNumber": "string | null",
   "address": "string | null",
-  "gender": 0 | null
+  "gender": 1 | null
 }
 ```
-Gender: `0=Male, 1=Female, 2=Other`
+Gender: `1=Male, 2=Female, 3=Other`
 
 **201 Response:**
 ```json
@@ -174,15 +174,15 @@ Gender: `0=Male, 1=Female, 2=Other`
     "name": "string",
     "email": "string",
     "imgUrl": "string | null",
-    "role": 0,
-    "status": 0,
+    "role": 3,
+    "status": 1,
     "emailVerified": true,
     "studentId": "string | null",
     "dateOfBirth": "2024-01-15 | null",
     "majorOrClass": "string | null",
     "phoneNumber": "string | null",
     "address": "string | null",
-    "gender": 0 | null,
+    "gender": 1 | null,
     "balanceAmount": 0.0,
     "lastLoginAt": "2024-01-01T00:00:00Z | null"
   },
@@ -190,8 +190,8 @@ Gender: `0=Male, 1=Female, 2=Other`
   "message": "string"
 }
 ```
-Role: `0=User, 1=Admin`  
-AccountStatus: `0=Active, 1=Disabled`
+Role: `1=Admin, 2=Manager, 3=User, 4=Staff`  
+AccountStatus: `1=Active, 2=PendingEmailVerification, 3=PendingIdentityVerification, 4=Suspended, 5=Banned`
 
 ### `PUT /api/auth/me`
 **Auth:** Authorize
@@ -209,6 +209,15 @@ AccountStatus: `0=Active, 1=Disabled`
 }
 ```
 Gender: `1=Male, 2=Female, 3=Other`
+
+**Validation Rules:**
+- `name`: Required, 2–200 characters
+- `imgUrl`: Optional, max 500 chars, must be a valid HTTP(S) URL
+- `dateOfBirth`: Must indicate age ≥ 10 and ≤ 100 years
+- `majorOrClass`: Optional, max 200 chars
+- `phoneNumber`: Optional, max 20 chars, must match Vietnamese format (e.g. `0912345678` or `+84912345678`)
+- `address`: Optional, max 500 chars
+- `gender`: Optional, `1=Male, 2=Female, 3=Other`
 
 Optional string fields are cleared when sent as `null` or an empty string. Student ID,
 email, role, account status, email verification status and balance cannot be changed by
