@@ -103,6 +103,24 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         LastLoginAt = DateTimeOffset.UtcNow;
     }
 
+    public void UpdateProfile(
+        string name,
+        string? imgUrl,
+        DateOnly? dateOfBirth,
+        string? majorOrClass,
+        string? phoneNumber,
+        string? address,
+        Gender? gender)
+    {
+        Name = name;
+        ImgUrl = imgUrl;
+        DateOfBirth = dateOfBirth;
+        MajorOrClass = majorOrClass;
+        PhoneNumber = phoneNumber;
+        Address = address;
+        Gender = gender;
+    }
+
     public bool IsFptEmail() => IsFptEmail(Email);
 
     /// <summary>

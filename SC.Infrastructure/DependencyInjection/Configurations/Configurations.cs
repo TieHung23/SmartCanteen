@@ -37,6 +37,7 @@ public static class Configurations
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddSingleton<ISePayWebhookVerifier, SePayWebhookVerifier>();
         services.AddScoped<IFileValidator, FileValidator>();
         services.AddScoped<IFileUploader, CloudinaryFileUploaderAdapter>();
 

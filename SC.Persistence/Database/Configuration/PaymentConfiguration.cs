@@ -53,6 +53,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(x => x.CompletedAtUtc);
         builder.Property(x => x.CreatedBy).IsRequired();
 
+        builder.HasIndex(x => x.GatewayTransactionId)
+            .IsUnique()
+            .HasFilter("\"GatewayTransactionId\" IS NOT NULL");
+
         builder.Ignore(x => x.DomainEvents);
     }
 }

@@ -18,6 +18,18 @@ public record CompletePaymentResult(
     string Status,
     decimal ConvertedPoints);
 
+public record SePayWebhookVerificationResult(
+    bool IsValid,
+    string Message);
+
+public interface ISePayWebhookVerifier
+{
+    SePayWebhookVerificationResult Verify(
+        string rawBody,
+        string signature,
+        string timestamp);
+}
+
 public interface IPaymentService
 {
     Task<Result<TopUpWalletResult>> TopUpWalletAsync(
