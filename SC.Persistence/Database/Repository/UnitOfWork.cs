@@ -22,6 +22,22 @@ public class UnitOfWork(SmartCanteenDbContext context, ILogger<UnitOfWork> logge
         await _context.Database.BeginTransactionAsync(cancellationToken);
     }
 
+    public async Task LockRefundRequestAsync(
+        Guid refundRequestId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation(
+            "Locking refund request {RefundRequestId}",
+            refundRequestId);
+        await _context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             SELECT 1
+             FROM "RefundRequests"
+             WHERE "Id" = {refundRequestId}
+             FOR UPDATE
+             """,
+            cancellationToken);
+    }
     public async Task LockUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

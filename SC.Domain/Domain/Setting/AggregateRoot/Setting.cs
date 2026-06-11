@@ -13,6 +13,7 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Group { get; set; } = string.Empty;
+    public string Scope { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     
@@ -21,7 +22,15 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Setting Create(string code, string name, string description, string group, string value, string type, Guid createdBy)
+    public static Setting Create(
+        string code,
+        string name,
+        string description,
+        string group,
+        string scope,
+        string value,
+        string type,
+        Guid createdBy)
     {
         return new Setting
         {
@@ -30,6 +39,7 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
             Name = name,
             Description = description,
             Group = group,
+            Scope = scope,
             Value = value,
             Type = type,
             CreatedAtUtc = DateTimeOffset.UtcNow,
@@ -37,7 +47,12 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
         };
     }
 
-    public void Update(string name, string description, string value, string type, Guid updatedBy)
+    public void Update(
+        string name,
+        string description,
+        string value,
+        string type,
+        Guid updatedBy)
     {
         Name = name;
         Description = description;
@@ -47,11 +62,19 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
-    public void Update(string name, string description, string group, string value, string type, Guid updatedBy)
+    public void Update(
+        string name,
+        string description,
+        string group,
+        string scope,
+        string value,
+        string type,
+        Guid updatedBy)
     {
         Name = name;
         Description = description;
         Group = group;
+        Scope = scope;
         Value = value;
         Type = type;
         UpdatedAtUtc = DateTimeOffset.UtcNow;

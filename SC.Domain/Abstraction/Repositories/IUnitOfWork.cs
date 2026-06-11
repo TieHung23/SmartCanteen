@@ -18,6 +18,8 @@ public interface IUnitOfWork
         decimal amount,
         CancellationToken cancellationToken = default);
 
+    Task LockRefundRequestAsync(Guid refundRequestId, CancellationToken cancellationToken = default);
+
     Task CommitAsync(CancellationToken cancellationToken = default);
 
     Task RollbackAsync(CancellationToken cancellationToken = default);
