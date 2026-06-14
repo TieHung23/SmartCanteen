@@ -31,6 +31,7 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<ApiLog> ApiLogs => Set<ApiLog>();
     public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
 

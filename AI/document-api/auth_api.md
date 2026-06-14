@@ -211,6 +211,56 @@ On failure:
 
 ---
 
+## `POST /api/auth/forgot-password`
+**Auth:** AllowAnonymous
+
+**Request:** `{ "email": "user@example.com" }`
+
+Always returns `200 OK` with the same message for unknown, Google-only, and
+password-based accounts. For an eligible account, the previous active reset
+tokens are consumed, a new one-hour opaque token is persisted, and a reset
+link is sent by email.
+
+---
+
+## `POST /api/auth/reset-password`
+**Auth:** AllowAnonymous
+
+**Request:**
+
+```json
+{
+  "token": "opaque token from the email link",
+  "newPassword": "NewPassword1!",
+  "confirmPassword": "NewPassword1!"
+}
+```
+
+The token must be valid, unexpired, and unused. The new password uses the same
+policy as registration. On success, the token is consumed and all active
+refresh tokens for the account are revoked.
+
+---
+
+## `PUT /api/auth/change-password`
+**Auth:** Authorize
+
+**Request:**
+
+```json
+{
+  "currentPassword": "CurrentPassword1!",
+  "newPassword": "NewPassword1!",
+  "confirmPassword": "NewPassword1!"
+}
+```
+
+Verifies the current password, applies the registration password policy, and
+requires the new password to differ from the current password. On success, all
+active refresh tokens are revoked and the user must sign in again.
+
+---
+
 ## `POST /api/auth/refresh`
 **Auth:** AllowAnonymous
 
