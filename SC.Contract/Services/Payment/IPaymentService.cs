@@ -10,7 +10,10 @@ public record TopUpWalletResult(
     string Status,
     string GatewayOrderId,
     string PaymentContent,
-    string? PayUrl);
+    string? PayUrl,
+    string BankName,
+    string BankAccountNumber,
+    string BankAccountName);
 
 public record CompletePaymentResult(
     Guid PaymentId,

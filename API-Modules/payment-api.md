@@ -95,7 +95,11 @@ Paginated response shape:
     "status": "string",
     "gatewayOrderId": "string",
     "paymentContent": "string",
-    "payUrl": "string | null"
+    "payUrl": "string | null",
+    "qrCodeUrl": "string | null",
+    "bankName": "string",
+    "bankAccountNumber": "string",
+    "bankAccountName": "string"
   },
   "isSuccess": true,
   "message": "string"

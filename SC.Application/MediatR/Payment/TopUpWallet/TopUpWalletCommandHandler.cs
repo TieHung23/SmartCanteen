@@ -38,7 +38,11 @@ internal class TopUpWalletCommandHandler(
                 Status = value.Status,
                 GatewayOrderId = value.GatewayOrderId,
                 PaymentContent = value.PaymentContent,
-                PayUrl = value.PayUrl
+                PayUrl = value.PayUrl,
+                QrCodeUrl = value.PayUrl,
+                BankName = value.BankName,
+                BankAccountNumber = value.BankAccountNumber,
+                BankAccountName = value.BankAccountName
             };
 
             return Result.Success(response, result.Message);

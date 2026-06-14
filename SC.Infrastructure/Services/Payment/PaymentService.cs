@@ -1,6 +1,8 @@
 using System.Data.Common;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SC.Contract.Services.Payment;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
@@ -8,6 +10,7 @@ using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Payment.Enum;
 using SC.Domain.Domain.WalletTransaction.Entity;
 using SC.Domain.Domain.WalletTransaction.Enum;
+using SC.Infrastructure.DependencyInjection.Options;
 using PaymentAggregate = SC.Domain.Domain.Payment.AggregateRoot.Payment;
 using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 using UserAggregate = SC.Domain.Domain.User.User;
@@ -21,11 +24,13 @@ public class PaymentService(
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IOptions<SePayOptions> sePayOptions,
     ILogger<PaymentService> logger) : IPaymentService
 {
     private const string VndPerPointSettingCode = "VND_PER_POINT";
     private const string MinTopUpAmountSettingCode = "MIN_TOPUP_AMOUNT";
     private const string MaxTopUpAmountSettingCode = "MAX_TOPUP_AMOUNT";
+    private readonly SePayOptions _sePayOptions = sePayOptions.Value;
 
     public async Task<Result<TopUpWalletResult>> TopUpWalletAsync(
         decimal amountVnd,
@@ -127,9 +132,18 @@ public class PaymentService(
                     "User not found.");
             }
 
+            var sePayConfigurationError = ValidateSePayConfiguration();
+            if (sePayConfigurationError is not null)
+            {
+                return Result.Failure<TopUpWalletResult>(
+                    Error.InvalidValue,
+                    sePayConfigurationError);
+            }
+
             var convertedPoints = amountVnd / vndPerPoint;
-            var gatewayOrderId = $"SC-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}";
-            var paymentContent = gatewayOrderId;
+            var gatewayOrderId = CreatePaymentCode();
+            var paymentContent = CreatePaymentContent(gatewayOrderId);
+            var payUrl = CreateQrUrl(amountVnd, paymentContent);
 
             var payment = PaymentAggregate.Create(
                 gatewayOrderId,
@@ -153,7 +167,10 @@ public class PaymentService(
                 payment.Status.ToString(),
                 payment.GatewayOrderId,
                 paymentContent,
-                null);
+                payUrl,
+                _sePayOptions.BankName.Trim(),
+                _sePayOptions.BankAccountNumber.Trim(),
+                _sePayOptions.BankAccountName.Trim());
 
             return Result.Success(result, "SePay top-up payment created successfully.");
         }
@@ -228,7 +245,11 @@ public class PaymentService(
                     "SePay transaction ID is missing.");
             }
 
-            if (!decimal.TryParse(GetValue(data, "transferAmount"), out var amountVnd)
+            if (!decimal.TryParse(
+                    GetValue(data, "transferAmount"),
+                    NumberStyles.Number,
+                    CultureInfo.InvariantCulture,
+                    out var amountVnd)
                 || amountVnd != payment.AmountVnd)
             {
                 return Result.Failure<CompletePaymentResult>(
@@ -356,10 +377,11 @@ public class PaymentService(
         return data.TryGetValue(key, out var value) ? value : string.Empty;
     }
 
-    private static string ResolveSepayOrderId(IReadOnlyDictionary<string, string> data)
+    private string ResolveSepayOrderId(IReadOnlyDictionary<string, string> data)
     {
+        var paymentCodePrefix = _sePayOptions.PaymentCodePrefix.Trim();
         var code = GetValue(data, "code");
-        if (!string.IsNullOrWhiteSpace(code))
+        if (code.StartsWith(paymentCodePrefix, StringComparison.OrdinalIgnoreCase))
         {
             return code;
         }
@@ -371,8 +393,66 @@ public class PaymentService(
         }
 
         return content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(part => part.StartsWith("SC-", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(part => part.StartsWith(
+                paymentCodePrefix,
+                StringComparison.OrdinalIgnoreCase))
             ?? string.Empty;
+    }
+
+    private string? ValidateSePayConfiguration()
+    {
+        if (string.IsNullOrWhiteSpace(_sePayOptions.BankName))
+        {
+            return "SePay bank name is not configured.";
+        }
+
+        if (string.IsNullOrWhiteSpace(_sePayOptions.BankAccountNumber))
+        {
+            return "SePay bank account number is not configured.";
+        }
+
+        var prefix = _sePayOptions.PaymentCodePrefix.Trim();
+        if (prefix.Length is < 2 or > 5 || !prefix.All(char.IsLetterOrDigit))
+        {
+            return "SePay payment code prefix must contain 2 to 5 letters or digits.";
+        }
+
+        return null;
+    }
+
+    private string CreatePaymentCode()
+    {
+        var prefix = _sePayOptions.PaymentCodePrefix.Trim().ToUpperInvariant();
+        return $"{prefix}{Guid.NewGuid():N}"[..30];
+    }
+
+    private string CreatePaymentContent(string paymentCode)
+    {
+        var requiredPrefix = _sePayOptions.RequiredTransferContentPrefix.Trim();
+        return string.IsNullOrWhiteSpace(requiredPrefix)
+            ? paymentCode
+            : $"{requiredPrefix} {paymentCode}";
+    }
+
+    private string CreateQrUrl(decimal amountVnd, string paymentContent)
+    {
+        var query = new Dictionary<string, string>
+        {
+            ["acc"] = _sePayOptions.BankAccountNumber.Trim(),
+            ["bank"] = _sePayOptions.BankName.Trim(),
+            ["amount"] = amountVnd.ToString("0.##", CultureInfo.InvariantCulture),
+            ["des"] = paymentContent,
+            ["template"] = string.IsNullOrWhiteSpace(_sePayOptions.QrTemplate)
+                ? "compact"
+                : _sePayOptions.QrTemplate.Trim()
+        };
+
+        var queryString = string.Join(
+            "&",
+            query.Select(pair =>
+                $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
+
+        return $"https://qr.sepay.vn/img?{queryString}";
     }
 
     private static bool IsUniqueViolation(DbUpdateException exception, string constraintName)
