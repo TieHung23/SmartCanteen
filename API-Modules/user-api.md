@@ -196,23 +196,24 @@ AccountStatus: `1=Active, 2=PendingEmailVerification, 3=PendingIdentityVerificat
 ### `PUT /api/auth/me`
 **Auth:** Authorize
 
-**Request body:**
-```json
-{
-  "name": "string",
-  "imgUrl": "https://example.com/avatar.jpg | null",
-  "dateOfBirth": "2000-01-15 | null",
-  "majorOrClass": "string | null",
-  "phoneNumber": "0912345678 | null",
-  "address": "string | null",
-  "gender": 1 | null
-}
-```
+**Content-Type:** `multipart/form-data`
+
+**Form fields:**
+- `name` (required)
+- `dateOfBirth` (optional)
+- `majorOrClass` (optional)
+- `phoneNumber` (optional)
+- `address` (optional)
+- `gender` (optional)
+- `image` (optional avatar) — JPEG or PNG, maximum 5 MB
+
+When `image` is omitted, the existing avatar is preserved. Clients cannot update
+`imgUrl` directly; uploaded avatars are stored in Cloudinary.
+
 Gender: `1=Male, 2=Female, 3=Other`
 
 **Validation Rules:**
 - `name`: Required, 2–200 characters
-- `imgUrl`: Optional, max 500 chars, must be a valid HTTP(S) URL
 - `dateOfBirth`: Must indicate age ≥ 10 and ≤ 100 years
 - `majorOrClass`: Optional, max 200 chars
 - `phoneNumber`: Optional, max 20 chars, must match Vietnamese format (e.g. `0912345678` or `+84912345678`)
