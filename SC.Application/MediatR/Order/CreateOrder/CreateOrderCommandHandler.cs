@@ -140,7 +140,10 @@ internal class CreateOrderCommandHandler(
                     "Insufficient balance.");
             }
 
-            var order = OrderAggregateRoot.Create(cartData.MealId, currentUserId);
+            var order = OrderAggregateRoot.Create(
+                cartData.MealId,
+                cartData.MealTemplateId,
+                currentUserId);
 
             foreach (var item in items)
             {

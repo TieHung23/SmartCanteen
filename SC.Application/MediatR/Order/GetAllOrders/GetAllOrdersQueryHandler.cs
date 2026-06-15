@@ -44,6 +44,7 @@ internal class GetAllOrdersQueryHandler(
             {
                 Id = o.Id,
                 MealId = o.MealId,
+                MealTemplateId = o.MealTemplateId,
                 TransactionId = o.WalletTransactionId,
                 UserId = o.CreatedBy,
                 Status = (int)o.Status,

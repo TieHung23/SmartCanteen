@@ -2,8 +2,10 @@ using System.Linq.Expressions;
 using SC.Application.MediatR.Cart;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Abstraction.Repositories;
+using SC.Domain.SharedKernel.ValueObjects;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
+using MealTemplateEntity = SC.Domain.Domain.Meal.Entity.MealTemplate;
 
 namespace SC.Architecture.Test;
 
@@ -28,6 +30,7 @@ public class CartValidationTests
         var result = await _service.ValidateAsync(new CartData
         {
             MealId = Guid.NewGuid(),
+            MealTemplateId = Guid.NewGuid(),
             Items = []
         });
 
@@ -41,6 +44,7 @@ public class CartValidationTests
         var result = await _service.ValidateAsync(new CartData
         {
             MealId = Guid.NewGuid(),
+            MealTemplateId = Guid.NewGuid(),
             Items =
             [
                 new CartItemData
@@ -62,6 +66,7 @@ public class CartValidationTests
         var result = await _service.ValidateAsync(new CartData
         {
             MealId = Guid.NewGuid(),
+            MealTemplateId = Guid.NewGuid(),
             Items =
             [
                 new CartItemData { DishId = dishId, Quantity = 1 },
@@ -98,6 +103,7 @@ public class CartValidationTests
         var result = await _service.ValidateAsync(new CartData
         {
             MealId = Guid.NewGuid(),
+            MealTemplateId = Guid.NewGuid(),
             Items = null
         });
 
@@ -111,6 +117,7 @@ public class CartValidationTests
         var result = await _service.ValidateAsync(new CartData
         {
             MealId = Guid.NewGuid(),
+            MealTemplateId = Guid.NewGuid(),
             Items =
             [
                 new CartItemData
@@ -126,22 +133,147 @@ public class CartValidationTests
     }
 
     [Fact]
+    public async Task ValidateAsync_Should_Reject_Missing_MealTemplateId()
+    {
+        var result = await _service.ValidateAsync(new CartData
+        {
+            MealId = Guid.NewGuid(),
+            Items =
+            [
+                new CartItemData
+                {
+                    DishId = Guid.NewGuid(),
+                    Quantity = 1
+                }
+            ]
+        });
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("MealTemplateId is required.", result.Message);
+    }
+
+    [Fact]
     public void Cart_Should_Increment_Version_On_Every_Update()
     {
         var userId = Guid.NewGuid();
         var cart = SC.Domain.Domain.Cart.AggregateRoot.Cart.Create(
             userId,
-            """{"mealId":"00000000-0000-0000-0000-000000000001","items":[]}""");
+            """{"mealId":"00000000-0000-0000-0000-000000000001","mealTemplateId":"00000000-0000-0000-0000-000000000003","items":[]}""");
 
         Assert.Equal(1, cart.Version);
 
         cart.Update(
-            """{"mealId":"00000000-0000-0000-0000-000000000001","items":[{"dishId":"00000000-0000-0000-0000-000000000002","quantity":1}]}""",
+            """{"mealId":"00000000-0000-0000-0000-000000000001","mealTemplateId":"00000000-0000-0000-0000-000000000003","items":[{"dishId":"00000000-0000-0000-0000-000000000002","quantity":1}]}""",
             userId);
 
         Assert.Equal(2, cart.Version);
         Assert.Equal(userId, cart.UpdatedBy);
         Assert.NotNull(cart.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Require_Required_Category()
+    {
+        var categoryId = Guid.NewGuid();
+        var template = CreateTemplate(categoryId, 1, 2, true);
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            [],
+            new Dictionary<Guid, DishAggregateRoot>());
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("The cart does not satisfy the required category quantities.", result.Message);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Reject_Unconfigured_Category()
+    {
+        var configuredCategoryId = Guid.NewGuid();
+        var otherCategoryId = Guid.NewGuid();
+        var template = CreateTemplate(configuredCategoryId, 0, 2, false);
+        var dish = CreateDish(otherCategoryId);
+        var items = new[] { new CartItemData { DishId = dish.Id, Quantity = 1 } };
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            items,
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish });
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            "One or more selected dish categories are not allowed by the meal template.",
+            result.Message);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Reject_Quantity_Above_Maximum()
+    {
+        var categoryId = Guid.NewGuid();
+        var template = CreateTemplate(categoryId, 1, 2, true);
+        var dish = CreateDish(categoryId);
+        var items = new[] { new CartItemData { DishId = dish.Id, Quantity = 3 } };
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            items,
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish });
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("A selected category exceeds its maximum quantity.", result.Message);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Accept_Valid_Selection()
+    {
+        var categoryId = Guid.NewGuid();
+        var template = CreateTemplate(categoryId, 1, 2, true);
+        var dish = CreateDish(categoryId);
+        var items = new[] { new CartItemData { DishId = dish.Id, Quantity = 2 } };
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            items,
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish });
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Reject_Duplicate_Category_Settings()
+    {
+        var categoryId = Guid.NewGuid();
+        var template = CreateTemplate(categoryId, 1, 2, true);
+        template.AddSetting(categoryId, 0, 3, false);
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            [],
+            new Dictionary<Guid, DishAggregateRoot>());
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Meal template contains duplicate category settings.", result.Message);
+    }
+
+    private static MealTemplateEntity CreateTemplate(
+        Guid categoryId,
+        int minQuantity,
+        int maxQuantity,
+        bool isRequired)
+    {
+        var template = MealTemplateEntity.Create(Guid.NewGuid(), "Test template");
+        template.AddSetting(categoryId, minQuantity, maxQuantity, isRequired);
+        return template;
+    }
+
+    private static DishAggregateRoot CreateDish(Guid categoryId)
+    {
+        return DishAggregateRoot.Create(
+            "Test dish",
+            "Test dish description",
+            Money.Create(10),
+            categoryId,
+            Guid.NewGuid());
     }
 
     private sealed class UnusedRepository<TEntity> : IGenericRepository<TEntity, Guid>

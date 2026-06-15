@@ -17,6 +17,7 @@ version `0`.
     "id": null,
     "data": {
       "mealId": "00000000-0000-0000-0000-000000000000",
+      "mealTemplateId": "00000000-0000-0000-0000-000000000000",
       "items": []
     },
     "version": 0,
@@ -35,6 +36,7 @@ the first cart. Later requests must use the latest version returned by the API.
 {
   "data": {
     "mealId": "guid",
+    "mealTemplateId": "guid",
     "items": [
       {
         "dishId": "guid",
@@ -48,10 +50,13 @@ the first cart. Later requests must use the latest version returned by the API.
 
 Validation:
 
-- `mealId` and every `dishId` are required.
+- `mealId`, `mealTemplateId`, and every `dishId` are required.
+- The template must belong to the selected meal.
 - The meal and dishes must exist, be active, and not be deleted.
 - The ordering deadline must not have passed.
 - Every dish must belong to the selected meal.
+- Selected dish categories must be allowed by the template.
+- Required categories and category min/max quantities must be satisfied.
 - Requested quantity cannot exceed the dish stock configured for the meal.
 - The cart must contain at least one dish.
 - Quantity must be greater than zero and cannot exceed current stock.

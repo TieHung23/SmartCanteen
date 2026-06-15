@@ -84,6 +84,7 @@ Paginated response shape:
     "availableForOrder": "2024-01-01T00:00:00Z",
     "mealTemplates": [
       {
+        "id": "guid",
         "name": "string",
         "settings": [
           { "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }

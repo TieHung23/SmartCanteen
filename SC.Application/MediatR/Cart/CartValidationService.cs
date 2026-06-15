@@ -42,6 +42,13 @@ public sealed class CartValidationService(
                 "MealId is required.");
         }
 
+        if (data.MealTemplateId == Guid.Empty)
+        {
+            return Result.Failure<ValidatedCart>(
+                Error.InvalidValue,
+                "MealTemplateId is required.");
+        }
+
         if (data.Items is null || data.Items.Count == 0)
         {
             return Result.Failure<ValidatedCart>(
@@ -73,6 +80,8 @@ public sealed class CartValidationService(
         var meal = await mealRepository
             .GetQueryable(x => x.Id == data.MealId)
             .Include(x => x.DishMeals)
+            .Include(x => x.MealTemplates)
+                .ThenInclude(x => x.Settings)
             .SingleOrDefaultAsync(cancellationToken);
 
         if (meal is null || meal.IsDeleted)
@@ -128,6 +137,26 @@ public sealed class CartValidationService(
             return Result.Failure<ValidatedCart>(
                 Error.InsufficientDishStock,
                 "One or more dishes do not have enough stock.");
+        }
+
+        var template = meal.MealTemplates.SingleOrDefault(x =>
+            x.Id == data.MealTemplateId && !x.IsDeleted);
+        if (template is null)
+        {
+            return Result.Failure<ValidatedCart>(
+                Error.InvalidValue,
+                "Meal template does not belong to the selected meal.");
+        }
+
+        var templateRuleResult = CartTemplateRuleValidator.Validate(
+            template,
+            data.Items,
+            dishes);
+        if (templateRuleResult.IsFailure)
+        {
+            return Result.Failure<ValidatedCart>(
+                templateRuleResult.Error!,
+                templateRuleResult.Message);
         }
 
         return Result.Success(

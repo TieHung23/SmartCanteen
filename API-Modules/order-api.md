@@ -60,6 +60,7 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
 {
   "id": "guid",
   "mealId": "guid",
+  "mealTemplateId": "guid | null",
   "transactionId": "guid | null",
   "userId": "guid",
   "status": 0,
@@ -78,6 +79,7 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
   "value": {
     "id": "guid",
   "mealId": "guid",
+  "mealTemplateId": "guid | null",
   "transactionId": "guid | null",
   "userId": "guid",
     "status": 0,
