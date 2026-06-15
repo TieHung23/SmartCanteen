@@ -38,7 +38,7 @@ internal class UpdateProfileCommandHandler(
 
             user.UpdateProfile(
                 request.Name.Trim(),
-                NormalizeOptional(request.ImgUrl),
+                NormalizeOptional(request.ImgUrl) ?? user.ImgUrl,
                 request.DateOfBirth,
                 NormalizeOptional(request.MajorOrClass),
                 NormalizeOptional(request.PhoneNumber),
