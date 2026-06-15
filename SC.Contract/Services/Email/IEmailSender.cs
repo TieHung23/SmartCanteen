@@ -7,6 +7,11 @@ public interface IEmailSender
         string rawToken,
         CancellationToken cancellationToken = default);
 
+    Task SendPasswordResetLinkAsync(
+        string toEmail,
+        string rawToken,
+        CancellationToken cancellationToken = default);
+
     Task SendVerificationStatusAsync(
         string toEmail,
         bool approved,

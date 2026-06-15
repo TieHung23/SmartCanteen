@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Application.MediatR.RefundPolicy;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SettingAggregateRoot = SC.Domain.Domain.Setting.AggregateRoot.Setting;
@@ -22,22 +23,39 @@ internal class CreateSettingCommandHandler(
         try
         {
             var normalizedCode = request.Code.Trim();
+            var normalizedGroup = request.Group.Trim();
+            var normalizedScope = request.Scope.Trim();
+
+            if (string.Equals(
+                    normalizedGroup,
+                    RefundPolicyConstants.Group,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Failure<CreateSettingResponse>(
+                    Error.Forbidden,
+                    "Refund policy settings must be managed through the refund policy API.");
+            }
+
             var existing = await settingRepository.GetQueryable(
-                x => !x.IsDeleted && x.Code.ToLower() == normalizedCode.ToLower())
+                x => !x.IsDeleted
+                    && x.Group.ToLower() == normalizedGroup.ToLower()
+                    && x.Scope.ToLower() == normalizedScope.ToLower()
+                    && x.Code.ToLower() == normalizedCode.ToLower())
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existing is not null)
             {
                 return Result.Failure<CreateSettingResponse>(
                     Error.InvalidValue,
-                    "Setting code already exists.");
+                    "Setting group, scope, and code already exist.");
             }
 
             var setting = SettingAggregateRoot.Create(
                 normalizedCode,
                 request.Name.Trim(),
                 request.Description?.Trim() ?? string.Empty,
-                request.Group.Trim(),
+                normalizedGroup,
+                normalizedScope,
                 request.Value.Trim(),
                 request.Type.Trim(),
                 currentUserService.UserId);
@@ -54,6 +72,7 @@ internal class CreateSettingCommandHandler(
                 Name = setting.Name,
                 Description = setting.Description,
                 Group = setting.Group,
+                Scope = setting.Scope,
                 Value = setting.Value,
                 Type = setting.Type
             };

@@ -22,6 +22,48 @@ namespace SC.Persistence.Database.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SC.Domain.Domain.Cart.AggregateRoot.Cart", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Carts");
+                });
+
             modelBuilder.Entity("SC.Domain.Domain.Category.AggregateRoot.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -83,6 +125,10 @@ namespace SC.Persistence.Database.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ImgUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -353,7 +399,7 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("MealId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("PaymentId")
+                    b.Property<Guid?>("MealTemplateId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Status")
@@ -365,11 +411,16 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("WalletTransactionId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("MealId");
 
-                    b.HasIndex("PaymentId");
+                    b.HasIndex("MealTemplateId");
+
+                    b.HasIndex("WalletTransactionId");
 
                     b.ToTable("Orders");
                 });
@@ -438,9 +489,149 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("GatewayOrderId")
                         .IsUnique();
 
+                    b.HasIndex("GatewayTransactionId")
+                        .IsUnique()
+                        .HasFilter("\"GatewayTransactionId\" IS NOT NULL");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Refund.AggregateRoot.RefundRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal>("OrderAmountSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PolicyCode")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("PolicyNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("RefundPercentSnapshot")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("WalletTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RefundRequests_OrderId_Active")
+                        .HasFilter("\"IsDeleted\" = FALSE AND \"Status\" IN (1, 2)");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WalletTransactionId")
+                        .IsUnique()
+                        .HasFilter("\"WalletTransactionId\" IS NOT NULL");
+
+                    b.ToTable("RefundRequests");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Refund.Entity.RefundRequestImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("RefundRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UploadedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RefundRequestId");
+
+                    b.ToTable("RefundRequestImages");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Setting.AggregateRoot.Setting", b =>
@@ -480,6 +671,11 @@ namespace SC.Persistence.Database.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -496,6 +692,10 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Group", "Scope", "Code")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Settings");
                 });
@@ -545,6 +745,53 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("EmailVerificationTokens");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.RefreshToken", b =>
@@ -606,9 +853,6 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<string>("Address")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
-
-                    b.Property<int>("Category")
-                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -748,6 +992,70 @@ namespace SC.Persistence.Database.Migrations
                     b.ToTable("VerificationRequests");
                 });
 
+            modelBuilder.Entity("SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("BalanceAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("BalanceBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TransactionType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentId")
+                        .IsUnique()
+                        .HasFilter("\"PaymentId\" IS NOT NULL");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WalletTransaction");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Cart.AggregateRoot.Cart", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.User.User", null)
+                        .WithOne()
+                        .HasForeignKey("SC.Domain.Domain.Cart.AggregateRoot.Cart", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
                 {
                     b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
@@ -839,6 +1147,11 @@ namespace SC.Persistence.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SC.Domain.Domain.Meal.Entity.MealTemplate", "MealTemplate")
+                        .WithMany()
+                        .HasForeignKey("MealTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsMany("SC.Domain.Domain.Order.ValueObject.OrderItem", "OrderItems", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
@@ -898,41 +1211,50 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Navigation("Meal");
 
+                    b.Navigation("MealTemplate");
+
                     b.Navigation("OrderItems");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Payment.AggregateRoot.Payment", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Refund.AggregateRoot.RefundRequest", b =>
                 {
-                    b.OwnsOne("SC.Domain.Domain.Payment.ValueObject.BalanceSnapshot", "BalanceSnapshot", b1 =>
-                        {
-                            b1.Property<Guid>("PaymentId")
-                                .HasColumnType("uuid");
+                    b.HasOne("SC.Domain.Domain.Order.AggregateRoot.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                            b1.Property<decimal>("BalanceAfter")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                    b.HasOne("SC.Domain.Domain.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                            b1.Property<decimal>("BalanceBefore")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
+                    b.HasOne("SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("WalletTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
 
-                            b1.Property<decimal>("DeltaAmount")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.HasKey("PaymentId");
-
-                            b1.ToTable("Payments");
-
-                            b1.WithOwner()
-                                .HasForeignKey("PaymentId");
-                        });
-
-                    b.Navigation("BalanceSnapshot")
+            modelBuilder.Entity("SC.Domain.Domain.Refund.Entity.RefundRequestImage", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.Refund.AggregateRoot.RefundRequest", null)
+                        .WithMany("Images")
+                        .HasForeignKey("RefundRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.EmailVerificationToken", b =>
+                {
+                    b.HasOne("SC.Domain.Domain.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
                 {
                     b.HasOne("SC.Domain.Domain.User.User", null)
                         .WithMany()
@@ -1045,6 +1367,11 @@ namespace SC.Persistence.Database.Migrations
             modelBuilder.Entity("SC.Domain.Domain.Meal.Entity.MealTemplate", b =>
                 {
                     b.Navigation("Settings");
+                });
+
+            modelBuilder.Entity("SC.Domain.Domain.Refund.AggregateRoot.RefundRequest", b =>
+                {
+                    b.Navigation("Images");
                 });
 #pragma warning restore 612, 618
         }

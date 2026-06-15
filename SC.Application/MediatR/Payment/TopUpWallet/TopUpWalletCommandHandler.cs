@@ -34,13 +34,15 @@ internal class TopUpWalletCommandHandler(
                 PaymentId = value.PaymentId,
                 AmountVnd = value.AmountVnd,
                 ConvertedPoints = value.ConvertedPoints,
-                BalanceBefore = value.BalanceBefore,
-                BalanceAfter = value.BalanceAfter,
                 Method = value.Method,
                 Status = value.Status,
                 GatewayOrderId = value.GatewayOrderId,
                 PaymentContent = value.PaymentContent,
-                PayUrl = value.PayUrl
+                PayUrl = value.PayUrl,
+                QrCodeUrl = value.PayUrl,
+                BankName = value.BankName,
+                BankAccountNumber = value.BankAccountNumber,
+                BankAccountName = value.BankAccountName
             };
 
             return Result.Success(response, result.Message);

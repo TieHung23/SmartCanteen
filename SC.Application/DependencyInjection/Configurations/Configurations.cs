@@ -2,6 +2,7 @@ using System.Reflection;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SC.Application.MediatR.Cart;
 namespace SC.Application.DependencyInjection.Configurations;
 
 public static class Configurations
@@ -17,6 +18,7 @@ public static class Configurations
             cfg.LicenseKey = licenseKey ?? string.Empty;
             cfg.RegisterServicesFromAssembly(Assembly.Get);
         });
+        services.AddScoped<ICartValidationService, CartValidationService>();
 
         return services;
     }

@@ -14,6 +14,8 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
     public static readonly Error EmailAlreadyExists = new("EmailAlreadyExists", "An account with this email already exists.", 409);
     public static readonly Error WeakPassword = new("WeakPassword", "Password does not meet the minimum security requirements.", 400);
     public static readonly Error InvalidCredentials = new("InvalidCredentials", "Email or password is incorrect.", 401);
+    public static readonly Error IncorrectCurrentPassword = new("IncorrectCurrentPassword", "Current password is incorrect.", 400);
+    public static readonly Error PasswordLoginUnavailable = new("PasswordLoginUnavailable", "Password login is not available for this account.", 400);
     public static readonly Error EmailNotVerified = new("EmailNotVerified", "Please verify your email before logging in.", 401);
     public static readonly Error AccountNotActive = new("AccountNotActive", "Account is not active.", 403);
     public static readonly Error AccountSuspended = new("AccountSuspended", "Account has been suspended.", 401);
@@ -34,6 +36,16 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
     public static readonly Error RejectionReasonRequired = new("RejectionReasonRequired", "A rejection reason is required.", 400);
     public static readonly Error UnsupportedFileFormat = new("UnsupportedFileFormat", "Uploaded file format is not supported.", 400);
     public static readonly Error FileTooLarge = new("FileTooLarge", "Uploaded file exceeds the maximum allowed size.", 413);
+
+    // Cart
+    public static readonly Error CartVersionConflict = new(
+        "CartVersionConflict",
+        "The cart was updated by another client.",
+        409);
+    public static readonly Error InsufficientDishStock = new(
+        "InsufficientDishStock",
+        "One or more dishes do not have enough stock.",
+        409);
 
     [JsonIgnore] public string Code { get; } = code;
 

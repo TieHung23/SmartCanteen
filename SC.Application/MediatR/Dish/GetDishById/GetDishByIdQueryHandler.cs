@@ -35,7 +35,8 @@ internal class GetDishByIdQueryHandler(
                 Description = dish.Description,
                 Price = dish.Price.Amount,
                 IsActive = dish.IsActive,
-                CategoryId = dish.CategoryId
+                CategoryId = dish.CategoryId,
+                ImgUrl = dish.ImgUrl
             };
 
             return Result.Success(response, "Dish retrieved successfully.");

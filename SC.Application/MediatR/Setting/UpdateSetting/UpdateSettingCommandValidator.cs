@@ -17,9 +17,6 @@ public class UpdateSettingCommandValidator : AbstractValidator<UpdateSettingComm
 
     public UpdateSettingCommandValidator()
     {
-        RuleFor(x => x.Id)
-            .NotEmpty();
-
         RuleFor(x => x.Name)
             .NotEmpty()
             .MaximumLength(255);
@@ -30,6 +27,12 @@ public class UpdateSettingCommandValidator : AbstractValidator<UpdateSettingComm
         RuleFor(x => x.Group)
             .NotEmpty()
             .MaximumLength(100);
+
+        RuleFor(x => x.Scope)
+            .NotEmpty()
+            .MaximumLength(100)
+            .Matches("^[A-Za-z0-9_.-]+$")
+            .WithMessage("Scope must contain only letters, numbers, underscore, dot, or hyphen.");
 
         RuleFor(x => x.Type)
             .NotEmpty()
@@ -46,6 +49,7 @@ public class UpdateSettingCommandValidator : AbstractValidator<UpdateSettingComm
             .NotEmpty()
             .Must((command, value) => IsValidValueByType(command.Type, value))
             .WithMessage("Value is not valid for the specified Type.");
+
     }
 
     private static bool IsValidValueByType(string? type, string? value)
@@ -104,4 +108,3 @@ public class UpdateSettingCommandValidator : AbstractValidator<UpdateSettingComm
         return false;
     }
 }
-

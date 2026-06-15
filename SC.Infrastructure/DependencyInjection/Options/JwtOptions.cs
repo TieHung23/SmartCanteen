@@ -16,5 +16,7 @@ public sealed class JwtOptions
 
     public int EmailVerificationHours { get; set; } = 24;
 
+    public int PasswordResetMinutes { get; set; } = 60;
+
     public string BaseUrl { get; set; } = "https://localhost:5001";
 }

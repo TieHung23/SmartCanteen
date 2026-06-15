@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 using FluentValidation;
-using SC.Domain.Domain.User.Enum;
+using SC.Application.MediatR.Auth.Shared;
 using UserAggregate = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Auth.Register;
@@ -9,10 +9,6 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
 {
     private static readonly Regex VietnamesePhoneRegex = new(
         @"^(0|\+84)(3|5|7|8|9)\d{8}$",
-        RegexOptions.Compiled);
-
-    private static readonly Regex PasswordSpecialCharRegex = new(
-        @"[!@#$%^&*()_\-+=\[\]{}|;:'""<>,.?/~`]",
         RegexOptions.Compiled);
 
     public RegisterUserCommandValidator()
@@ -28,16 +24,7 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .Must(UserAggregate.IsValidEmail).WithMessage("Email address is not in a valid format.");
 
         RuleFor(x => x.Password)
-            .NotEmpty()
-            .MinimumLength(8).WithMessage("Password must be at least 8 characters.")
-            .MaximumLength(100).WithMessage("Password must not exceed 100 characters.")
-            .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
-            .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
-            .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
-            .Must(p => p != null && PasswordSpecialCharRegex.IsMatch(p))
-                .WithMessage("Password must contain at least one special character.");
-
-        RuleFor(x => x.Category).IsInEnum();
+            .ApplyPasswordPolicy();
 
         RuleFor(x => x.Gender!.Value)
             .IsInEnum()
@@ -49,10 +36,6 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .GreaterThan(_ => DateOnly.FromDateTime(DateTime.UtcNow.Date).AddYears(-100))
                 .WithMessage("Date of birth must be within the last 100 years.")
             .When(x => x.DateOfBirth.HasValue);
-
-        RuleFor(x => x.StudentId)
-            .NotEmpty().WithMessage("StudentId is required for Student category.")
-            .When(x => x.Category == UserCategory.Student);
 
         RuleFor(x => x.StudentId)
             .MaximumLength(50)

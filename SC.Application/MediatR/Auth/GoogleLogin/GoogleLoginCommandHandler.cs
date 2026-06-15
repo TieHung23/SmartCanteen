@@ -118,7 +118,6 @@ internal class GoogleLoginCommandHandler(
         CancellationToken cancellationToken)
     {
         var hasStudentCode = UserAggregate.TryExtractStudentId(email, out var studentId);
-        var category = UserAggregate.ResolveCategoryFromFptEmail(email, hasStudentCode);
 
         // BR-07: an institutional ID maps to a single account. If the code parsed from the
         // email is already taken, store none rather than blocking the sign-in.
@@ -141,7 +140,6 @@ internal class GoogleLoginCommandHandler(
             name: googleUser.Name,
             email: email,
             googleSubjectId: googleUser.Subject,
-            category: category,
             studentId: studentId,
             imgUrl: googleUser.PictureUrl);
     }

@@ -26,6 +26,9 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
         builder.Property(x => x.IsActive)
             .IsRequired();
 
+        builder.Property(x => x.ImgUrl)
+            .HasMaxLength(2048);
+
         builder.OwnsOne(x => x.Price, price =>
         {
             price.Property(x => x.Amount)

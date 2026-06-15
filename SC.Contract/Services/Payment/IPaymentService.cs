@@ -6,20 +6,32 @@ public record TopUpWalletResult(
     Guid PaymentId,
     decimal AmountVnd,
     decimal ConvertedPoints,
-    decimal BalanceBefore,
-    decimal BalanceAfter,
     int Method,
     string Status,
     string GatewayOrderId,
     string PaymentContent,
-    string? PayUrl);
+    string? PayUrl,
+    string BankName,
+    string BankAccountNumber,
+    string BankAccountName);
 
 public record CompletePaymentResult(
     Guid PaymentId,
     string GatewayOrderId,
     string Status,
-    decimal ConvertedPoints,
-    decimal BalanceAfter);
+    decimal ConvertedPoints);
+
+public record SePayWebhookVerificationResult(
+    bool IsValid,
+    string Message);
+
+public interface ISePayWebhookVerifier
+{
+    SePayWebhookVerificationResult Verify(
+        string rawBody,
+        string signature,
+        string timestamp);
+}
 
 public interface IPaymentService
 {

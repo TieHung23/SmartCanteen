@@ -75,6 +75,24 @@ public sealed class ResendEmailSender : IEmailSender
         return SendAsync(toEmail, subject, html, cancellationToken);
     }
 
+    public Task SendPasswordResetLinkAsync(
+        string toEmail,
+        string rawToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = _frontendOptions.BaseUrl.TrimEnd('/');
+        var path = _frontendOptions.ResetPasswordPath.StartsWith('/')
+            ? _frontendOptions.ResetPasswordPath
+            : "/" + _frontendOptions.ResetPasswordPath;
+        var link = $"{baseUrl}{path}?token={Uri.EscapeDataString(rawToken)}";
+        var html = $@"
+            <p>We received a request to reset your SmartCanteen password.</p>
+            <p><a href=""{link}"">Reset my password</a></p>
+            <p>If you did not request this change, you can ignore this email.</p>";
+
+        return SendAsync(toEmail, "Reset your SmartCanteen password", html, cancellationToken);
+    }
+
     private async Task SendAsync(string toEmail, string subject, string html, CancellationToken cancellationToken)
     {
         var payload = new

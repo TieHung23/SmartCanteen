@@ -22,26 +22,37 @@ internal class GetAllSettingsQueryHandler(
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
+                var code = request.Code.Trim().ToLower();
                 query = query.Where(x =>
-                    x.Code.Contains(request.Code, StringComparison.OrdinalIgnoreCase));
+                    x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
+                var name = request.Name.Trim().ToLower();
                 query = query.Where(x =>
-                    x.Name.Contains(request.Name, StringComparison.OrdinalIgnoreCase));
+                    x.Name.ToLower().Contains(name));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Group))
             {
+                var group = request.Group.Trim().ToLower();
                 query = query.Where(x =>
-                    x.Group.Contains(request.Group, StringComparison.OrdinalIgnoreCase));
+                    x.Group.ToLower().Contains(group));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Scope))
+            {
+                var scope = request.Scope.Trim().ToLower();
+                query = query.Where(x =>
+                    x.Scope.ToLower().Contains(scope));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Type))
             {
+                var type = request.Type.Trim().ToLower();
                 query = query.Where(x =>
-                    x.Type.Contains(request.Type, StringComparison.OrdinalIgnoreCase));
+                    x.Type.ToLower().Contains(type));
             }
 
             var totalCount = await query.CountAsync(cancellationToken);
@@ -49,6 +60,7 @@ internal class GetAllSettingsQueryHandler(
             var skipCount = request.GetSkipCount();
             var paginatedSettings = await query
                 .OrderBy(x => x.Group)
+                .ThenBy(x => x.Scope)
                 .ThenBy(x => x.Code)
                 .Skip(skipCount)
                 .Take(request.PageSize)
@@ -61,6 +73,7 @@ internal class GetAllSettingsQueryHandler(
                 Name = s.Name,
                 Description = s.Description,
                 Group = s.Group,
+                Scope = s.Scope,
                 Value = s.Value,
                 Type = s.Type
             }).ToList();

@@ -41,16 +41,20 @@ internal class GetMealByIdQueryHandler(
                 AvailableTo = meal.AvailableTo,
                 AvailableForOrder = meal.AvailableForOrder,
                 MealTemplates = meal.MealTemplates
+                    .Where(t => !t.IsDeleted)
                     .Select(t => new MealTemplateDto
                     {
+                        Id = t.Id,
                         Name = t.Name,
-                        Settings = t.Settings.Select(s => new MealSettingDto
-                        {
-                            CategoryId = s.CategoryId,
-                            MinQuantity = s.MinQuantity,
-                            MaxQuantity = s.MaxQuantity,
-                            IsRequired = s.IsRequired
-                        }).ToList()
+                        Settings = t.Settings
+                            .Where(s => !s.IsDeleted)
+                            .Select(s => new MealSettingDto
+                            {
+                                CategoryId = s.CategoryId,
+                                MinQuantity = s.MinQuantity,
+                                MaxQuantity = s.MaxQuantity,
+                                IsRequired = s.IsRequired
+                            }).ToList()
                     })
                     .ToList(),
                 Dishes = meal.DishMeals

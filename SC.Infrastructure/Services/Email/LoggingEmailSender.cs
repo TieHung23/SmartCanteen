@@ -51,4 +51,21 @@ public sealed class LoggingEmailSender : IEmailSender
             rejectionReason ?? "n/a");
         return Task.CompletedTask;
     }
+
+    public Task SendPasswordResetLinkAsync(
+        string toEmail,
+        string rawToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = _frontendOptions.BaseUrl.TrimEnd('/');
+        var path = _frontendOptions.ResetPasswordPath.StartsWith('/')
+            ? _frontendOptions.ResetPasswordPath
+            : "/" + _frontendOptions.ResetPasswordPath;
+        var link = $"{baseUrl}{path}?token={Uri.EscapeDataString(rawToken)}";
+        _logger.LogWarning(
+            "[Dev] No email provider configured. Password reset link for {Email}: {Link}",
+            toEmail,
+            link);
+        return Task.CompletedTask;
+    }
 }

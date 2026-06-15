@@ -4,7 +4,8 @@ public class GetAllOrdersResponse
 {
     public Guid Id { get; set; }
     public Guid MealId { get; set; }
-    public Guid? PaymentId { get; set; }
+    public Guid? MealTemplateId { get; set; }
+    public Guid? TransactionId { get; set; }
     public Guid UserId { get; set; }
     public int Status { get; set; }
     public decimal TotalPrice { get; set; }

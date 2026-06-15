@@ -7,6 +7,7 @@ using SC.Application.MediatR.Dish.DeleteDish;
 using SC.Application.MediatR.Dish.GetAllDishes;
 using SC.Application.MediatR.Dish.GetDishById;
 using SC.Application.MediatR.Dish.UpdateDish;
+using SC.Infrastructure.Services.Cloudinary;
 
 namespace SC.Api.Controllers;
 
@@ -14,7 +15,7 @@ namespace SC.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
 [Authorize]
-public class DishesController(IMediator mediator) : ControllerBase
+public class DishesController(IMediator mediator, ICloundinaryUpload cloudinaryUpload) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAllDishes(
@@ -44,9 +45,31 @@ public class DishesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateDish([FromBody] CreateDishCommand request)
+    public async Task<IActionResult> CreateDish(
+        [FromForm] string name,
+        [FromForm] string description,
+        [FromForm] decimal price,
+        [FromForm] Guid categoryId,
+        IFormFile? image)
     {
-        var result = await mediator.Send(request);
+        string? imgUrl = null;
+        if (image is not null)
+        {
+            await using var stream = image.OpenReadStream();
+            var uploadResult = await cloudinaryUpload.UploadFileAsync(stream, image.FileName);
+            imgUrl = uploadResult.ViewUrl;
+        }
+
+        var command = new CreateDishCommand
+        {
+            Name = name,
+            Description = description,
+            Price = price,
+            CategoryId = categoryId,
+            ImgUrl = imgUrl
+        };
+
+        var result = await mediator.Send(command);
 
         if (result.IsFailure)
         {
@@ -62,10 +85,33 @@ public class DishesController(IMediator mediator) : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateDish(
         [FromRoute] Guid id,
-        [FromBody] UpdateDishCommand request)
+        [FromForm] string name,
+        [FromForm] string description,
+        [FromForm] decimal price,
+        [FromForm] bool isActive,
+        [FromForm] Guid categoryId,
+        IFormFile? image)
     {
-        request.Id = id;
-        var result = await mediator.Send(request);
+        string? imgUrl = null;
+        if (image is not null)
+        {
+            await using var stream = image.OpenReadStream();
+            var uploadResult = await cloudinaryUpload.UploadFileAsync(stream, image.FileName);
+            imgUrl = uploadResult.ViewUrl;
+        }
+
+        var command = new UpdateDishCommand
+        {
+            Id = id,
+            Name = name,
+            Description = description,
+            Price = price,
+            IsActive = isActive,
+            CategoryId = categoryId,
+            ImgUrl = imgUrl
+        };
+
+        var result = await mediator.Send(command);
 
         if (result.IsFailure)
         {

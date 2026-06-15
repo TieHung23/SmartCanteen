@@ -49,21 +49,13 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.GatewayOrderId).IsUnique();
 
-        builder.OwnsOne(x => x.BalanceSnapshot, snapshot =>
-        {
-            snapshot.Property(x => x.DeltaAmount)
-                .HasPrecision(18, 2);
-
-            snapshot.Property(x => x.BalanceBefore)
-                .HasPrecision(18, 2);
-
-            snapshot.Property(x => x.BalanceAfter)
-                .HasPrecision(18, 2);
-        });
-
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CompletedAtUtc);
         builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.HasIndex(x => x.GatewayTransactionId)
+            .IsUnique()
+            .HasFilter("\"GatewayTransactionId\" IS NOT NULL");
 
         builder.Ignore(x => x.DomainEvents);
     }

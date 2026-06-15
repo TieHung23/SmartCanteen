@@ -1,7 +1,6 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.Payment.Enum;
-using SC.Domain.Domain.Payment.ValueObject;
 
 namespace SC.Domain.Domain.Payment.AggregateRoot;
 
@@ -11,7 +10,6 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
     {
     }
 
-    public required BalanceSnapshot BalanceSnapshot { get; set; }
     public required string GatewayOrderId { get; set; }
     public string? GatewayTransactionId { get; set; }
     public decimal AmountVnd { get; set; }
@@ -28,7 +26,6 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid UpdatedBy { get; set; }
 
     public static Payment Create(
-        BalanceSnapshot balanceSnapshot,
         string gatewayOrderId,
         decimal amountVnd,
         decimal convertedPoints,
@@ -40,7 +37,6 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
         return new Payment
         {
             Id = Guid.NewGuid(),
-            BalanceSnapshot = balanceSnapshot,
             GatewayOrderId = gatewayOrderId,
             AmountVnd = amountVnd,
             ConvertedPoints = convertedPoints,

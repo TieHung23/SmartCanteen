@@ -54,13 +54,14 @@ public class OrdersController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Create a new order and deduct from user wallet
+    /// Checkout the current cart, create an order, and deduct from the user wallet
     /// </summary>
-    /// <param name="command">Order details with items</param>
+    /// <param name="command">The latest cart version returned by the Cart API</param>
     /// <returns>Created order information with remaining balance</returns>
     /// <remarks>
-    /// The total price is calculated from all items and deducted from the user's wallet.
-    /// The request will fail if the user has insufficient balance.
+    /// The server reads and validates the authenticated user's cart. Order creation,
+    /// wallet debit, wallet transaction creation, and cart clearing are committed atomically.
+    /// A stale cart version returns HTTP 409.
     /// </remarks>
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderCommand command)
@@ -69,7 +70,9 @@ public class OrdersController(IMediator mediator) : ControllerBase
 
         if (result.IsFailure)
         {
-            return BadRequest(result);
+            return StatusCode(
+                result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest,
+                result);
         }
 
         return CreatedAtAction(nameof(GetOrderById), new { id = result.Value!.Id }, result);

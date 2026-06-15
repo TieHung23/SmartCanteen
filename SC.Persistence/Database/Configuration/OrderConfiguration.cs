@@ -23,8 +23,15 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.HasIndex(x => x.MealId);
 
-        builder.Property(x => x.PaymentId);
-        builder.HasIndex(x => x.PaymentId);
+        builder.Property(x => x.MealTemplateId);
+        builder.HasOne(x => x.MealTemplate)
+            .WithMany()
+            .HasForeignKey(x => x.MealTemplateId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.MealTemplateId);
+
+        builder.Property(x => x.WalletTransactionId);
+        builder.HasIndex(x => x.WalletTransactionId);
 
         builder.Property(x => x.Status).IsRequired();
 

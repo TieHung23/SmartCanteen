@@ -3,6 +3,7 @@ using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.Order.ValueObject;
 using SC.Domain.Domain.Order.Enum;
 using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
+using MealTemplateEntity = SC.Domain.Domain.Meal.Entity.MealTemplate;
 
 namespace SC.Domain.Domain.Order.AggregateRoot;
 
@@ -14,8 +15,10 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
 
     public Guid MealId { get; set; }
     public MealAggregate Meal { get; set; } = null!;
+    public Guid? MealTemplateId { get; set; }
+    public MealTemplateEntity? MealTemplate { get; set; }
 
-    public Guid? PaymentId { get; set; }
+    public Guid? WalletTransactionId { get; set; }
 
     public IList<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
@@ -26,12 +29,13 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Order Create(Guid mealId, Guid createdBy)
+    public static Order Create(Guid mealId, Guid mealTemplateId, Guid createdBy)
     {
         return new Order
         {
             Id = Guid.NewGuid(),
             MealId = mealId,
+            MealTemplateId = mealTemplateId,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
             Status = OrderStatus.Pending
@@ -50,9 +54,9 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
         OrderItems.Add(OrderItem.Create(dishId, quantity, unitPriceAmount));
     }
 
-    public void AttachPayment(Guid paymentId, Guid updatedBy)
+    public void AttachTransaction(Guid walletTransactionId, Guid updatedBy)
     {
-        PaymentId = paymentId;
+        WalletTransactionId = walletTransactionId;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

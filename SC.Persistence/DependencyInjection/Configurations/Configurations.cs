@@ -12,6 +12,7 @@ public static class Configurations
     {
         services.AddScoped(typeof(IRepositoryBase<,>), RepositoryType);
         services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IApiLogRepository, ApiLogRepository>();
     }
