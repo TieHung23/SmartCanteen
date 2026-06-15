@@ -32,6 +32,7 @@ internal class GetOrderByIdQueryHandler(
             {
                 Id = order.Id,
                 MealId = order.MealId,
+                MealTemplateId = order.MealTemplateId,
                 TransactionId = order.WalletTransactionId,
                 UserId = order.CreatedBy,
                 Status = (int)order.Status,

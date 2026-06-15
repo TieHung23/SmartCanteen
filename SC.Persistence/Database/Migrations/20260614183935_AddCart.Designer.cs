@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SC.Persistence.Database;
@@ -11,9 +12,11 @@ using SC.Persistence.Database;
 namespace SC.Persistence.Database.Migrations
 {
     [DbContext(typeof(SmartCanteenDbContext))]
-    partial class SmartCanteenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260614183935_AddCart")]
+    partial class AddCart
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -399,9 +402,6 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("MealId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("MealTemplateId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -417,8 +417,6 @@ namespace SC.Persistence.Database.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MealId");
-
-                    b.HasIndex("MealTemplateId");
 
                     b.HasIndex("WalletTransactionId");
 
@@ -745,53 +743,6 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("EmailVerificationTokens");
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ConsumedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.RefreshToken", b =>
@@ -1147,11 +1098,6 @@ namespace SC.Persistence.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SC.Domain.Domain.Meal.Entity.MealTemplate", "MealTemplate")
-                        .WithMany()
-                        .HasForeignKey("MealTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.OwnsMany("SC.Domain.Domain.Order.ValueObject.OrderItem", "OrderItems", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
@@ -1211,8 +1157,6 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Navigation("Meal");
 
-                    b.Navigation("MealTemplate");
-
                     b.Navigation("OrderItems");
                 });
 
@@ -1246,15 +1190,6 @@ namespace SC.Persistence.Database.Migrations
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.EmailVerificationToken", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
                 {
                     b.HasOne("SC.Domain.Domain.User.User", null)
                         .WithMany()

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SC.Persistence.Database;
@@ -11,9 +12,11 @@ using SC.Persistence.Database;
 namespace SC.Persistence.Database.Migrations
 {
     [DbContext(typeof(SmartCanteenDbContext))]
-    partial class SmartCanteenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260615092401_AddMealTemplateToOrder")]
+    partial class AddMealTemplateToOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -747,53 +750,6 @@ namespace SC.Persistence.Database.Migrations
                     b.ToTable("EmailVerificationTokens");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ConsumedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PasswordResetTokens");
-                });
-
             modelBuilder.Entity("SC.Domain.Domain.User.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1246,15 +1202,6 @@ namespace SC.Persistence.Database.Migrations
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.User.EmailVerificationToken", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
                 {
                     b.HasOne("SC.Domain.Domain.User.User", null)
                         .WithMany()

@@ -18,6 +18,12 @@ public interface IUnitOfWork
         decimal amount,
         CancellationToken cancellationToken = default);
 
+    Task<bool> TryReserveMealDishAsync(
+        Guid mealId,
+        Guid dishId,
+        int quantity,
+        CancellationToken cancellationToken = default);
+
     Task LockRefundRequestAsync(Guid refundRequestId, CancellationToken cancellationToken = default);
 
     Task CommitAsync(CancellationToken cancellationToken = default);
