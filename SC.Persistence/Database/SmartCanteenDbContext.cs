@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SC.Domain.Domain.Cart.AggregateRoot;
 using SC.Domain.Domain.Category.AggregateRoot;
 using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.Domain.Meal.AggregateRoot;
@@ -21,6 +22,7 @@ public class SmartCanteenDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Meal> Meals => Set<Meal>();
     public DbSet<Dish> Dishes => Set<Dish>();

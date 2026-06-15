@@ -137,6 +137,49 @@ public class UnitOfWork(SmartCanteenDbContext context, ILogger<UnitOfWork> logge
         return result is null or DBNull ? null : Convert.ToDecimal(result);
     }
 
+    public async Task<bool> TryReserveMealDishAsync(
+        Guid mealId,
+        Guid dishId,
+        int quantity,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+        command.CommandText =
+            """
+            UPDATE "DishMeal"
+            SET "Quantity" = "Quantity" - @quantity
+            WHERE "MealId" = @mealId
+              AND "DishId" = @dishId
+              AND "Quantity" >= @quantity
+            RETURNING "Quantity";
+            """;
+
+        var mealIdParameter = command.CreateParameter();
+        mealIdParameter.ParameterName = "mealId";
+        mealIdParameter.Value = mealId;
+        command.Parameters.Add(mealIdParameter);
+
+        var dishIdParameter = command.CreateParameter();
+        dishIdParameter.ParameterName = "dishId";
+        dishIdParameter.Value = dishId;
+        command.Parameters.Add(dishIdParameter);
+
+        var quantityParameter = command.CreateParameter();
+        quantityParameter.ParameterName = "quantity";
+        quantityParameter.Value = quantity;
+        command.Parameters.Add(quantityParameter);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null and not DBNull;
+    }
+
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Committing database transaction");

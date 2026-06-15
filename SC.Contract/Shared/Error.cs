@@ -35,6 +35,16 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
     public static readonly Error UnsupportedFileFormat = new("UnsupportedFileFormat", "Uploaded file format is not supported.", 400);
     public static readonly Error FileTooLarge = new("FileTooLarge", "Uploaded file exceeds the maximum allowed size.", 413);
 
+    // Cart
+    public static readonly Error CartVersionConflict = new(
+        "CartVersionConflict",
+        "The cart was updated by another client.",
+        409);
+    public static readonly Error InsufficientDishStock = new(
+        "InsufficientDishStock",
+        "One or more dishes do not have enough stock.",
+        409);
+
     [JsonIgnore] public string Code { get; } = code;
 
     [JsonIgnore] public string Message { get; } = message;
