@@ -103,6 +103,14 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         LastLoginAt = DateTimeOffset.UtcNow;
     }
 
+    public void ChangePassword(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            throw new ArgumentException("Password hash is required.", nameof(passwordHash));
+
+        PasswordHash = passwordHash;
+    }
+
     public void UpdateProfile(
         string name,
         string? imgUrl,

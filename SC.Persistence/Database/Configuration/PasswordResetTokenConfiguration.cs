@@ -1,0 +1,39 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SC.Domain.Domain.User;
+
+namespace SC.Persistence.Database.Configuration;
+
+public class PasswordResetTokenConfiguration : IEntityTypeConfiguration<PasswordResetToken>
+{
+    public void Configure(EntityTypeBuilder<PasswordResetToken> builder)
+    {
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.UserId).IsRequired();
+        builder.HasIndex(x => x.UserId);
+
+        builder.Property(x => x.TokenHash)
+            .IsRequired()
+            .HasMaxLength(128);
+
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+
+        builder.Property(x => x.ExpiresAt).IsRequired();
+        builder.Property(x => x.ConsumedAt);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(x => x.CreatedAtUtc).IsRequired();
+        builder.Property(x => x.CreatedBy).IsRequired();
+
+        builder.Ignore(x => x.DomainEvents);
+    }
+}

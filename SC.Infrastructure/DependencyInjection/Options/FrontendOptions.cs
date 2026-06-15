@@ -22,4 +22,6 @@ public sealed class FrontendOptions
     /// appends <c>?token=...</c> to this path when building the verification link.
     /// </summary>
     public string VerifyEmailPath { get; set; } = "/verify-email";
+
+    public string ResetPasswordPath { get; set; } = "/reset-password";
 }
