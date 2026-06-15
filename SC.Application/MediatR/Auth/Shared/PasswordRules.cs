@@ -19,7 +19,7 @@ internal static class PasswordRules
             .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
             .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
             .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
-            .Must(SpecialCharacterRegex.IsMatch)
+            .Must(password => password is not null && SpecialCharacterRegex.IsMatch(password))
                 .WithMessage("Password must contain at least one special character.");
     }
 }
