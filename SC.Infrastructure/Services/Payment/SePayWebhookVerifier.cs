@@ -28,6 +28,10 @@ public sealed class SePayWebhookVerifier(
 
         if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp))
         {
+            logger.LogWarning(
+                "SePay webhook is missing authentication headers. SignaturePresent={SignaturePresent}, TimestampPresent={TimestampPresent}",
+                !string.IsNullOrWhiteSpace(signature),
+                !string.IsNullOrWhiteSpace(timestamp));
             return new SePayWebhookVerificationResult(false, "Missing SePay authentication headers.");
         }
 
@@ -40,6 +44,11 @@ public sealed class SePayWebhookVerifier(
         var currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         if (Math.Abs(currentTimestamp - unixTimestamp) > toleranceSeconds)
         {
+            logger.LogWarning(
+                "SePay webhook timestamp is outside tolerance. Current={CurrentTimestamp}, Received={ReceivedTimestamp}, Tolerance={ToleranceSeconds}",
+                currentTimestamp,
+                unixTimestamp,
+                toleranceSeconds);
             return new SePayWebhookVerificationResult(false, "SePay timestamp is outside the allowed window.");
         }
 
@@ -65,6 +74,15 @@ public sealed class SePayWebhookVerifier(
 
         var isValid = providedSignature.Length == expectedSignature.Length
             && CryptographicOperations.FixedTimeEquals(providedSignature, expectedSignature);
+
+        if (!isValid)
+        {
+            logger.LogWarning(
+                "SePay webhook signature mismatch. Timestamp={Timestamp}, BodyLength={BodyLength}, ProvidedSignatureLength={ProvidedSignatureLength}",
+                timestamp,
+                rawBody.Length,
+                providedSignature.Length);
+        }
 
         return isValid
             ? new SePayWebhookVerificationResult(true, "Webhook signature is valid.")

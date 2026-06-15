@@ -3,6 +3,7 @@ using System.Text.Json;
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Payment.HandleSepayIpn;
 using SC.Application.MediatR.Payment.GetPaymentById;
@@ -17,7 +18,8 @@ namespace SC.Api.Controllers;
 [Authorize]
 public class PaymentsController(
     IMediator mediator,
-    ISePayWebhookVerifier webhookVerifier) : ControllerBase
+    ISePayWebhookVerifier webhookVerifier,
+    IHostEnvironment environment) : ControllerBase
 {
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPaymentById([FromRoute] Guid id)
@@ -70,7 +72,9 @@ public class PaymentsController(
             return Unauthorized(new
             {
                 success = false,
-                message = "Unauthorized webhook request."
+                message = environment.IsDevelopment()
+                    ? verification.Message
+                    : "Unauthorized webhook request."
             });
         }
 
@@ -103,10 +107,10 @@ public class PaymentsController(
             var userAgent = Request.Headers["User-Agent"].ToString();
             var isTestMode = userAgent.StartsWith("SePay-Testmode-Webhook/", StringComparison.OrdinalIgnoreCase);
             var hasPaymentCode = data.TryGetValue("code", out var code)
-                    && code.StartsWith("SC-", StringComparison.OrdinalIgnoreCase)
+                    && code.StartsWith("SC", StringComparison.OrdinalIgnoreCase)
                 || data.TryGetValue("content", out var content)
                     && content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                        .Any(part => part.StartsWith("SC-", StringComparison.OrdinalIgnoreCase));
+                        .Any(part => part.StartsWith("SC", StringComparison.OrdinalIgnoreCase));
 
             if (isTestMode && !hasPaymentCode)
             {
