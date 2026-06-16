@@ -187,7 +187,7 @@ Base URL: `/api/refunds` (user) / `/api/manager/refunds` (manager)
 ---
 
 ## `GET /api/manager/refunds`
-**Auth:** `Manager` or `Admin` role (`[Authorize(Roles = "Manager,Admin")]`)
+**Auth:** `Manager` role (`[Authorize(Roles = "Manager")]`)
 
 **Query Parameters:**
 
@@ -244,7 +244,7 @@ Base URL: `/api/refunds` (user) / `/api/manager/refunds` (manager)
 ---
 
 ## `GET /api/manager/refunds/{id:guid}`
-**Auth:** `Manager` or `Admin` role (`[Authorize(Roles = "Manager,Admin")]`)
+**Auth:** `Manager` role (`[Authorize(Roles = "Manager")]`)
 
 **Route Parameters:**
 
@@ -298,7 +298,7 @@ Base URL: `/api/refunds` (user) / `/api/manager/refunds` (manager)
 ---
 
 ## `POST /api/manager/refunds/{id:guid}/approve`
-**Auth:** `Manager` or `Admin` role (`[Authorize(Roles = "Manager,Admin")]`)
+**Auth:** `Manager` role (`[Authorize(Roles = "Manager")]`)
 
 **Route Parameters:**
 
@@ -347,7 +347,7 @@ Base URL: `/api/refunds` (user) / `/api/manager/refunds` (manager)
 ---
 
 ## `POST /api/manager/refunds/{id:guid}/reject`
-**Auth:** `Manager` or `Admin` role (`[Authorize(Roles = "Manager,Admin")]`)
+**Auth:** `Manager` role (`[Authorize(Roles = "Manager")]`)
 
 **Content-Type:** `application/json`
 

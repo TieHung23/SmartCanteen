@@ -17,9 +17,11 @@ public record TopUpWalletResult(
 
 public record CompletePaymentResult(
     Guid PaymentId,
+    Guid UserId,
     string GatewayOrderId,
     string Status,
-    decimal ConvertedPoints);
+    decimal ConvertedPoints,
+    bool WasAlreadyCompleted);
 
 public record SePayWebhookVerificationResult(
     bool IsValid,

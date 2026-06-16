@@ -89,13 +89,13 @@ VerificationStatus: `0=Pending, 1=Approved, 2=Rejected, 3=Expired`
 
 ---
 
-## Admin – Verification
+## Manager – Verification
 
-All endpoints below require `Role=Admin`.  
+All endpoints below require `Role=Manager`.
 Prefix: `/api/admin/verifications`
 
 ### `GET /api/admin/verifications`
-**Auth:** Admin  
+**Auth:** Manager
 **Query:** `?pageNumber=1&pageSize=10`
 
 **Paginated response items:**
@@ -111,7 +111,7 @@ Prefix: `/api/admin/verifications`
 ```
 
 ### `GET /api/admin/verifications/{id}`
-**Auth:** Admin  
+**Auth:** Manager
 
 **Response:**
 ```json
@@ -148,7 +148,7 @@ Prefix: `/api/admin/verifications`
 ```
 
 ### `POST /api/admin/verifications/{id}/approve`
-**Auth:** Admin  
+**Auth:** Manager
 **No request body.**
 
 **Response:**
@@ -164,7 +164,7 @@ Prefix: `/api/admin/verifications`
 ```
 
 ### `POST /api/admin/verifications/{id}/reject`
-**Auth:** Admin  
+**Auth:** Manager
 
 **Request body:**
 ```json

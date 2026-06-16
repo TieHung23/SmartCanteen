@@ -231,9 +231,11 @@ public class PaymentService(
                 return Result.Success(
                     new CompletePaymentResult(
                         payment.Id,
+                        payment.UserId,
                         payment.GatewayOrderId,
                         payment.Status.ToString(),
-                        payment.ConvertedPoints),
+                        payment.ConvertedPoints,
+                        true),
                     "Payment was already completed.");
             }
 
@@ -292,9 +294,11 @@ public class PaymentService(
             return Result.Success(
                 new CompletePaymentResult(
                     payment.Id,
+                    payment.UserId,
                     payment.GatewayOrderId,
                     payment.Status.ToString(),
-                    payment.ConvertedPoints),
+                    payment.ConvertedPoints,
+                    false),
                 "SePay payment completed successfully.");
         }
         catch (DbUpdateException ex)
@@ -317,9 +321,11 @@ public class PaymentService(
                 return Result.Success(
                     new CompletePaymentResult(
                         persistedPayment.Id,
+                        persistedPayment.UserId,
                         persistedPayment.GatewayOrderId,
                         persistedPayment.Status.ToString(),
-                        persistedPayment.ConvertedPoints),
+                        persistedPayment.ConvertedPoints,
+                        true),
                     "Payment was already completed.");
             }
 

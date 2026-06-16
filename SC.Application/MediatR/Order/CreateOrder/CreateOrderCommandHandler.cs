@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Cart;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.WalletTransaction.Entity;
@@ -20,6 +21,7 @@ internal class CreateOrderCommandHandler(
     ICartValidationService cartValidationService,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
 {
@@ -179,6 +181,23 @@ internal class CreateOrderCommandHandler(
                 UserRemainingBalance = balanceAfter.Value,
                 CartVersion = cart.Version
             };
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.OrderCreated,
+                currentUserId,
+                order.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = order.Id.ToString(),
+                    ["totalPrice"] = totalPrice.ToString("0.##")
+                },
+                new
+                {
+                    OrderId = order.Id,
+                    TransactionId = transaction.Id,
+                    TotalPrice = totalPrice
+                },
+                cancellationToken);
 
             return Result.Success(response, "Order created successfully.");
         }

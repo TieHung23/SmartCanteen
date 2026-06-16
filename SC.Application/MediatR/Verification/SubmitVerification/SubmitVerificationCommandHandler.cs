@@ -5,6 +5,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Storage;
 using SC.Contract.Services.Verification;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.User.Enum;
@@ -23,6 +24,7 @@ internal class SubmitVerificationCommandHandler(
     ICurrentUserService currentUserService,
     IConfiguration configuration,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<SubmitVerificationCommandHandler> logger) : ICommandHandler<SubmitVerificationCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(SubmitVerificationCommand request, CancellationToken cancellationToken)
@@ -96,6 +98,21 @@ internal class SubmitVerificationCommandHandler(
             await verificationRepository.AddAsync(verificationRequest, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.VerificationSubmitted,
+                userId,
+                verificationRequest.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = verificationRequest.Id.ToString()
+                },
+                new
+                {
+                    VerificationRequestId = verificationRequest.Id,
+                    Status = verificationRequest.Status.ToString()
+                },
+                cancellationToken);
 
             return Result.Success(verificationRequest.Id, "Verification request submitted.");
         }

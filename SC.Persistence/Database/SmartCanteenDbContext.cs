@@ -3,6 +3,8 @@ using SC.Domain.Domain.Cart.AggregateRoot;
 using SC.Domain.Domain.Category.AggregateRoot;
 using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.Domain.Meal.AggregateRoot;
+using SC.Domain.Domain.Notification.AggregateRoot;
+using SC.Domain.Domain.Notification.Entity;
 using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Payment.AggregateRoot;
 using SC.Domain.Domain.Refund.AggregateRoot;
@@ -25,6 +27,8 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Meal> Meals => Set<Meal>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
     public DbSet<Dish> Dishes => Set<Dish>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Payment> Payments => Set<Payment>();

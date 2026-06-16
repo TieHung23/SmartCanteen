@@ -47,6 +47,12 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
         "One or more dishes do not have enough stock.",
         409);
 
+    // Notification
+    public static readonly Error NotificationNotFound = new(
+        "NotificationNotFound",
+        "Notification was not found.",
+        404);
+
     [JsonIgnore] public string Code { get; } = code;
 
     [JsonIgnore] public string Message { get; } = message;

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Order.Enum;
@@ -12,6 +13,7 @@ internal class UpdateOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<UpdateOrderCommandHandler> logger
 ) : ICommandHandler<UpdateOrderCommand, UpdateOrderResponse>
 {
@@ -41,11 +43,39 @@ internal class UpdateOrderCommandHandler(
             var currentUserId = currentUserService.UserId;
             var newStatus = (OrderStatus)request.Status;
 
+            if (order.Status == newStatus)
+            {
+                return Result.Success(
+                    new UpdateOrderResponse
+                    {
+                        Id = order.Id,
+                        Status = (int)newStatus,
+                        Message = $"Order is already {newStatus}."
+                    },
+                    "Order status was unchanged.");
+            }
+
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             order.UpdateStatus(newStatus, currentUserId);
             orderRepository.Update(order);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.OrderStatusChanged,
+                order.CreatedBy,
+                order.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = order.Id.ToString(),
+                    ["status"] = newStatus.ToString()
+                },
+                new
+                {
+                    OrderId = order.Id,
+                    Status = newStatus.ToString()
+                },
+                cancellationToken);
 
             var response = new UpdateOrderResponse
             {

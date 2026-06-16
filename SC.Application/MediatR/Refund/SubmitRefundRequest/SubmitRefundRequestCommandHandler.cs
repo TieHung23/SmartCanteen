@@ -5,6 +5,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Storage;
 using SC.Contract.Services.Verification;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Refund.AggregateRoot;
@@ -23,6 +24,7 @@ internal sealed class SubmitRefundRequestCommandHandler(
     IFileUploader fileUploader,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<SubmitRefundRequestCommandHandler> logger)
     : ICommandHandler<SubmitRefundRequestCommand, SubmitRefundRequestResponse>
 {
@@ -176,6 +178,24 @@ internal sealed class SubmitRefundRequestCommandHandler(
                 ImageUrls = refundRequest.Images.Select(image => image.ImageUrl).ToList(),
                 CreatedAtUtc = refundRequest.CreatedAtUtc
             };
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.RefundSubmitted,
+                userId,
+                refundRequest.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = refundRequest.Id.ToString(),
+                    ["refundAmount"] = refundRequest.RefundAmount.ToString("0.##")
+                },
+                new
+                {
+                    RefundRequestId = refundRequest.Id,
+                    refundRequest.OrderId,
+                    refundRequest.RefundAmount,
+                    Status = refundRequest.Status.ToString()
+                },
+                cancellationToken);
 
             return Result.Success(response, "Refund request submitted successfully.");
         }
