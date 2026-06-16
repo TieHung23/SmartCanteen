@@ -29,6 +29,18 @@ erDiagram
         Guid UpdatedBy
     }
 
+    PASSWORD_RESET_TOKEN {
+        Guid Id PK
+        Guid UserId FK
+        string TokenHash
+        DateTimeOffset ExpiresAt
+        DateTimeOffset ConsumedAt "nullable"
+        DateTimeOffset CreatedAtUtc
+        DateTimeOffset UpdatedAtUtc "nullable"
+        Guid CreatedBy
+        Guid UpdatedBy
+    }
+
     REFRESH_TOKEN {
         Guid Id PK
         Guid UserId FK
@@ -48,6 +60,17 @@ erDiagram
         string TokenHash
         DateTimeOffset ExpiresAt
         DateTimeOffset ConsumedAt "nullable"
+        DateTimeOffset CreatedAtUtc
+        DateTimeOffset UpdatedAtUtc "nullable"
+        Guid CreatedBy
+        Guid UpdatedBy
+    }
+
+    CART {
+        Guid Id PK
+        Guid UserId FK "unique, 1-to-1 with User"
+        string DataJson "jsonb"
+        long Version "concurrency token"
         DateTimeOffset CreatedAtUtc
         DateTimeOffset UpdatedAtUtc "nullable"
         Guid CreatedBy
@@ -126,7 +149,8 @@ erDiagram
     ORDER {
         Guid Id PK
         Guid MealId FK
-        Guid WalletTransactionId FK "nullable"
+        Guid MealTemplateId FK "nullable"
+        Guid WalletTransactionId FK "nullable; replaces PaymentId"
         int Status "Enum: Pending(0) ReadyForPickup(1) Completed(2) Cancelled(3)"
         DateTimeOffset CreatedAtUtc
         DateTimeOffset UpdatedAtUtc "nullable"
@@ -145,8 +169,8 @@ erDiagram
     PAYMENT {
         Guid Id PK
         Guid UserId FK
-        string GatewayOrderId
-        string GatewayTransactionId "nullable"
+        string GatewayOrderId "unique"
+        string GatewayTransactionId "nullable; unique filtered"
         decimal AmountVnd
         decimal ConvertedPoints
         int Status "Enum: Pending(1) Completed(2) Failed(3)"
@@ -167,7 +191,40 @@ erDiagram
         decimal BalanceBefore
         decimal BalanceAfter
         int TransactionType "Enum: TopUp(1) OrderPayment(2) Refund(3)"
-        Guid PaymentId FK "nullable"
+        Guid PaymentId FK "nullable; unique filtered; links to top-up Payment"
+        DateTimeOffset CreatedAtUtc
+        DateTimeOffset UpdatedAtUtc "nullable"
+        Guid CreatedBy
+        Guid UpdatedBy
+    }
+
+    REFUND_REQUEST {
+        Guid Id PK
+        Guid OrderId FK "unique filtered where active"
+        Guid UserId FK
+        string PolicyCode
+        string PolicyNameSnapshot "copied from Setting at submission"
+        decimal RefundPercentSnapshot
+        decimal OrderAmountSnapshot
+        decimal RefundAmount "OrderAmount * RefundPercent / 100"
+        string Description
+        int Status "Enum: Pending(1) Approved(2) Rejected(3)"
+        Guid ReviewedBy "nullable"
+        DateTimeOffset ReviewedAtUtc "nullable"
+        string RejectionReason "nullable"
+        Guid WalletTransactionId FK "nullable; unique filtered; set on approve"
+        DateTimeOffset CreatedAtUtc
+        DateTimeOffset UpdatedAtUtc "nullable"
+        Guid CreatedBy
+        Guid UpdatedBy
+    }
+
+    REFUND_REQUEST_IMAGE {
+        Guid Id PK
+        Guid RefundRequestId FK
+        string ImageUrl
+        string FileName
+        DateTimeOffset UploadedAtUtc
         DateTimeOffset CreatedAtUtc
         DateTimeOffset UpdatedAtUtc "nullable"
         Guid CreatedBy
@@ -191,7 +248,7 @@ erDiagram
 
     VERIFICATION_DOCUMENT {
         Guid Id PK
-        Guid VerificationRequestId FK
+        Guid VerificationRequestId PK, FK
         int DocumentType "Enum: StudentCard(1) NationalId(2) Other(3)"
         string CloudinaryUrl
         string FileName
@@ -206,6 +263,7 @@ erDiagram
         string Name
         string Description
         string Group
+        string Scope
         string Value
         string Type
         DateTimeOffset CreatedAtUtc
@@ -237,11 +295,14 @@ erDiagram
     }
 
     %% ── User ──
+    USER ||--o{ PASSWORD_RESET_TOKEN : "has"
     USER ||--o{ REFRESH_TOKEN : "has"
     USER ||--o{ EMAIL_VERIFICATION_TOKEN : "has"
+    USER ||--o| CART : "has"
     USER ||--o{ PAYMENT : "makes"
     USER ||--o{ WALLET_TRANSACTION : "has"
     USER ||--o{ ORDER : "places"
+    USER ||--o{ REFUND_REQUEST : "submits"
     USER ||--o{ VERIFICATION_REQUEST : "submits"
 
     %% ── Category ──
@@ -258,6 +319,7 @@ erDiagram
 
     %% ── Order ──
     MEAL ||--o{ ORDER : "ordered as"
+    MEAL_TEMPLATE ||--o{ ORDER : "optionally used by"
     ORDER ||--o{ ORDER_ITEM : "contains"
     DISH ||--o{ ORDER_ITEM : "referenced by"
     ORDER ||--o| WALLET_TRANSACTION : "paid via"
@@ -265,53 +327,66 @@ erDiagram
     %% ── Payment → WalletTransaction (top-up flow) ──
     PAYMENT ||--o{ WALLET_TRANSACTION : "creates"
 
+    %% ── Refund ──
+    ORDER ||--o| REFUND_REQUEST : "has"
+    REFUND_REQUEST ||--o{ REFUND_REQUEST_IMAGE : "contains"
+    REFUND_REQUEST ||--o| WALLET_TRANSACTION : "credited via"
+
     %% ── Verification ──
     VERIFICATION_REQUEST ||--o{ VERIFICATION_DOCUMENT : "contains"
 ```
 
 ## Relationship Summary
 
-| Parent                  | Child                    | Cardinality | FK Column(s)             | Description                                           |
-| ----------------------- | ------------------------ | ----------- | ------------------------ | ----------------------------------------------------- |
-| **User**                | **RefreshToken**         | 1 → \*      | `UserId`                 | A user can have many refresh tokens                   |
-| **User**                | **EmailVerificationToken** | 1 → \*    | `UserId`                 | A user can have many email verification tokens        |
-| **User**                | **Payment**              | 1 → \*      | `UserId`                 | A user makes many payments                            |
-| **User**                | **WalletTransaction**    | 1 → \*      | `UserId`                 | A user has many wallet transactions                   |
-| **User**                | **Order**                | 1 → \*      | `CreatedBy`              | A user places many orders                             |
-| **User**                | **VerificationRequest**  | 1 → \*      | `UserId`                 | A user submits verification requests                  |
-| **Category**            | **Dish**                 | 1 → \*      | `CategoryId`             | A category classifies many dishes                     |
-| **Category**            | **MealSettings**         | 1 → \*      | `CategoryId`             | A category can appear in many meal settings           |
-| **Dish**                | **DishMeal**             | 1 → \*      | `DishId`                 | A dish can be part of many meals                      |
-| **Meal**                | **DishMeal**             | 1 → \*      | `MealId`                 | A meal contains many dishes                           |
-| **Meal**                | **MealTemplate**         | 1 → \*      | `MealId`                 | A meal has many templates                             |
-| **MealTemplate**        | **MealSettings**         | 1 → \*      | `MealTemplateId`         | A template defines many category-quantity rules       |
-| **Meal**                | **Order**                | 1 → \*      | `MealId`                 | Orders are placed for a specific meal                 |
-| **Order**               | **OrderItem**            | 1 → \*      | `OrderId`                | An order contains multiple line items                 |
-| **Dish**                | **OrderItem**            | 1 → \*      | `DishId`                 | A dish can appear in many order items                 |
-| **Order**               | **WalletTransaction**    | 0..1 → 1    | `WalletTransactionId`    | An order links to the wallet debit transaction        |
-| **Payment**             | **WalletTransaction**    | 1 → 0..1    | `PaymentId`              | A payment optionally produces a wallet credit tx      |
-| **VerificationRequest** | **VerificationDocument** | 1 → \*      | `VerificationRequestId`  | A verification request contains multiple documents    |
+| Parent                  | Child                    | Cardinality | FK Column(s)                   | Description                                              |
+| ----------------------- | ------------------------ | ----------- | ------------------------------ | -------------------------------------------------------- |
+| **User**                | **PasswordResetToken**   | 1 → \*      | `UserId`                       | A user can have many password reset tokens                |
+| **User**                | **RefreshToken**         | 1 → \*      | `UserId`                       | A user can have many refresh tokens                       |
+| **User**                | **EmailVerificationToken** | 1 → \*    | `UserId`                       | A user can have many email verification tokens            |
+| **User**                | **Cart**                 | 1 → 0..1    | `UserId`                       | A user has at most one shopping cart                       |
+| **User**                | **Payment**              | 1 → \*      | `UserId`                       | A user makes many payments                                |
+| **User**                | **WalletTransaction**    | 1 → \*      | `UserId`                       | A user has many wallet transactions                       |
+| **User**                | **Order**                | 1 → \*      | `CreatedBy`                    | A user places many orders                                 |
+| **User**                | **RefundRequest**        | 1 → \*      | `UserId`                       | A user submits many refund requests                       |
+| **User**                | **VerificationRequest**  | 1 → \*      | `UserId`                       | A user submits verification requests                      |
+| **Category**            | **Dish**                 | 1 → \*      | `CategoryId`                   | A category classifies many dishes                         |
+| **Category**            | **MealSettings**         | 1 → \*      | `CategoryId`                   | A category can appear in many meal settings               |
+| **Dish**                | **DishMeal**             | 1 → \*      | `DishId`                       | A dish can be part of many meals                          |
+| **Meal**                | **DishMeal**             | 1 → \*      | `MealId`                       | A meal contains many dishes                               |
+| **Meal**                | **MealTemplate**         | 1 → \*      | `MealId`                       | A meal has many templates                                 |
+| **MealTemplate**        | **MealSettings**         | 1 → \*      | `MealTemplateId`               | A template defines many category-quantity rules           |
+| **Meal**                | **Order**                | 1 → \*      | `MealId`                       | Orders are placed for a specific meal                     |
+| **MealTemplate**        | **Order**                | 1 → \*      | `MealTemplateId`               | Orders optionally reference a meal template               |
+| **Order**               | **OrderItem**            | 1 → \*      | `OrderId`                      | An order contains multiple line items                     |
+| **Dish**                | **OrderItem**            | 1 → \*      | `DishId`                       | A dish can appear in many order items                     |
+| **Order**               | **WalletTransaction**    | 0..1 → 1    | `WalletTransactionId`          | An order links to the wallet debit transaction            |
+| **Order**               | **RefundRequest**        | 0..1 → 0..1 | `OrderId`                      | An order has at most one active refund request            |
+| **Payment**             | **WalletTransaction**    | 1 → 0..1    | `PaymentId`                    | A payment optionally produces a wallet credit tx          |
+| **RefundRequest**       | **RefundRequestImage**   | 1 → \*      | `RefundRequestId`              | A refund request contains multiple evidence images        |
+| **RefundRequest**       | **WalletTransaction**    | 0..1 → 1    | `WalletTransactionId`          | An approved refund links to the wallet credit tx          |
+| **VerificationRequest** | **VerificationDocument** | 1 → \*      | `VerificationRequestId`        | A verification request contains multiple documents        |
 
 ## Owned Value Objects (flattened into parent table)
 
-| Value Object  | Owner               | Columns                                         |
-| ------------- | ------------------- | ----------------------------------------------- |
-| **Money**     | User (Balance)      | `BalanceAmount`, `BalanceCurrency`               |
-| **Money**     | Dish (Price)        | `PriceAmount`, `PriceCurrency`                   |
-| **Money**     | OrderItem (UnitPrice) | `UnitPriceAmount`, `UnitPriceCurrency`         |
+| Value Object  | Owner                          | Columns                                         |
+| ------------- | ------------------------------ | ----------------------------------------------- |
+| **Money**     | User (Balance)                 | `BalanceAmount`, `BalanceCurrency`               |
+| **Money**     | Dish (Price)                   | `PriceAmount`, `PriceCurrency`                   |
+| **Money**     | OrderItem (UnitPrice)          | `UnitPriceAmount`, `UnitPriceCurrency`           |
 
 ## Enums (stored as integer columns)
 
-| Enum                     | Values                                                                                                  | Used In                                    |
-| ------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **Role**                 | Admin (1), Manager (2), User (3), Staff (4)                                                             | User.Role                                  |
-| **AccountStatus**        | Active (1), PendingEmailVerification (2), PendingIdentityVerification (3), Suspended (4), Banned (5)    | User.Status                                |
-| **Gender**               | Male (1), Female (2), Other (3)                                                                         | User.Gender                                |
-| **OrderStatus**          | Pending (0), ReadyForPickup (1), Completed (2), Cancelled (3)                                           | Order.Status                               |
-| **PaymentStatus**        | Pending (1), Completed (2), Failed (3)                                                                  | Payment.Status                             |
-| **PaymentMethod**        | Momo (1), ZaloPay (2), VnPay (3), SePay (4), Wallet (5)                                                 | Payment.Method                             |
-| **PaymentType**          | TopUp (1), Subscription (2), Refund (3), OrderPayment (4)                                               | Payment.Type                               |
-| **WalletTransactionType**| TopUp (1), OrderPayment (2), Refund (3)                                                                 | WalletTransaction.TransactionType          |
-| **DocumentType**         | StudentCard (1), NationalId (2), Other (3)                                                              | VerificationDocument.DocumentType          |
-| **VerificationStatus**   | Pending (1), Approved (2), Rejected (3), Expired (4)                                                    | VerificationRequest.Status                 |
-| **UserCategory**         | Student (1), Lecturer (2), Staff (3), External (4) *(deprecated — column removed from User)*             | —                                          |
+| Enum                       | Values                                                                                                     | Used In                                    |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Role**                   | Admin (1), Manager (2), User (3), Staff (4)                                                                | User.Role                                  |
+| **AccountStatus**          | Active (1), PendingEmailVerification (2), PendingIdentityVerification (3), Suspended (4), Banned (5)       | User.Status                                |
+| **Gender**                 | Male (1), Female (2), Other (3)                                                                            | User.Gender                                |
+| **OrderStatus**            | Pending (0), ReadyForPickup (1), Completed (2), Cancelled (3)                                              | Order.Status                               |
+| **PaymentStatus**          | Pending (1), Completed (2), Failed (3)                                                                     | Payment.Status                             |
+| **PaymentMethod**          | Momo (1), ZaloPay (2), VnPay (3), SePay (4), Wallet (5)                                                   | Payment.Method                             |
+| **PaymentType**            | TopUp (1), Subscription (2), Refund (3), OrderPayment (4)                                                  | Payment.Type                               |
+| **WalletTransactionType**  | TopUp (1), OrderPayment (2), Refund (3)                                                                    | WalletTransaction.TransactionType          |
+| **RefundRequestStatus**    | Pending (1), Approved (2), Rejected (3)                                                                    | RefundRequest.Status                       |
+| **VerificationStatus**     | Pending (1), Approved (2), Rejected (3), Expired (4)                                                       | VerificationRequest.Status                 |
+| **DocumentType**           | StudentCard (1), NationalId (2), Other (3)                                                                 | VerificationDocument.DocumentType          |
+| **UserCategory**           | Student (1), Lecturer (2), Staff (3), External (4) *(deprecated — column removed from User)*               | —                                          |
