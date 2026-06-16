@@ -1,6 +1,6 @@
 # SmartCanteen — Conceptual Diagram
 
-> Core domain aggregates and their relationships.
+> Core domain aggregates and their relationships with cardinality.
 
 ```mermaid
 graph LR
@@ -18,30 +18,29 @@ graph LR
     Setting["⚙️ Setting"]
     PasswordResetToken["🔑 PasswordResetToken"]
 
-    Meal -->|has| MealTemplate
-    Meal -->|contains| Dish
-    Dish -->|classified by| Category
-    MealTemplate -->|defines rules for| Category
+    Meal -->|"1 → n"| MealTemplate
+    Meal -->|"n → n"| Dish
+    Dish -->|"n → 1"| Category
+    MealTemplate -->|"n → 1"| Category
 
-    Cart -->|belongs to| User
+    Cart -->|"1 → 1"| User
 
-    Order -->|for| Meal
-    Order -->|contains| Dish
-    Order -->|paid via| WalletTransaction
-    Order -->|optionally uses| MealTemplate
+    Order -->|"n → 1"| Meal
+    Order -->|"n → n"| Dish
+    Order -->|"n → 0..1"| WalletTransaction
+    Order -->|"n → 0..1"| MealTemplate
 
-    Payment -->|credits| WalletTransaction
-    WalletTransaction -->|belongs to| User
-    Payment -->|made by| User
+    Payment -->|"1 → 0..1"| WalletTransaction
+    WalletTransaction -->|"n → 1"| User
+    Payment -->|"n → 1"| User
 
-    RefundRequest -->|for| Order
-    RefundRequest -->|submitted by| User
-    RefundRequest -->|credited via| WalletTransaction
+    RefundRequest -->|"1 → 0..1"| Order
+    RefundRequest -->|"n → 1"| User
+    RefundRequest -->|"1 → 0..1"| WalletTransaction
 
-    User -->|places| Order
-    User -->|submits| VerificationRequest
-    User -->|configures| Setting
-    User -->|has| PasswordResetToken
+    User -->|"1 → n"| Order
+    User -->|"1 → n"| VerificationRequest
+    User -->|"1 → n"| PasswordResetToken
 ```
 
 ## Domain Summary
