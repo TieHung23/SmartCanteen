@@ -1,0 +1,14 @@
+namespace SC.Contract.Services.Notification;
+
+public static class NotificationTemplateKeys
+{
+    public const string OrderCreated = "OrderCreated";
+    public const string OrderStatusChanged = "OrderStatusChanged";
+    public const string PaymentCompleted = "PaymentCompleted";
+    public const string RefundSubmitted = "RefundSubmitted";
+    public const string RefundApproved = "RefundApproved";
+    public const string RefundRejected = "RefundRejected";
+    public const string VerificationSubmitted = "VerificationSubmitted";
+    public const string VerificationApproved = "VerificationApproved";
+    public const string VerificationRejected = "VerificationRejected";
+}

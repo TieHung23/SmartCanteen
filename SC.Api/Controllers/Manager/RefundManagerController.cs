@@ -12,7 +12,7 @@ namespace SC.Api.Controllers.Manager;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/manager/refunds")]
-[Authorize(Roles = "Manager,Admin")]
+[Authorize(Roles = "Manager")]
 public class RefundManagerController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

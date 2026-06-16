@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
 using SC.Api.Middleware;
 using SC.Application.DependencyInjection.Configurations;
 using SC.Contract.DependencyInjection.Configurations;
@@ -14,6 +15,8 @@ using SC.Persistence.Database;
 using SC.Persistence.DependencyInjection.Configurations;
 using Serilog;
 using SC.Api.DependencyInjection.Options;
+using SC.Api.Hubs;
+using SC.Contract.Services.Notification;
 
 namespace SC.Api.DependencyInjection.Configurations;
 
@@ -43,6 +46,20 @@ public static class StartupConfigurations
 
         builder.Services.ConfigureSwagger(builder.Configuration);
         builder.Services.AddControllers();
+        builder.Services.AddSignalR();
+        builder.Services
+            .AddOptions<NotificationRealtimeOptions>()
+            .Bind(builder.Configuration.GetSection(NotificationRealtimeOptions.SectionName))
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.HubPath)
+                           && options.HubPath.StartsWith('/')
+                           && !options.HubPath.StartsWith("//", StringComparison.Ordinal)
+                           && !string.IsNullOrWhiteSpace(options.ClientEventName),
+                "Notification realtime hub path and client event name must be configured.")
+            .ValidateOnStart();
+        builder.Services.AddScoped<
+            INotificationRealtimePublisher,
+            SC.Api.Services.SignalRNotificationRealtimePublisher>();
         builder.Services.AddScoped<SC.Persistence.Database.Interceptors.AuditableEntityInterceptor>();
 
         builder.Services.AddDbContext<SmartCanteenDbContext>((sp, options) =>
@@ -94,6 +111,26 @@ public static class StartupConfigurations
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SecretKey)),
                     RoleClaimType = System.Security.Claims.ClaimTypes.Role,
                     NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var realtimeOptions = context.HttpContext.RequestServices
+                            .GetRequiredService<IOptions<NotificationRealtimeOptions>>()
+                            .Value;
+                        var accessToken = context.Request.Query["access_token"];
+
+                        if (!string.IsNullOrWhiteSpace(accessToken)
+                            && !string.IsNullOrWhiteSpace(realtimeOptions.HubPath)
+                            && context.HttpContext.Request.Path.StartsWithSegments(
+                                realtimeOptions.HubPath))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
                 };
             });
 
@@ -165,6 +202,17 @@ public static class StartupConfigurations
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
+
+        var notificationRealtimeOptions = app.Services
+            .GetRequiredService<IOptions<NotificationRealtimeOptions>>()
+            .Value;
+        if (string.IsNullOrWhiteSpace(notificationRealtimeOptions.HubPath))
+        {
+            throw new InvalidOperationException(
+                "NotificationRealtime:HubPath is not configured.");
+        }
+
+        app.MapHub<NotificationHub>(notificationRealtimeOptions.HubPath);
 
         app.Lifetime.ApplicationStarted.Register(() =>
         {

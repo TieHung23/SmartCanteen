@@ -14,6 +14,7 @@ The module files are generated from [`API-Document.md`](../API-Document.md).
 | Verification | [`verification-api.md`](verification-api.md) |
 | Refund | [`refund-api.md`](refund-api.md) |
 | Refund Policy | [`refundpolicy-api.md`](refundpolicy-api.md) |
+| Notification / FCM | [`notification.md`](notification.md) |
 
 ## Regenerate
 

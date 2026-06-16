@@ -26,7 +26,9 @@ public static class Configurations
             {
                 if (corsOptions.AllowedOrigins is { Length: > 0 })
                 {
-                    builder.WithOrigins(corsOptions.AllowedOrigins);
+                    builder
+                        .WithOrigins(corsOptions.AllowedOrigins)
+                        .AllowCredentials();
                 }
                 else
                 {

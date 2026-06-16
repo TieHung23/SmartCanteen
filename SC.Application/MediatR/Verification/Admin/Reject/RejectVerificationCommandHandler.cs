@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Email;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Verification.AggregateRoot;
@@ -16,6 +17,7 @@ internal class RejectVerificationCommandHandler(
     ICurrentUserService currentUserService,
     IEmailSender emailSender,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<RejectVerificationCommandHandler> logger) : ICommandHandler<RejectVerificationCommand, RejectVerificationResponse>
 {
     public async Task<Result<RejectVerificationResponse>> Handle(RejectVerificationCommand request, CancellationToken cancellationToken)
@@ -44,6 +46,23 @@ internal class RejectVerificationCommandHandler(
             verificationRepository.Update(verification);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.VerificationRejected,
+                verification.UserId,
+                verification.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = verification.Id.ToString(),
+                    ["reason"] = verification.RejectionReason!
+                },
+                new
+                {
+                    VerificationRequestId = verification.Id,
+                    RejectionReason = verification.RejectionReason,
+                    Status = verification.Status.ToString()
+                },
+                cancellationToken);
 
             var user = await userRepository.GetByIdAsync(verification.UserId, cancellationToken);
             if (user is not null)
