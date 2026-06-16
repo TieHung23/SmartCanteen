@@ -325,7 +325,7 @@ erDiagram
     ORDER ||--o| WALLET_TRANSACTION : "paid via"
 
     %% ── Payment → WalletTransaction (top-up flow) ──
-    PAYMENT ||--o{ WALLET_TRANSACTION : "creates"
+    PAYMENT ||--o| WALLET_TRANSACTION : "creates"
 
     %% ── Refund ──
     ORDER ||--o| REFUND_REQUEST : "has"
