@@ -101,14 +101,16 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
 **Request body:**
 ```json
 {
+  "mealId": "guid",
   "cartVersion": 1
 }
 ```
 
-The server reads the authenticated user's cart, validates the current meal, dishes and
-stock, uses current database prices, atomically reserves stock, debits the wallet,
-creates the order and wallet transaction, then clears the cart in one database
-transaction. A stale cart version or insufficient stock returns `409`.
+The server reads the authenticated user's cart, finds the selected meal, validates the
+current meal, template, dishes and stock, uses current database prices, atomically
+reserves stock, debits the wallet, creates the order and wallet transaction, then removes
+that meal from the cart in one database transaction. A stale cart version or insufficient
+stock returns `409`.
 
 **201 Response:**
 ```json
