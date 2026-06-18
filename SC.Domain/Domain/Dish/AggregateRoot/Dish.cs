@@ -18,7 +18,7 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid CategoryId { get; set; }
     public CategoryAggregate Category { get; set; } = null!;
     public string? ImgUrl { get; set; }
-    public ICollection<DishMeal> DishMeals { get; set; } = new List<DishMeal>();
+    public ICollection<SessionDish> SessionDishes { get; set; } = new List<SessionDish>();
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
     public Guid CreatedBy { get; set; }

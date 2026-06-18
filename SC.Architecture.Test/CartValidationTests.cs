@@ -4,15 +4,15 @@ using SC.Domain.Abstraction.Entities;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.SharedKernel.ValueObjects;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
-using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
-using MealTemplateEntity = SC.Domain.Domain.Meal.Entity.MealTemplate;
+using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
+using MealTemplateEntity = SC.Domain.Domain.Session.Entity.MealTemplate;
 
 namespace SC.Architecture.Test;
 
 public class CartValidationTests
 {
     private readonly CartValidationService _service = new(
-        new UnusedRepository<MealAggregateRoot>(),
+        new UnusedRepository<SessionAggregateRoot>(),
         new UnusedRepository<DishAggregateRoot>());
 
     [Fact]
@@ -25,12 +25,12 @@ public class CartValidationTests
     }
 
     [Fact]
-    public async Task ValidateAsync_Should_Reject_Empty_Meal_List()
+    public async Task ValidateAsync_Should_Reject_Empty_Session_List()
     {
         var result = await _service.ValidateAsync(new CartData());
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart must contain at least one meal.", result.Message);
+        Assert.Equal("Cart must contain at least one session.", result.Message);
     }
 
     [Fact]
@@ -38,11 +38,11 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
-                    MealId = Guid.NewGuid(),
+                    SessionId = Guid.NewGuid(),
                     MealTemplateId = Guid.NewGuid(),
                     Items = []
                 }
@@ -50,7 +50,7 @@ public class CartValidationTests
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart meal must contain at least one item.", result.Message);
+        Assert.Equal("Cart session must contain at least one item.", result.Message);
     }
 
     [Fact]
@@ -58,11 +58,11 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
-                    MealId = Guid.NewGuid(),
+                    SessionId = Guid.NewGuid(),
                     MealTemplateId = Guid.NewGuid(),
                     Items =
                     [
@@ -86,11 +86,11 @@ public class CartValidationTests
         var dishId = Guid.NewGuid();
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
-                    MealId = Guid.NewGuid(),
+                    SessionId = Guid.NewGuid(),
                     MealTemplateId = Guid.NewGuid(),
                     Items =
                     [
@@ -102,17 +102,17 @@ public class CartValidationTests
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart cannot contain duplicate dishes in the same meal.", result.Message);
+        Assert.Equal("Cart cannot contain duplicate dishes in the same session.", result.Message);
     }
 
     [Fact]
-    public async Task ValidateAsync_Should_Reject_Missing_MealId()
+    public async Task ValidateAsync_Should_Reject_Missing_SessionId()
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
                     Items =
                     [
@@ -127,7 +127,7 @@ public class CartValidationTests
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("MealId is required.", result.Message);
+        Assert.Equal("SessionId is required.", result.Message);
     }
 
     [Fact]
@@ -135,11 +135,11 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
-                    MealId = Guid.NewGuid(),
+                    SessionId = Guid.NewGuid(),
                     MealTemplateId = Guid.NewGuid(),
                     Items = null
                 }
@@ -147,7 +147,7 @@ public class CartValidationTests
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart meal must contain at least one item.", result.Message);
+        Assert.Equal("Cart session must contain at least one item.", result.Message);
     }
 
     [Fact]
@@ -155,11 +155,11 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
-                    MealId = Guid.NewGuid(),
+                    SessionId = Guid.NewGuid(),
                     MealTemplateId = Guid.NewGuid(),
                     Items =
                     [
@@ -182,11 +182,11 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Meals =
+            Sessions =
             [
-                new CartMealData
+                new CartSessionData
                 {
-                    MealId = Guid.NewGuid(),
+                    SessionId = Guid.NewGuid(),
                     Items =
                     [
                         new CartItemData
@@ -209,12 +209,12 @@ public class CartValidationTests
         var userId = Guid.NewGuid();
         var cart = SC.Domain.Domain.Cart.AggregateRoot.Cart.Create(
             userId,
-            """{"mealId":"00000000-0000-0000-0000-000000000001","mealTemplateId":"00000000-0000-0000-0000-000000000003","items":[]}""");
+            """{"sessionId":"00000000-0000-0000-0000-000000000001","mealTemplateId":"00000000-0000-0000-0000-000000000003","items":[]}""");
 
         Assert.Equal(1, cart.Version);
 
         cart.Update(
-            """{"mealId":"00000000-0000-0000-0000-000000000001","mealTemplateId":"00000000-0000-0000-0000-000000000003","items":[{"dishId":"00000000-0000-0000-0000-000000000002","quantity":1}]}""",
+            """{"sessionId":"00000000-0000-0000-0000-000000000001","mealTemplateId":"00000000-0000-0000-0000-000000000003","items":[{"dishId":"00000000-0000-0000-0000-000000000002","quantity":1}]}""",
             userId);
 
         Assert.Equal(2, cart.Version);

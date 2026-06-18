@@ -1,6 +1,6 @@
 using SC.Contract.Shared;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
-using MealTemplateEntity = SC.Domain.Domain.Meal.Entity.MealTemplate;
+using MealTemplateEntity = SC.Domain.Domain.Session.Entity.MealTemplate;
 
 namespace SC.Application.MediatR.Cart;
 

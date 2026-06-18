@@ -20,7 +20,7 @@ $modules = [ordered]@{
     "user-api.md" = @("Auth")
     "category-api.md" = @("Categories")
     "dish-api.md" = @("Dishes")
-    "meal-api.md" = @("Meals")
+    "session-api.md" = @("Sessions")
     "order-api.md" = @("Orders")
     "payment-api.md" = @("Payments", "WalletTransaction")
     "setting-api.md" = @("Settings")
@@ -96,7 +96,7 @@ $indexLines = @(
     '| User / Auth | [`user-api.md`](user-api.md) |'
     '| Category | [`category-api.md`](category-api.md) |'
     '| Dish | [`dish-api.md`](dish-api.md) |'
-    '| Meal | [`meal-api.md`](meal-api.md) |'
+    '| Session | [`session-api.md`](session-api.md) |'
     '| Order | [`order-api.md`](order-api.md) |'
     '| Payment / Wallet | [`payment-api.md`](payment-api.md) |'
     '| Setting | [`setting-api.md`](setting-api.md) |'
