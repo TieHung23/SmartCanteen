@@ -1,0 +1,85 @@
+using Microsoft.EntityFrameworkCore;
+using SC.Contract.Abstraction.Message;
+using SC.Contract.Shared;
+using SC.Domain.Abstraction.Repositories;
+using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.Enum;
+using SC.Domain.Domain.PickupSlot.Enum;
+using SC.Domain.Domain.ServingJob.Enum;
+using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
+using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
+using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
+using PickupSlotEntity = SC.Domain.Domain.PickupSlot.Entity.PickupSlot;
+using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
+
+namespace SC.Application.MediatR.Pickup.CollectOrder;
+
+internal sealed class CollectOrderCommandHandler(
+    IGenericRepository<PickupSlotEntity, Guid> pickupSlotRepository,
+    IGenericRepository<TrayEntity, Guid> trayRepository,
+    IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
+    IUnitOfWork unitOfWork,
+    ICurrentUserService currentUserService
+) : ICommandHandler<CollectOrderCommand, CollectOrderResponse>
+{
+    public async Task<Result<CollectOrderResponse>> Handle(
+        CollectOrderCommand request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = currentUserService.UserId;
+
+        // Dò ngược OrderId -> ô kệ đang giữ khay của order
+        var slot = await pickupSlotRepository
+            .GetQueryable(x => x.OrderId == request.OrderId
+                               && x.Status != PickupSlotStatus.Empty)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var job = await servingJobRepository
+            .GetQueryable(x => x.OrderId == request.OrderId
+                               && x.Status != ServingJobStatus.Cancelled
+                               && x.Status != ServingJobStatus.Collected)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (job is null)
+            return Result.Failure<CollectOrderResponse>(Error.NullValue, "No active serving job for this order.");
+
+        string? slotCode = null;
+        if (slot is not null)
+        {
+            slotCode = slot.Code;
+            if (slot.TrayId is { } trayId)
+            {
+                var tray = await trayRepository.GetByIdAsync(trayId, cancellationToken);
+                if (tray is not null)
+                {
+                    tray.Release(actorId);
+                    trayRepository.Update(tray);
+                }
+            }
+            slot.Clear(actorId);
+            pickupSlotRepository.Update(slot);
+        }
+
+        job.MarkCollected(actorId);
+        servingJobRepository.Update(job);
+
+        var order = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
+        if (order is not null && order.Status != OrderStatus.Completed)
+        {
+            var from = order.Status;
+            order.UpdateStatus(OrderStatus.Completed, actorId);
+            orderRepository.Update(order);
+            await orderStatusHistoryRepository.AddAsync(
+                OrderStatusHistoryEntity.Create(order.Id, from, OrderStatus.Completed, actorId, "Collected"),
+                cancellationToken);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(
+            new CollectOrderResponse(request.OrderId, slotCode),
+            "Order collected.");
+    }
+}

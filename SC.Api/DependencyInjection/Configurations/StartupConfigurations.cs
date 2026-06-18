@@ -60,6 +60,9 @@ public static class StartupConfigurations
         builder.Services.AddScoped<
             INotificationRealtimePublisher,
             SC.Api.Services.SignalRNotificationRealtimePublisher>();
+        builder.Services.AddScoped<
+            SC.Contract.Services.Robot.IServingJobNotifier,
+            SC.Api.Services.SignalRServingJobNotifier>();
         builder.Services.AddScoped<SC.Persistence.Database.Interceptors.AuditableEntityInterceptor>();
 
         builder.Services.AddDbContext<SmartCanteenDbContext>((sp, options) =>
@@ -213,6 +216,7 @@ public static class StartupConfigurations
         }
 
         app.MapHub<NotificationHub>(notificationRealtimeOptions.HubPath);
+        app.MapHub<RobotHub>("/hubs/robot");
 
         app.Lifetime.ApplicationStarted.Register(() =>
         {

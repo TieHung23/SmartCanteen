@@ -1,6 +1,8 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Cart;
+using SC.Application.MediatR.Robot.CreateServingJob;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Contract.Services.Notification;
@@ -22,6 +24,7 @@ internal class CreateOrderCommandHandler(
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
+    ISender mediator,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
 {
@@ -223,6 +226,16 @@ internal class CreateOrderCommandHandler(
                     TotalPrice = totalPrice
                 },
                 cancellationToken);
+
+            // PUSH/BUFFER: tạo + đẩy job phục vụ cho robot (best-effort, không ảnh hưởng order)
+            try
+            {
+                await mediator.Send(new CreateServingJobCommand(order.Id), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Order {OrderId} created but failed to create/push serving job", order.Id);
+            }
 
             return Result.Success(response, "Order created successfully.");
         }
