@@ -30,65 +30,76 @@ internal sealed class ReportServingStatusCommandHandler(
     {
         var actorId = currentUserService.UserId;
 
-        var job = await servingJobRepository
-            .GetQueryable(x => x.OrderId == request.OrderId
-                               && x.Status != ServingJobStatus.Cancelled
-                               && x.Status != ServingJobStatus.Collected)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (job is null)
+        try
         {
-            logger.LogWarning("ReportStatus for order {OrderId} but no active serving job found", request.OrderId);
-            return Result.Failure<ReportServingStatusResponse>(Error.NullValue, "No active serving job for this order.");
-        }
+            var job = await servingJobRepository
+                .GetQueryable(x => x.OrderId == request.OrderId
+                                   && x.Status != ServingJobStatus.Cancelled
+                                   && x.Status != ServingJobStatus.Collected)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
 
-        var state = (request.State ?? string.Empty).Trim();
-        var eventType = MapEventType(state);
-
-        switch (eventType)
-        {
-            case RobotEventType.PickStarted:
-            case RobotEventType.JobReceived:
-                if (job.Status == ServingJobStatus.Pushed)
-                    job.Acknowledge(actorId);
-                break;
-
-            case RobotEventType.Error:
-                job.MarkFailed(request.Message ?? state, actorId);
-                break;
-        }
-
-        servingJobRepository.Update(job);
-
-        await robotEventLogRepository.AddAsync(
-            RobotEventLogEntity.Create(
-                eventType,
-                actorId,
-                robotArmId: job.RobotArmId,
-                servingJobId: job.Id,
-                orderId: job.OrderId,
-                message: request.Message ?? state),
-            cancellationToken);
-
-        // Đồng bộ Order status khi robot bắt đầu ráp
-        if (eventType is RobotEventType.PickStarted or RobotEventType.JobReceived)
-        {
-            var order = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
-            if (order is not null && order.Status == OrderStatus.Pending)
+            if (job is null)
             {
-                order.UpdateStatus(OrderStatus.Preparing, actorId);
-                orderRepository.Update(order);
-                await orderStatusHistoryRepository.AddAsync(
-                    OrderStatusHistoryEntity.Create(order.Id, OrderStatus.Pending, OrderStatus.Preparing, actorId, "RobotPickStarted"),
-                    cancellationToken);
+                logger.LogWarning("ReportStatus for order {OrderId} but no active serving job found", request.OrderId);
+                return Result.Failure<ReportServingStatusResponse>(
+                    Error.ServingJobNotFound, "No active serving job for this order.");
             }
-        }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return Result.Success(
-            new ReportServingStatusResponse(request.OrderId, state, job.Status.ToString()),
-            "Status recorded.");
+            var state = (request.State ?? string.Empty).Trim();
+            var eventType = MapEventType(state);
+
+            switch (eventType)
+            {
+                case RobotEventType.PickStarted:
+                case RobotEventType.JobReceived:
+                    if (job.Status == ServingJobStatus.Pushed)
+                        job.Acknowledge(actorId);
+                    break;
+
+                case RobotEventType.Error:
+                    job.MarkFailed(request.Message ?? state, actorId);
+                    break;
+            }
+
+            servingJobRepository.Update(job);
+
+            await robotEventLogRepository.AddAsync(
+                RobotEventLogEntity.Create(
+                    eventType,
+                    actorId,
+                    robotArmId: job.RobotArmId,
+                    servingJobId: job.Id,
+                    orderId: job.OrderId,
+                    message: request.Message ?? state),
+                cancellationToken);
+
+            // Đồng bộ Order status khi robot bắt đầu ráp
+            if (eventType is RobotEventType.PickStarted or RobotEventType.JobReceived)
+            {
+                var order = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
+                if (order is not null && order.Status == OrderStatus.Pending)
+                {
+                    order.UpdateStatus(OrderStatus.Preparing, actorId);
+                    orderRepository.Update(order);
+                    await orderStatusHistoryRepository.AddAsync(
+                        OrderStatusHistoryEntity.Create(order.Id, OrderStatus.Pending, OrderStatus.Preparing, actorId, "RobotPickStarted"),
+                        cancellationToken);
+                }
+            }
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success(
+                new ReportServingStatusResponse(request.OrderId, state, job.Status.ToString()),
+                "Status recorded.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error recording robot status for order {OrderId}", request.OrderId);
+            return Result.Failure<ReportServingStatusResponse>(
+                Error.ServerError,
+                "An error occurred while recording the robot status.");
+        }
     }
 
     private static RobotEventType MapEventType(string state) =>
