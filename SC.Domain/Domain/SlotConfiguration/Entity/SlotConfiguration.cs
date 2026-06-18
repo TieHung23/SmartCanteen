@@ -12,7 +12,7 @@ public class SlotConfiguration : Entity<Guid>, IAuditableEntity<Guid>
     {
     }
 
-    public required Guid MealId { get; set; }   // phiên phục vụ (Meal/Session)
+    public required Guid SessionId { get; set; }   // phiên phục vụ (Meal/Session)
     public required Guid DishId { get; set; }
     public Guid? RobotArmId { get; set; }
     public required string LaneCode { get; set; }  // mã lane trên kệ gravity (vd "L1-A")
@@ -24,7 +24,7 @@ public class SlotConfiguration : Entity<Guid>, IAuditableEntity<Guid>
     public Guid UpdatedBy { get; set; }
 
     public static SlotConfiguration Create(
-        Guid mealId,
+        Guid sessionId,
         Guid dishId,
         string laneCode,
         int capacity,
@@ -34,7 +34,7 @@ public class SlotConfiguration : Entity<Guid>, IAuditableEntity<Guid>
         return new SlotConfiguration
         {
             Id = Guid.NewGuid(),
-            MealId = mealId,
+            SessionId = sessionId,
             DishId = dishId,
             LaneCode = laneCode,
             Capacity = capacity,

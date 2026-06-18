@@ -9,7 +9,7 @@ the access token and is never accepted from the request body.
 ## `GET /api/cart`
 
 Returns the current user's cart. A user without a cart receives an empty cart with
-version `0`. Expired, inactive, or deleted meals are removed from the persisted cart
+version `0`. Expired, inactive, or deleted sessions are removed from the persisted cart
 before the response is returned.
 
 ```json
@@ -17,7 +17,7 @@ before the response is returned.
   "value": {
     "id": null,
     "data": {
-      "meals": []
+      "sessions": []
     },
     "version": 0,
     "updatedAtUtc": null
@@ -34,9 +34,9 @@ the first cart. Later requests must use the latest version returned by the API.
 ```json
 {
   "data": {
-    "meals": [
+    "sessions": [
       {
-        "mealId": "guid",
+        "sessionId": "guid",
         "mealTemplateId": "guid",
         "items": [
           {
@@ -53,15 +53,15 @@ the first cart. Later requests must use the latest version returned by the API.
 
 Validation when saving cart:
 
-- `mealId`, `mealTemplateId`, and every `dishId` are required.
-- A cart can contain multiple meals, but each `mealId` can appear only once.
-- The template must belong to the selected meal.
-- The meal and dishes must exist, be active, and not be deleted.
+- `sessionId`, `mealTemplateId`, and every `dishId` are required.
+- A cart can contain multiple sessions, but each `sessionId` can appear only once.
+- The template must belong to the selected session.
+- The session and dishes must exist, be active, and not be deleted.
 - The ordering deadline must not have passed.
-- Every dish must belong to the selected meal.
+- Every dish must belong to the selected session.
 - Selected dish categories must be allowed by the template.
 - Selected category quantities cannot exceed template maximums.
-- Requested quantity cannot exceed the dish stock configured for the meal.
+- Requested quantity cannot exceed the dish stock configured for the session.
 - The cart must contain at least one dish.
 - Quantity must be greater than zero and cannot exceed current stock.
 - Duplicate dishes are rejected.
@@ -69,8 +69,8 @@ Validation when saving cart:
 Saving a cart allows partial selections, so required categories and template minimums
 are enforced during checkout instead of during `PUT /api/cart`.
 
-The persisted `Carts.DataJson` value is stored as the meal list itself:
-`[{"mealId":"guid","mealTemplateId":"guid","items":[...]}]`.
+The persisted `Carts.DataJson` value is stored as the session list itself:
+`[{"sessionId":"guid","mealTemplateId":"guid","items":[...]}]`.
 
 A stale version returns HTTP `409` with error code `CartVersionConflict`.
 
@@ -88,13 +88,13 @@ POST /api/orders
 
 ```json
 {
-  "mealId": "guid",
+  "sessionId": "guid",
   "cartVersion": 1
 }
 ```
 
-The server validates the selected meal in the cart again with complete template rules,
+The server validates the selected session in the cart again with complete template rules,
 including required categories and category minimum quantities. It then atomically reserves
 dish stock and uses current database prices. Stock reservation, wallet debit, wallet
-transaction creation, order creation, and removing that meal from the cart occur in one
+transaction creation, order creation, and removing that session from the cart occur in one
 database transaction. If any step fails, all changes are rolled back.

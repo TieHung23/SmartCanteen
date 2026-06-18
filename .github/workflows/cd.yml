@@ -16,8 +16,6 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # ĐÃ XÓA BỎ BƯỚC SETUP .NET SDK DƯ THỪA
-
       - name: Package source code
         run: git archive --format=tar.gz -o sc-api-release.tar.gz HEAD
 
@@ -51,13 +49,18 @@ jobs:
             TARGET_PATH="$BASE_PATH/$BRANCH_NAME"
             SIMULATE="${DEPLOY_SIMULATE:-true}"
 
-            mkdir -p "$TARGET_PATH"
             if [ "$SIMULATE" = "true" ]; then
+              mkdir -p "$TARGET_PATH"
               echo "[SIMULATE] SSH connected to Ubuntu"
+              echo "[SIMULATE] Would clean up old files in $TARGET_PATH"
               echo "[SIMULATE] Would extract /tmp/sc-api-release.tar.gz to $TARGET_PATH"
               echo "[SIMULATE] Would write appsettings.Development.json to $TARGET_PATH/SC.Api"
               echo "[SIMULATE] Would run docker compose up -d --build api in $TARGET_PATH/Docker"
             else
+              # Xóa toàn bộ nội dung cũ trước khi giải nén để tránh trùng lặp code/thư mục
+              rm -rf "$TARGET_PATH"
+              mkdir -p "$TARGET_PATH"
+              
               tar -xzf /tmp/sc-api-release.tar.gz -C "$TARGET_PATH"
               rm -f /tmp/sc-api-release.tar.gz # Dọn dẹp file tạm
 

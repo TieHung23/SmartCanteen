@@ -14,7 +14,7 @@ public class SlotConfigurationConfiguration : IEntityTypeConfiguration<SlotConfi
             .IsRequired()
             .HasDefaultValue(false);
 
-        builder.Property(x => x.MealId).IsRequired();
+        builder.Property(x => x.SessionId).IsRequired();
         builder.Property(x => x.DishId).IsRequired();
         builder.Property(x => x.RobotArmId);
 
@@ -25,7 +25,7 @@ public class SlotConfigurationConfiguration : IEntityTypeConfiguration<SlotConfi
         builder.Property(x => x.Capacity).IsRequired();
 
         // 1 lane trong 1 phiên là duy nhất
-        builder.HasIndex(x => new { x.MealId, x.LaneCode }).IsUnique();
+        builder.HasIndex(x => new { x.SessionId, x.LaneCode }).IsUnique();
         builder.HasIndex(x => x.DishId);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();

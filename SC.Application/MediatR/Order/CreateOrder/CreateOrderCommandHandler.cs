@@ -43,11 +43,11 @@ internal class CreateOrderCommandHandler(
                     "CartVersion must be greater than zero.");
             }
 
-            if (request.MealId == Guid.Empty)
+            if (request.SessionId == Guid.Empty)
             {
                 return Result.Failure<CreateOrderResponse>(
                     Error.InvalidValue,
-                    "MealId is required.");
+                    "SessionId is required.");
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -86,18 +86,18 @@ internal class CreateOrderCommandHandler(
                     "Stored cart data is invalid.");
             }
 
-            var checkoutMeal = cartData.Meals.SingleOrDefault(x => x.MealId == request.MealId);
-            if (checkoutMeal is null)
+            var checkoutSession = cartData.Sessions.SingleOrDefault(x => x.SessionId == request.SessionId);
+            if (checkoutSession is null)
             {
                 await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<CreateOrderResponse>(
                     Error.NullValue,
-                    "Selected meal was not found in the cart.");
+                    "Selected session was not found in the cart.");
             }
 
             var checkoutCartData = new CartData
             {
-                Meals = [checkoutMeal]
+                Sessions = [checkoutSession]
             };
 
             var validationResult = await cartValidationService.ValidateAsync(
@@ -125,7 +125,7 @@ internal class CreateOrderCommandHandler(
             }
 
             var validatedCart = validationResult.Value!;
-            var items = checkoutMeal.Items!;
+            var items = checkoutSession.Items!;
             var totalPrice = items.Sum(item =>
                 validatedCart.Dishes[item.DishId].Price.Amount * item.Quantity);
 
@@ -139,8 +139,8 @@ internal class CreateOrderCommandHandler(
 
             foreach (var item in items.OrderBy(x => x.DishId))
             {
-                var reserved = await unitOfWork.TryReserveMealDishAsync(
-                    checkoutMeal.MealId,
+                var reserved = await unitOfWork.TryReserveSessionDishAsync(
+                    checkoutSession.SessionId,
                     item.DishId,
                     item.Quantity,
                     cancellationToken);
@@ -168,8 +168,8 @@ internal class CreateOrderCommandHandler(
             }
 
             var order = OrderAggregateRoot.Create(
-                checkoutMeal.MealId,
-                checkoutMeal.MealTemplateId,
+                checkoutSession.SessionId,
+                checkoutSession.MealTemplateId,
                 currentUserId);
 
             foreach (var item in items)
@@ -191,8 +191,8 @@ internal class CreateOrderCommandHandler(
             order.AttachTransaction(transaction.Id, currentUserId);
             await orderRepository.AddAsync(order, cancellationToken);
 
-            cartData.Meals = cartData.Meals
-                .Where(x => x.MealId != checkoutMeal.MealId)
+            cartData.Sessions = cartData.Sessions
+                .Where(x => x.SessionId != checkoutSession.SessionId)
                 .ToList();
             cart.Update(CartJson.Serialize(cartData), currentUserId);
             cartRepository.Update(cart);

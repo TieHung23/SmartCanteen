@@ -1,4 +1,4 @@
-﻿# SmartCanteen API Modules
+# SmartCanteen API Modules
 
 The module files are generated from [`API-Document.md`](../API-Document.md).
 
@@ -7,7 +7,7 @@ The module files are generated from [`API-Document.md`](../API-Document.md).
 | User / Auth | [`user-api.md`](user-api.md) |
 | Category | [`category-api.md`](category-api.md) |
 | Dish | [`dish-api.md`](dish-api.md) |
-| Meal | [`meal-api.md`](meal-api.md) |
+| Session | [`session-api.md`](session-api.md) |
 | Order | [`order-api.md`](order-api.md) |
 | Payment / Wallet | [`payment-api.md`](payment-api.md) |
 | Setting | [`setting-api.md`](setting-api.md) |

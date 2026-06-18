@@ -10,7 +10,7 @@ namespace SC.Application.MediatR.Cart.GetCart;
 
 internal sealed class GetCartQueryHandler(
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
-    IGenericRepository<SC.Domain.Domain.Meal.AggregateRoot.Meal, Guid> mealRepository,
+    IGenericRepository<SC.Domain.Domain.Session.AggregateRoot.Session, Guid> sessionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<GetCartQueryHandler> logger)
@@ -39,11 +39,11 @@ internal sealed class GetCartQueryHandler(
             }
 
             var cartData = CartJson.Deserialize(cart.DataJson);
-            var activeCartData = await RemoveExpiredMealsAsync(
+            var activeCartData = await RemoveExpiredSessionsAsync(
                 cartData,
                 cancellationToken);
 
-            if (activeCartData.Meals.Count != cartData.Meals.Count)
+            if (activeCartData.Sessions.Count != cartData.Sessions.Count)
             {
                 await unitOfWork.BeginTransactionAsync(cancellationToken);
                 await unitOfWork.LockUserAsync(userId, cancellationToken);
@@ -91,31 +91,31 @@ internal sealed class GetCartQueryHandler(
         }
     }
 
-    private async Task<CartData> RemoveExpiredMealsAsync(
+    private async Task<CartData> RemoveExpiredSessionsAsync(
         CartData cartData,
         CancellationToken cancellationToken)
     {
-        if (cartData.Meals.Count == 0)
+        if (cartData.Sessions.Count == 0)
         {
             return cartData;
         }
 
         var now = DateTimeOffset.UtcNow;
-        var mealIds = cartData.Meals.Select(x => x.MealId).Distinct().ToList();
-        var availableMealIds = await mealRepository
+        var sessionIds = cartData.Sessions.Select(x => x.SessionId).Distinct().ToList();
+        var availableSessionIds = await sessionRepository
             .GetQueryable(x =>
-                mealIds.Contains(x.Id)
+                sessionIds.Contains(x.Id)
                 && !x.IsDeleted
                 && x.IsActive
                 && x.AvailableForOrder >= now)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
-        var availableMealIdSet = availableMealIds.ToHashSet();
+        var availableSessionIdSet = availableSessionIds.ToHashSet();
         return new CartData
         {
-            Meals = cartData.Meals
-                .Where(x => availableMealIdSet.Contains(x.MealId))
+            Sessions = cartData.Sessions
+                .Where(x => availableSessionIdSet.Contains(x.SessionId))
                 .ToList()
         };
     }

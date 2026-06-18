@@ -26,6 +26,11 @@ internal class GetAllOrdersQueryHandler(
             Guid filterUserId = request.UserId ?? currentUserService.UserId;
             query = query.Where(x => x.CreatedBy == filterUserId);
 
+            if (request.SessionId.HasValue)
+            {
+                query = query.Where(x => x.SessionId == request.SessionId.Value);
+            }
+
             if (request.Status.HasValue)
             {
                 query = query.Where(x => (int)x.Status == request.Status.Value);
@@ -43,7 +48,7 @@ internal class GetAllOrdersQueryHandler(
             var responses = paginatedOrders.Select(o => new GetAllOrdersResponse
             {
                 Id = o.Id,
-                MealId = o.MealId,
+                SessionId = o.SessionId,
                 MealTemplateId = o.MealTemplateId,
                 TransactionId = o.WalletTransactionId,
                 UserId = o.CreatedBy,

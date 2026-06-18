@@ -12,7 +12,7 @@ public class ShelfStock : Entity<Guid>, IAuditableEntity<Guid>
     {
     }
 
-    public required Guid MealId { get; set; }   // phiên phục vụ
+    public required Guid SessionId { get; set; }   // phiên phục vụ
     public required Guid DishId { get; set; }
     public Guid? SlotConfigurationId { get; set; }
     public int Quantity { get; set; }
@@ -22,12 +22,12 @@ public class ShelfStock : Entity<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static ShelfStock Create(Guid mealId, Guid dishId, int quantity, Guid createdBy, Guid? slotConfigurationId = null)
+    public static ShelfStock Create(Guid sessionId, Guid dishId, int quantity, Guid createdBy, Guid? slotConfigurationId = null)
     {
         return new ShelfStock
         {
             Id = Guid.NewGuid(),
-            MealId = mealId,
+            SessionId = sessionId,
             DishId = dishId,
             Quantity = quantity,
             SlotConfigurationId = slotConfigurationId,

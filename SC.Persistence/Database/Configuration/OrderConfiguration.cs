@@ -15,13 +15,13 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired()
             .HasDefaultValue(false);
 
-        builder.Property(x => x.MealId).IsRequired();
+        builder.Property(x => x.SessionId).IsRequired();
 
-        builder.HasOne(x => x.Meal)
+        builder.HasOne(x => x.Session)
             .WithMany()
-            .HasForeignKey(x => x.MealId);
+            .HasForeignKey(x => x.SessionId);
 
-        builder.HasIndex(x => x.MealId);
+        builder.HasIndex(x => x.SessionId);
 
         builder.Property(x => x.MealTemplateId);
         builder.HasOne(x => x.MealTemplate)
