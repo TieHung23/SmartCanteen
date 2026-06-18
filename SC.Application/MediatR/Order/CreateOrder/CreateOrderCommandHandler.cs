@@ -40,6 +40,13 @@ internal class CreateOrderCommandHandler(
                     "CartVersion must be greater than zero.");
             }
 
+            if (request.MealId == Guid.Empty)
+            {
+                return Result.Failure<CreateOrderResponse>(
+                    Error.InvalidValue,
+                    "MealId is required.");
+            }
+
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await unitOfWork.LockUserAsync(currentUserId, cancellationToken);
 
@@ -76,8 +83,23 @@ internal class CreateOrderCommandHandler(
                     "Stored cart data is invalid.");
             }
 
+            var checkoutMeal = cartData.Meals.SingleOrDefault(x => x.MealId == request.MealId);
+            if (checkoutMeal is null)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result.Failure<CreateOrderResponse>(
+                    Error.NullValue,
+                    "Selected meal was not found in the cart.");
+            }
+
+            var checkoutCartData = new CartData
+            {
+                Meals = [checkoutMeal]
+            };
+
             var validationResult = await cartValidationService.ValidateAsync(
-                cartData,
+                checkoutCartData,
+                requireCompleteTemplate: true,
                 cancellationToken);
             if (validationResult.IsFailure)
             {
@@ -100,7 +122,7 @@ internal class CreateOrderCommandHandler(
             }
 
             var validatedCart = validationResult.Value!;
-            var items = cartData.Items!;
+            var items = checkoutMeal.Items!;
             var totalPrice = items.Sum(item =>
                 validatedCart.Dishes[item.DishId].Price.Amount * item.Quantity);
 
@@ -115,7 +137,7 @@ internal class CreateOrderCommandHandler(
             foreach (var item in items.OrderBy(x => x.DishId))
             {
                 var reserved = await unitOfWork.TryReserveMealDishAsync(
-                    cartData.MealId,
+                    checkoutMeal.MealId,
                     item.DishId,
                     item.Quantity,
                     cancellationToken);
@@ -143,8 +165,8 @@ internal class CreateOrderCommandHandler(
             }
 
             var order = OrderAggregateRoot.Create(
-                cartData.MealId,
-                cartData.MealTemplateId,
+                checkoutMeal.MealId,
+                checkoutMeal.MealTemplateId,
                 currentUserId);
 
             foreach (var item in items)
@@ -166,7 +188,10 @@ internal class CreateOrderCommandHandler(
             order.AttachTransaction(transaction.Id, currentUserId);
             await orderRepository.AddAsync(order, cancellationToken);
 
-            cart.Update(CartJson.Serialize(new CartData()), currentUserId);
+            cartData.Meals = cartData.Meals
+                .Where(x => x.MealId != checkoutMeal.MealId)
+                .ToList();
+            cart.Update(CartJson.Serialize(cartData), currentUserId);
             cartRepository.Update(cart);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

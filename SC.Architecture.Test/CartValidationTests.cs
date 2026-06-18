@@ -25,17 +25,32 @@ public class CartValidationTests
     }
 
     [Fact]
+    public async Task ValidateAsync_Should_Reject_Empty_Meal_List()
+    {
+        var result = await _service.ValidateAsync(new CartData());
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Cart must contain at least one meal.", result.Message);
+    }
+
+    [Fact]
     public async Task ValidateAsync_Should_Reject_Empty_Items()
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            MealId = Guid.NewGuid(),
-            MealTemplateId = Guid.NewGuid(),
-            Items = []
+            Meals =
+            [
+                new CartMealData
+                {
+                    MealId = Guid.NewGuid(),
+                    MealTemplateId = Guid.NewGuid(),
+                    Items = []
+                }
+            ]
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart must contain at least one item.", result.Message);
+        Assert.Equal("Cart meal must contain at least one item.", result.Message);
     }
 
     [Fact]
@@ -43,14 +58,20 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            MealId = Guid.NewGuid(),
-            MealTemplateId = Guid.NewGuid(),
-            Items =
+            Meals =
             [
-                new CartItemData
+                new CartMealData
                 {
-                    DishId = Guid.NewGuid(),
-                    Quantity = 0
+                    MealId = Guid.NewGuid(),
+                    MealTemplateId = Guid.NewGuid(),
+                    Items =
+                    [
+                        new CartItemData
+                        {
+                            DishId = Guid.NewGuid(),
+                            Quantity = 0
+                        }
+                    ]
                 }
             ]
         });
@@ -65,17 +86,23 @@ public class CartValidationTests
         var dishId = Guid.NewGuid();
         var result = await _service.ValidateAsync(new CartData
         {
-            MealId = Guid.NewGuid(),
-            MealTemplateId = Guid.NewGuid(),
-            Items =
+            Meals =
             [
-                new CartItemData { DishId = dishId, Quantity = 1 },
-                new CartItemData { DishId = dishId, Quantity = 2 }
+                new CartMealData
+                {
+                    MealId = Guid.NewGuid(),
+                    MealTemplateId = Guid.NewGuid(),
+                    Items =
+                    [
+                        new CartItemData { DishId = dishId, Quantity = 1 },
+                        new CartItemData { DishId = dishId, Quantity = 2 }
+                    ]
+                }
             ]
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart cannot contain duplicate dishes.", result.Message);
+        Assert.Equal("Cart cannot contain duplicate dishes in the same meal.", result.Message);
     }
 
     [Fact]
@@ -83,12 +110,18 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            Items =
+            Meals =
             [
-                new CartItemData
+                new CartMealData
                 {
-                    DishId = Guid.NewGuid(),
-                    Quantity = 1
+                    Items =
+                    [
+                        new CartItemData
+                        {
+                            DishId = Guid.NewGuid(),
+                            Quantity = 1
+                        }
+                    ]
                 }
             ]
         });
@@ -102,13 +135,19 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            MealId = Guid.NewGuid(),
-            MealTemplateId = Guid.NewGuid(),
-            Items = null
+            Meals =
+            [
+                new CartMealData
+                {
+                    MealId = Guid.NewGuid(),
+                    MealTemplateId = Guid.NewGuid(),
+                    Items = null
+                }
+            ]
         });
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cart must contain at least one item.", result.Message);
+        Assert.Equal("Cart meal must contain at least one item.", result.Message);
     }
 
     [Fact]
@@ -116,14 +155,20 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            MealId = Guid.NewGuid(),
-            MealTemplateId = Guid.NewGuid(),
-            Items =
+            Meals =
             [
-                new CartItemData
+                new CartMealData
                 {
-                    DishId = Guid.Empty,
-                    Quantity = 1
+                    MealId = Guid.NewGuid(),
+                    MealTemplateId = Guid.NewGuid(),
+                    Items =
+                    [
+                        new CartItemData
+                        {
+                            DishId = Guid.Empty,
+                            Quantity = 1
+                        }
+                    ]
                 }
             ]
         });
@@ -137,13 +182,19 @@ public class CartValidationTests
     {
         var result = await _service.ValidateAsync(new CartData
         {
-            MealId = Guid.NewGuid(),
-            Items =
+            Meals =
             [
-                new CartItemData
+                new CartMealData
                 {
-                    DishId = Guid.NewGuid(),
-                    Quantity = 1
+                    MealId = Guid.NewGuid(),
+                    Items =
+                    [
+                        new CartItemData
+                        {
+                            DishId = Guid.NewGuid(),
+                            Quantity = 1
+                        }
+                    ]
                 }
             ]
         });
@@ -180,7 +231,8 @@ public class CartValidationTests
         var result = CartTemplateRuleValidator.Validate(
             template,
             [],
-            new Dictionary<Guid, DishAggregateRoot>());
+            new Dictionary<Guid, DishAggregateRoot>(),
+            requireCompleteTemplate: true);
 
         Assert.True(result.IsFailure);
         Assert.Equal("The cart does not satisfy the required category quantities.", result.Message);
@@ -198,7 +250,8 @@ public class CartValidationTests
         var result = CartTemplateRuleValidator.Validate(
             template,
             items,
-            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish });
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish },
+            requireCompleteTemplate: true);
 
         Assert.True(result.IsFailure);
         Assert.Equal(
@@ -217,7 +270,8 @@ public class CartValidationTests
         var result = CartTemplateRuleValidator.Validate(
             template,
             items,
-            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish });
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish },
+            requireCompleteTemplate: true);
 
         Assert.True(result.IsFailure);
         Assert.Equal("A selected category exceeds its maximum quantity.", result.Message);
@@ -234,7 +288,8 @@ public class CartValidationTests
         var result = CartTemplateRuleValidator.Validate(
             template,
             items,
-            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish });
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish },
+            requireCompleteTemplate: true);
 
         Assert.True(result.IsSuccess);
     }
@@ -249,10 +304,46 @@ public class CartValidationTests
         var result = CartTemplateRuleValidator.Validate(
             template,
             [],
-            new Dictionary<Guid, DishAggregateRoot>());
+            new Dictionary<Guid, DishAggregateRoot>(),
+            requireCompleteTemplate: true);
 
         Assert.True(result.IsFailure);
         Assert.Equal("Meal template contains duplicate category settings.", result.Message);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Allow_Partial_Selection_When_Not_Checkout()
+    {
+        var categoryId = Guid.NewGuid();
+        var template = CreateTemplate(categoryId, 2, 3, true);
+        var dish = CreateDish(categoryId);
+        var items = new[] { new CartItemData { DishId = dish.Id, Quantity = 1 } };
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            items,
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish },
+            requireCompleteTemplate: false);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void TemplateRules_Should_Still_Reject_Maximum_In_Partial_Selection()
+    {
+        var categoryId = Guid.NewGuid();
+        var template = CreateTemplate(categoryId, 0, 2, false);
+        var dish = CreateDish(categoryId);
+        var items = new[] { new CartItemData { DishId = dish.Id, Quantity = 3 } };
+
+        var result = CartTemplateRuleValidator.Validate(
+            template,
+            items,
+            new Dictionary<Guid, DishAggregateRoot> { [dish.Id] = dish },
+            requireCompleteTemplate: false);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("A selected category exceeds its maximum quantity.", result.Message);
     }
 
     private static MealTemplateEntity CreateTemplate(

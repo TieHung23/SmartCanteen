@@ -33,6 +33,7 @@ internal sealed class UpdateCartCommandHandler(
         {
             var validationResult = await cartValidationService.ValidateAsync(
                 request.Data,
+                requireCompleteTemplate: false,
                 cancellationToken);
             if (validationResult.IsFailure)
             {
