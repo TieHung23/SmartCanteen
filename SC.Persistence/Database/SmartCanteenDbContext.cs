@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SC.Domain.Domain.Cart.AggregateRoot;
 using SC.Domain.Domain.Category.AggregateRoot;
 using SC.Domain.Domain.Dish.AggregateRoot;
-using SC.Domain.Domain.Meal.AggregateRoot;
+using SC.Domain.Domain.Session.AggregateRoot;
 using SC.Domain.Domain.Notification.AggregateRoot;
 using SC.Domain.Domain.Notification.Entity;
 using SC.Domain.Domain.Order.AggregateRoot;
@@ -26,7 +26,7 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<Category> Categories => Set<Category>();
-    public DbSet<Meal> Meals => Set<Meal>();
+    public DbSet<Session> Sessions => Set<Session>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
     public DbSet<Dish> Dishes => Set<Dish>();

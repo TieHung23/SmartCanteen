@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SC.Domain.Domain.Meal.Entity;
+using SC.Domain.Domain.Session.Entity;
 
 namespace SC.Persistence.Database.Configuration;
 

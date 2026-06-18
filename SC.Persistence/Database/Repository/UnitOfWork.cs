@@ -137,8 +137,8 @@ public class UnitOfWork(SmartCanteenDbContext context, ILogger<UnitOfWork> logge
         return result is null or DBNull ? null : Convert.ToDecimal(result);
     }
 
-    public async Task<bool> TryReserveMealDishAsync(
-        Guid mealId,
+    public async Task<bool> TryReserveSessionDishAsync(
+        Guid sessionId,
         Guid dishId,
         int quantity,
         CancellationToken cancellationToken = default)
@@ -153,18 +153,18 @@ public class UnitOfWork(SmartCanteenDbContext context, ILogger<UnitOfWork> logge
         command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
         command.CommandText =
             """
-            UPDATE "DishMeal"
+            UPDATE "SessionDish"
             SET "Quantity" = "Quantity" - @quantity
-            WHERE "MealId" = @mealId
+            WHERE "SessionId" = @sessionId
               AND "DishId" = @dishId
               AND "Quantity" >= @quantity
             RETURNING "Quantity";
             """;
 
-        var mealIdParameter = command.CreateParameter();
-        mealIdParameter.ParameterName = "mealId";
-        mealIdParameter.Value = mealId;
-        command.Parameters.Add(mealIdParameter);
+        var sessionIdParameter = command.CreateParameter();
+        sessionIdParameter.ParameterName = "sessionId";
+        sessionIdParameter.Value = sessionId;
+        command.Parameters.Add(sessionIdParameter);
 
         var dishIdParameter = command.CreateParameter();
         dishIdParameter.ParameterName = "dishId";

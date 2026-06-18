@@ -2,8 +2,8 @@ using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.Order.ValueObject;
 using SC.Domain.Domain.Order.Enum;
-using MealAggregate = SC.Domain.Domain.Meal.AggregateRoot.Meal;
-using MealTemplateEntity = SC.Domain.Domain.Meal.Entity.MealTemplate;
+using SessionAggregate = SC.Domain.Domain.Session.AggregateRoot.Session;
+using MealTemplateEntity = SC.Domain.Domain.Session.Entity.MealTemplate;
 
 namespace SC.Domain.Domain.Order.AggregateRoot;
 
@@ -13,8 +13,8 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
     {
     }
 
-    public Guid MealId { get; set; }
-    public MealAggregate Meal { get; set; } = null!;
+    public Guid SessionId { get; set; }
+    public SessionAggregate Session { get; set; } = null!;
     public Guid? MealTemplateId { get; set; }
     public MealTemplateEntity? MealTemplate { get; set; }
 
@@ -29,12 +29,12 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public Guid CreatedBy { get; set; }
     public Guid UpdatedBy { get; set; }
 
-    public static Order Create(Guid mealId, Guid mealTemplateId, Guid createdBy)
+    public static Order Create(Guid sessionId, Guid mealTemplateId, Guid createdBy)
     {
         return new Order
         {
             Id = Guid.NewGuid(),
-            MealId = mealId,
+            SessionId = sessionId,
             MealTemplateId = mealTemplateId,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
@@ -42,9 +42,9 @@ public class Order : AggregateRoot<Guid>, IAuditableEntity<Guid>
         };
     }
 
-    public void ChangeMeal(Guid mealId, Guid updatedBy)
+    public void ChangeSession(Guid sessionId, Guid updatedBy)
     {
-        MealId = mealId;
+        SessionId = sessionId;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

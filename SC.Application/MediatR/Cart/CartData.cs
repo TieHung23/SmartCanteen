@@ -2,12 +2,12 @@ namespace SC.Application.MediatR.Cart;
 
 public sealed class CartData
 {
-    public List<CartMealData> Meals { get; set; } = [];
+    public List<CartSessionData> Sessions { get; set; } = [];
 }
 
-public sealed class CartMealData
+public sealed class CartSessionData
 {
-    public Guid MealId { get; set; }
+    public Guid SessionId { get; set; }
     public Guid MealTemplateId { get; set; }
     public List<CartItemData>? Items { get; set; } = [];
 }

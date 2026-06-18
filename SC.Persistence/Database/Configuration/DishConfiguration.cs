@@ -46,7 +46,7 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
 
         builder.HasIndex(x => x.CategoryId);
 
-        builder.HasMany(x => x.DishMeals)
+        builder.HasMany(x => x.SessionDishes)
             .WithOne(x => x.Dish)
             .HasForeignKey(x => x.DishId)
             .OnDelete(DeleteBehavior.Cascade);
