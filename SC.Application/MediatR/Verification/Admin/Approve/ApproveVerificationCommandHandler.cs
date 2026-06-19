@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Email;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Verification.AggregateRoot;
@@ -16,6 +17,7 @@ internal class ApproveVerificationCommandHandler(
     ICurrentUserService currentUserService,
     IEmailSender emailSender,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<ApproveVerificationCommandHandler> logger) : ICommandHandler<ApproveVerificationCommand, ApproveVerificationResponse>
 {
     public async Task<Result<ApproveVerificationResponse>> Handle(ApproveVerificationCommand request, CancellationToken cancellationToken)
@@ -48,6 +50,21 @@ internal class ApproveVerificationCommandHandler(
             userRepository.Update(user);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.VerificationApproved,
+                verification.UserId,
+                verification.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = verification.Id.ToString()
+                },
+                new
+                {
+                    VerificationRequestId = verification.Id,
+                    Status = verification.Status.ToString()
+                },
+                cancellationToken);
 
             try
             {

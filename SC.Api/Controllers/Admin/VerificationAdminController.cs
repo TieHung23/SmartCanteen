@@ -12,7 +12,7 @@ namespace SC.Api.Controllers.Admin;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/admin/verifications")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Manager")]
 public class VerificationAdminController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

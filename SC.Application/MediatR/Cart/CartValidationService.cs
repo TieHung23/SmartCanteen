@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
-using MealAggregateRoot = SC.Domain.Domain.Meal.AggregateRoot.Meal;
+using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
 namespace SC.Application.MediatR.Cart;
 
@@ -10,22 +10,24 @@ public interface ICartValidationService
 {
     Task<Result<ValidatedCart>> ValidateAsync(
         CartData? data,
+        bool requireCompleteTemplate = true,
         CancellationToken cancellationToken = default);
 }
 
 public sealed class ValidatedCart
 {
-    public required MealAggregateRoot Meal { get; init; }
+    public required IReadOnlyDictionary<Guid, SessionAggregateRoot> Sessions { get; init; }
     public required IReadOnlyDictionary<Guid, DishAggregateRoot> Dishes { get; init; }
 }
 
 public sealed class CartValidationService(
-    IGenericRepository<MealAggregateRoot, Guid> mealRepository,
+    IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository)
     : ICartValidationService
 {
     public async Task<Result<ValidatedCart>> ValidateAsync(
         CartData? data,
+        bool requireCompleteTemplate = true,
         CancellationToken cancellationToken = default)
     {
         if (data is null)
@@ -35,77 +37,58 @@ public sealed class CartValidationService(
                 "Cart data is required.");
         }
 
-        if (data.MealId == Guid.Empty)
+        if (data.Sessions.Count == 0)
         {
             return Result.Failure<ValidatedCart>(
                 Error.InvalidValue,
-                "MealId is required.");
+                "Cart must contain at least one session.");
         }
 
-        if (data.MealTemplateId == Guid.Empty)
+        if (data.Sessions.GroupBy(x => x.SessionId).Any(group => group.Count() > 1))
         {
             return Result.Failure<ValidatedCart>(
                 Error.InvalidValue,
-                "MealTemplateId is required.");
+                "Cart cannot contain duplicate sessions.");
         }
 
-        if (data.Items is null || data.Items.Count == 0)
+        foreach (var sessionData in data.Sessions)
         {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "Cart must contain at least one item.");
+            var basicResult = ValidateBasicSessionData(sessionData);
+            if (basicResult.IsFailure)
+            {
+                return Result.Failure<ValidatedCart>(
+                    basicResult.Error!,
+                    basicResult.Message);
+            }
+
+            if (sessionData.Items!.GroupBy(x => x.DishId).Any(group => group.Count() > 1))
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "Cart cannot contain duplicate dishes in the same session.");
+            }
         }
 
-        if (data.Items.Any(x => x.DishId == Guid.Empty))
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "DishId is required for every cart item.");
-        }
-
-        if (data.Items.Any(x => x.Quantity <= 0))
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "Item quantity must be greater than zero.");
-        }
-
-        if (data.Items.GroupBy(x => x.DishId).Any(group => group.Count() > 1))
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "Cart cannot contain duplicate dishes.");
-        }
-
-        var meal = await mealRepository
-            .GetQueryable(x => x.Id == data.MealId)
-            .Include(x => x.DishMeals)
+        var sessionIds = data.Sessions.Select(x => x.SessionId).ToList();
+        var sessions = await sessionRepository
+            .GetQueryable(x => sessionIds.Contains(x.Id))
+            .Include(x => x.SessionDishes)
             .Include(x => x.MealTemplates)
                 .ThenInclude(x => x.Settings)
-            .SingleOrDefaultAsync(cancellationToken);
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
 
-        if (meal is null || meal.IsDeleted)
+        if (sessions.Count != sessionIds.Count)
         {
             return Result.Failure<ValidatedCart>(
                 Error.NullValue,
-                "Meal was not found.");
+                "One or more sessions were not found.");
         }
 
-        if (!meal.IsActive)
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "Meal is not available.");
-        }
-
-        if (DateTimeOffset.UtcNow > meal.AvailableForOrder)
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "The ordering deadline for this meal has passed.");
-        }
-
-        var dishIds = data.Items.Select(x => x.DishId).ToList();
+        var dishIds = data.Sessions
+            .SelectMany(x => x.Items!)
+            .Select(x => x.DishId)
+            .Distinct()
+            .ToList();
         var dishes = await dishRepository
             .GetQueryable(x => dishIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
@@ -124,47 +107,109 @@ public sealed class CartValidationService(
                 "One or more dishes are not available.");
         }
 
-        var mealDishes = meal.DishMeals.ToDictionary(x => x.DishId);
-        if (dishIds.Any(dishId => !mealDishes.ContainsKey(dishId)))
+        foreach (var sessionData in data.Sessions)
         {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "One or more dishes do not belong to the selected meal.");
-        }
+            var session = sessions[sessionData.SessionId];
+            var items = sessionData.Items!;
 
-        if (data.Items.Any(item => item.Quantity > mealDishes[item.DishId].Quantity))
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InsufficientDishStock,
-                "One or more dishes do not have enough stock.");
-        }
+            if (session.IsDeleted || !session.IsActive)
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "One or more sessions are not available.");
+            }
 
-        var template = meal.MealTemplates.SingleOrDefault(x =>
-            x.Id == data.MealTemplateId && !x.IsDeleted);
-        if (template is null)
-        {
-            return Result.Failure<ValidatedCart>(
-                Error.InvalidValue,
-                "Meal template does not belong to the selected meal.");
-        }
+            if (DateTimeOffset.UtcNow > session.AvailableForOrder)
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "One or more sessions have passed the ordering deadline.");
+            }
 
-        var templateRuleResult = CartTemplateRuleValidator.Validate(
-            template,
-            data.Items,
-            dishes);
-        if (templateRuleResult.IsFailure)
-        {
-            return Result.Failure<ValidatedCart>(
-                templateRuleResult.Error!,
-                templateRuleResult.Message);
+            var sessionDishes = session.SessionDishes.ToDictionary(x => x.DishId);
+            var sessionDishIds = items.Select(x => x.DishId).ToList();
+            if (sessionDishIds.Any(dishId => !sessionDishes.ContainsKey(dishId)))
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "One or more dishes do not belong to the selected session.");
+            }
+
+            if (items.Any(item => item.Quantity > sessionDishes[item.DishId].Quantity))
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InsufficientDishStock,
+                    "One or more dishes do not have enough stock.");
+            }
+
+            var template = session.MealTemplates.SingleOrDefault(x =>
+                x.Id == sessionData.MealTemplateId && !x.IsDeleted);
+            if (template is null)
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "Meal template does not belong to the selected session.");
+            }
+
+            var templateRuleResult = CartTemplateRuleValidator.Validate(
+                template,
+                items,
+                dishes,
+                requireCompleteTemplate);
+            if (templateRuleResult.IsFailure)
+            {
+                return Result.Failure<ValidatedCart>(
+                    templateRuleResult.Error!,
+                    templateRuleResult.Message);
+            }
         }
 
         return Result.Success(
             new ValidatedCart
             {
-                Meal = meal,
+                Sessions = sessions,
                 Dishes = dishes
             },
             "Cart data is valid.");
+    }
+
+    private static Result ValidateBasicSessionData(CartSessionData sessionData)
+    {
+        if (sessionData.SessionId == Guid.Empty)
+        {
+            return Result.Failure(
+                Error.InvalidValue,
+                "SessionId is required.");
+        }
+
+        if (sessionData.MealTemplateId == Guid.Empty)
+        {
+            return Result.Failure(
+                Error.InvalidValue,
+                "MealTemplateId is required.");
+        }
+
+        if (sessionData.Items is null || sessionData.Items.Count == 0)
+        {
+            return Result.Failure(
+                Error.InvalidValue,
+                "Cart session must contain at least one item.");
+        }
+
+        if (sessionData.Items.Any(x => x.DishId == Guid.Empty))
+        {
+            return Result.Failure(
+                Error.InvalidValue,
+                "DishId is required for every cart item.");
+        }
+
+        if (sessionData.Items.Any(x => x.Quantity <= 0))
+        {
+            return Result.Failure(
+                Error.InvalidValue,
+                "Item quantity must be greater than zero.");
+        }
+
+        return Result.Success("Cart session data is valid.");
     }
 }

@@ -1,8 +1,11 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Cart;
+using SC.Application.MediatR.Robot.CreateServingJob;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.WalletTransaction.Entity;
@@ -20,6 +23,8 @@ internal class CreateOrderCommandHandler(
     ICartValidationService cartValidationService,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
+    ISender mediator,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
 {
@@ -36,6 +41,13 @@ internal class CreateOrderCommandHandler(
                 return Result.Failure<CreateOrderResponse>(
                     Error.InvalidValue,
                     "CartVersion must be greater than zero.");
+            }
+
+            if (request.SessionId == Guid.Empty)
+            {
+                return Result.Failure<CreateOrderResponse>(
+                    Error.InvalidValue,
+                    "SessionId is required.");
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -74,8 +86,23 @@ internal class CreateOrderCommandHandler(
                     "Stored cart data is invalid.");
             }
 
+            var checkoutSession = cartData.Sessions.SingleOrDefault(x => x.SessionId == request.SessionId);
+            if (checkoutSession is null)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result.Failure<CreateOrderResponse>(
+                    Error.NullValue,
+                    "Selected session was not found in the cart.");
+            }
+
+            var checkoutCartData = new CartData
+            {
+                Sessions = [checkoutSession]
+            };
+
             var validationResult = await cartValidationService.ValidateAsync(
-                cartData,
+                checkoutCartData,
+                requireCompleteTemplate: true,
                 cancellationToken);
             if (validationResult.IsFailure)
             {
@@ -98,7 +125,7 @@ internal class CreateOrderCommandHandler(
             }
 
             var validatedCart = validationResult.Value!;
-            var items = cartData.Items!;
+            var items = checkoutSession.Items!;
             var totalPrice = items.Sum(item =>
                 validatedCart.Dishes[item.DishId].Price.Amount * item.Quantity);
 
@@ -112,8 +139,8 @@ internal class CreateOrderCommandHandler(
 
             foreach (var item in items.OrderBy(x => x.DishId))
             {
-                var reserved = await unitOfWork.TryReserveMealDishAsync(
-                    cartData.MealId,
+                var reserved = await unitOfWork.TryReserveSessionDishAsync(
+                    checkoutSession.SessionId,
                     item.DishId,
                     item.Quantity,
                     cancellationToken);
@@ -141,8 +168,8 @@ internal class CreateOrderCommandHandler(
             }
 
             var order = OrderAggregateRoot.Create(
-                cartData.MealId,
-                cartData.MealTemplateId,
+                checkoutSession.SessionId,
+                checkoutSession.MealTemplateId,
                 currentUserId);
 
             foreach (var item in items)
@@ -164,7 +191,10 @@ internal class CreateOrderCommandHandler(
             order.AttachTransaction(transaction.Id, currentUserId);
             await orderRepository.AddAsync(order, cancellationToken);
 
-            cart.Update(CartJson.Serialize(new CartData()), currentUserId);
+            cartData.Sessions = cartData.Sessions
+                .Where(x => x.SessionId != checkoutSession.SessionId)
+                .ToList();
+            cart.Update(CartJson.Serialize(cartData), currentUserId);
             cartRepository.Update(cart);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -179,6 +209,33 @@ internal class CreateOrderCommandHandler(
                 UserRemainingBalance = balanceAfter.Value,
                 CartVersion = cart.Version
             };
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.OrderCreated,
+                currentUserId,
+                order.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = order.Id.ToString(),
+                    ["totalPrice"] = totalPrice.ToString("0.##")
+                },
+                new
+                {
+                    OrderId = order.Id,
+                    TransactionId = transaction.Id,
+                    TotalPrice = totalPrice
+                },
+                cancellationToken);
+
+            // PUSH/BUFFER: tạo + đẩy job phục vụ cho robot (best-effort, không ảnh hưởng order)
+            try
+            {
+                await mediator.Send(new CreateServingJobCommand(order.Id), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Order {OrderId} created but failed to create/push serving job", order.Id);
+            }
 
             return Result.Success(response, "Order created successfully.");
         }

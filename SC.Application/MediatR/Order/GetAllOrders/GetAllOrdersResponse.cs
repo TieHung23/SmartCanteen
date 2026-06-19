@@ -3,7 +3,7 @@ namespace SC.Application.MediatR.Order.GetAllOrders;
 public class GetAllOrdersResponse
 {
     public Guid Id { get; set; }
-    public Guid MealId { get; set; }
+    public Guid SessionId { get; set; }
     public Guid? MealTemplateId { get; set; }
     public Guid? TransactionId { get; set; }
     public Guid UserId { get; set; }

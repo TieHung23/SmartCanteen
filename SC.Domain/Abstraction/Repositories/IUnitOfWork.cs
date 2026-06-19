@@ -18,8 +18,8 @@ public interface IUnitOfWork
         decimal amount,
         CancellationToken cancellationToken = default);
 
-    Task<bool> TryReserveMealDishAsync(
-        Guid mealId,
+    Task<bool> TryReserveSessionDishAsync(
+        Guid sessionId,
         Guid dishId,
         int quantity,
         CancellationToken cancellationToken = default);

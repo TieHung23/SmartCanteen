@@ -1,4 +1,4 @@
-﻿# SmartCanteen Order API
+# SmartCanteen Order API
 
 > Generated from `API-Document.md`. Run `.\tools\generate-api-modules.ps1` after updating the main document.
 
@@ -52,14 +52,15 @@ Each Order references a `WalletTransaction` via `transactionId` (see WalletTrans
 
 ### `GET /api/orders`
 **Auth:** Authorize  
-**Query:** `?userId=guid&status=int&pageNumber=1&pageSize=10`  
+**Query:** `?userId=guid&sessionId=guid&status=int&pageNumber=1&pageSize=10`  
+`sessionId` filters orders by the selected session.
 Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
 
 **Paginated response items:**
 ```json
 {
   "id": "guid",
-  "mealId": "guid",
+  "sessionId": "guid",
   "mealTemplateId": "guid | null",
   "transactionId": "guid | null",
   "userId": "guid",
@@ -78,7 +79,7 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
 {
   "value": {
     "id": "guid",
-  "mealId": "guid",
+  "sessionId": "guid",
   "mealTemplateId": "guid | null",
   "transactionId": "guid | null",
   "userId": "guid",
@@ -101,14 +102,16 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
 **Request body:**
 ```json
 {
+  "sessionId": "guid",
   "cartVersion": 1
 }
 ```
 
-The server reads the authenticated user's cart, validates the current meal, dishes and
-stock, uses current database prices, atomically reserves stock, debits the wallet,
-creates the order and wallet transaction, then clears the cart in one database
-transaction. A stale cart version or insufficient stock returns `409`.
+The server reads the authenticated user's cart, finds the selected session, validates the
+current session, template, dishes and stock, uses current database prices, atomically
+reserves stock, debits the wallet, creates the order and wallet transaction, then removes
+that session from the cart in one database transaction. A stale cart version or insufficient
+stock returns `409`.
 
 **201 Response:**
 ```json

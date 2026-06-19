@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Refund.AggregateRoot;
@@ -18,6 +19,7 @@ internal sealed class ApproveRefundRequestCommandHandler(
     IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<ApproveRefundRequestCommandHandler> logger)
     : ICommandHandler<ApproveRefundRequestCommand, ApproveRefundRequestResponse>
 {
@@ -84,6 +86,25 @@ internal sealed class ApproveRefundRequestCommandHandler(
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.RefundApproved,
+                refund.UserId,
+                refund.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = refund.Id.ToString(),
+                    ["refundAmount"] = refund.RefundAmount.ToString("0.##")
+                },
+                new
+                {
+                    RefundRequestId = refund.Id,
+                    refund.OrderId,
+                    refund.RefundAmount,
+                    BalanceAfter = balanceAfter,
+                    WalletTransactionId = walletTransaction.Id
+                },
+                cancellationToken);
 
             return Result.Success(
                 new ApproveRefundRequestResponse

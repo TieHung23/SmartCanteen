@@ -25,6 +25,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 COPY --from=build /app/publish .
+COPY SC.Api/appsettings.Notification.json ./appsettings.Notification.json
 
 RUN mkdir -p /app/Logs && chmod 777 /app/Logs
 

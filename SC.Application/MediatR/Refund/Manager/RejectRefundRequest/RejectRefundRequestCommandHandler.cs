@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
+using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Refund.AggregateRoot;
@@ -12,6 +13,7 @@ internal sealed class RejectRefundRequestCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IBusinessNotificationService businessNotificationService,
     ILogger<RejectRefundRequestCommandHandler> logger)
     : ICommandHandler<RejectRefundRequestCommand, RejectRefundRequestResponse>
 {
@@ -49,6 +51,23 @@ internal sealed class RejectRefundRequestCommandHandler(
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
+
+            await businessNotificationService.NotifyAsync(
+                NotificationTemplateKeys.RefundRejected,
+                refund.UserId,
+                refund.Id,
+                new Dictionary<string, string>
+                {
+                    ["referenceId"] = refund.Id.ToString(),
+                    ["reason"] = refund.RejectionReason!
+                },
+                new
+                {
+                    RefundRequestId = refund.Id,
+                    refund.OrderId,
+                    RejectionReason = refund.RejectionReason
+                },
+                cancellationToken);
 
             return Result.Success(
                 new RejectRefundRequestResponse

@@ -1,6 +1,6 @@
 using SC.Contract.Shared;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
-using MealTemplateEntity = SC.Domain.Domain.Meal.Entity.MealTemplate;
+using MealTemplateEntity = SC.Domain.Domain.Session.Entity.MealTemplate;
 
 namespace SC.Application.MediatR.Cart;
 
@@ -9,7 +9,8 @@ public static class CartTemplateRuleValidator
     public static Result Validate(
         MealTemplateEntity template,
         IReadOnlyCollection<CartItemData> items,
-        IReadOnlyDictionary<Guid, DishAggregateRoot> dishes)
+        IReadOnlyDictionary<Guid, DishAggregateRoot> dishes,
+        bool requireCompleteTemplate)
     {
         var activeSettings = template.Settings
             .Where(x => !x.IsDeleted)
@@ -41,14 +42,14 @@ public static class CartTemplateRuleValidator
         {
             quantitiesByCategory.TryGetValue(setting.CategoryId, out var selectedQuantity);
 
-            if (setting.IsRequired && selectedQuantity < setting.MinQuantity)
+            if (requireCompleteTemplate && setting.IsRequired && selectedQuantity < setting.MinQuantity)
             {
                 return Result.Failure(
                     Error.InvalidValue,
                     "The cart does not satisfy the required category quantities.");
             }
 
-            if (selectedQuantity > 0 && selectedQuantity < setting.MinQuantity)
+            if (requireCompleteTemplate && selectedQuantity > 0 && selectedQuantity < setting.MinQuantity)
             {
                 return Result.Failure(
                     Error.InvalidValue,

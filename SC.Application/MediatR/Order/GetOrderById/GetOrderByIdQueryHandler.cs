@@ -31,7 +31,7 @@ internal class GetOrderByIdQueryHandler(
             var response = new GetOrderByIdResponse
             {
                 Id = order.Id,
-                MealId = order.MealId,
+                SessionId = order.SessionId,
                 MealTemplateId = order.MealTemplateId,
                 TransactionId = order.WalletTransactionId,
                 UserId = order.CreatedBy,

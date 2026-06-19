@@ -10,7 +10,9 @@ namespace SC.Application.MediatR.Cart.GetCart;
 
 internal sealed class GetCartQueryHandler(
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
+    IGenericRepository<SC.Domain.Domain.Session.AggregateRoot.Session, Guid> sessionRepository,
     ICurrentUserService currentUserService,
+    IUnitOfWork unitOfWork,
     ILogger<GetCartQueryHandler> logger)
     : IQueryHandler<GetCartQuery, CartResponse>
 {
@@ -36,22 +38,85 @@ internal sealed class GetCartQueryHandler(
                     "Cart retrieved successfully.");
             }
 
+            var cartData = CartJson.Deserialize(cart.DataJson);
+            var activeCartData = await RemoveExpiredSessionsAsync(
+                cartData,
+                cancellationToken);
+
+            if (activeCartData.Sessions.Count != cartData.Sessions.Count)
+            {
+                await unitOfWork.BeginTransactionAsync(cancellationToken);
+                await unitOfWork.LockUserAsync(userId, cancellationToken);
+
+                var currentCart = await cartRepository
+                    .GetQueryable(x => x.UserId == userId)
+                    .SingleOrDefaultAsync(cancellationToken);
+
+                if (currentCart is not null && currentCart.Version == cart.Version)
+                {
+                    currentCart.Update(CartJson.Serialize(activeCartData), userId);
+                    cartRepository.Update(currentCart);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
+                    await unitOfWork.CommitAsync(cancellationToken);
+                    cart = currentCart;
+                    cartData = activeCartData;
+                }
+                else
+                {
+                    await unitOfWork.RollbackAsync(cancellationToken);
+                    cartData = currentCart is null
+                        ? new CartData()
+                        : CartJson.Deserialize(currentCart.DataJson);
+                    cart = currentCart;
+                }
+            }
+
             return Result.Success(
                 new CartResponse
                 {
-                    Id = cart.Id,
-                    Data = CartJson.Deserialize(cart.DataJson),
-                    Version = cart.Version,
-                    UpdatedAtUtc = cart.UpdatedAtUtc ?? cart.CreatedAtUtc
+                    Id = cart?.Id,
+                    Data = cartData,
+                    Version = cart?.Version ?? 0,
+                    UpdatedAtUtc = cart is null ? null : cart.UpdatedAtUtc ?? cart.CreatedAtUtc
                 },
                 "Cart retrieved successfully.");
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error retrieving cart for user {UserId}", currentUserService.UserId);
             return Result.Failure<CartResponse>(
                 Error.ServerError,
                 "An error occurred while retrieving the cart.");
         }
+    }
+
+    private async Task<CartData> RemoveExpiredSessionsAsync(
+        CartData cartData,
+        CancellationToken cancellationToken)
+    {
+        if (cartData.Sessions.Count == 0)
+        {
+            return cartData;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var sessionIds = cartData.Sessions.Select(x => x.SessionId).Distinct().ToList();
+        var availableSessionIds = await sessionRepository
+            .GetQueryable(x =>
+                sessionIds.Contains(x.Id)
+                && !x.IsDeleted
+                && x.IsActive
+                && x.AvailableForOrder >= now)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var availableSessionIdSet = availableSessionIds.ToHashSet();
+        return new CartData
+        {
+            Sessions = cartData.Sessions
+                .Where(x => availableSessionIdSet.Contains(x.SessionId))
+                .ToList()
+        };
     }
 }

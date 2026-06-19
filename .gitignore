@@ -18,6 +18,9 @@ Logs/
 appsettings.Local.json
 SC.Api/appsettings.json
 SC.Api/appsettings.Development.json
+firebase-service-account*.json
+SC.Api/firebase-service-account*.json
+SC.Api/**/firebase-service-account*.json
 
 # IDE / build artifacts
 *.lscache

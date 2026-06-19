@@ -43,11 +43,11 @@ public class AuthController(
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
-    [HttpGet("verify-email")]
+    [HttpPost("verify-email")]
     [AllowAnonymous]
-    public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailCommand command)
     {
-        var result = await mediator.Send(new VerifyEmailCommand(token));
+        var result = await mediator.Send(command);
         if (result.IsFailure)
         {
             return BadRequest(result);
