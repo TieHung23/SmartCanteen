@@ -16,7 +16,6 @@ public class FinalizeSessionService(
     IGenericRepository<Session, Guid> sessionRepository,
     IGenericRepository<Order, Guid> orderRepository,
     IGenericRepository<OrderItemChangeProposal, Guid> proposalRepository,
-    ICurrentUserService currentUserService,
     ILogger<FinalizeSessionService> logger) : IFinalizeSessionService
 {
     public async Task<Result> FinalizeAsync(Guid sessionId, List<(Guid DishId, int PreparedQuantity)> preparedDishes, Guid managerId, CancellationToken cancellationToken = default)

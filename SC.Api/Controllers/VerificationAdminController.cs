@@ -7,7 +7,7 @@ using SC.Application.MediatR.Verification.Admin.GetDetail;
 using SC.Application.MediatR.Verification.Admin.ListPending;
 using SC.Application.MediatR.Verification.Admin.Reject;
 
-namespace SC.Api.Controllers.Admin;
+namespace SC.Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]

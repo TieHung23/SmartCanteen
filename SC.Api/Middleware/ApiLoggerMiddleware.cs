@@ -92,6 +92,7 @@ public class ApiLoggerMiddleware
                         ApiResponse = responseBodyText,
                         ErrorTrace = error?.ToString(),
                         Message = error?.Message ?? $"Responded {context.Response.StatusCode} in {sw.ElapsedMilliseconds}ms",
+                        StatusCode = context.Response.StatusCode,
                         LocalIpAddress = context.Connection.RemoteIpAddress?.ToString(),
                         CreatedDate = startTime,
                         EndDate = DateTimeOffset.UtcNow,

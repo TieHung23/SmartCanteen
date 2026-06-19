@@ -7,7 +7,7 @@ using SC.Application.MediatR.RefundPolicy.Manager.CreateRefundPolicy;
 using SC.Application.MediatR.RefundPolicy.Manager.DeleteRefundPolicy;
 using SC.Application.MediatR.RefundPolicy.Manager.UpdateRefundPolicy;
 
-namespace SC.Api.Controllers.Manager;
+namespace SC.Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]
