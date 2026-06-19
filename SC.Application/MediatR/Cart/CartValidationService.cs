@@ -132,13 +132,6 @@ public sealed class CartValidationService(
                     "One or more dishes do not belong to the selected session.");
             }
 
-            if (items.Any(item => item.Quantity > sessionDishes[item.DishId].Quantity))
-            {
-                return Result.Failure<ValidatedCart>(
-                    Error.InsufficientDishStock,
-                    "One or more dishes do not have enough stock.");
-            }
-
             var template = session.MealTemplates.SingleOrDefault(x =>
                 x.Id == sessionData.MealTemplateId && !x.IsDeleted);
             if (template is null)

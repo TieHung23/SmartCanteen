@@ -34,6 +34,14 @@ public class GenericRepository<TEntity, TKey>(SmartCanteenDbContext context) : I
         return await query.FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<TEntity?> FindSingleAsync(Expression<Func<TEntity, bool>> predicate,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>> includeBuilder,
+        CancellationToken cancellationToken = default)
+    {
+        var query = includeBuilder(_dbSet.Where(predicate));
+        return await query.FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<List<TEntity>> FindListAsync(Expression<Func<TEntity, bool>>? predicate = null,
         CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[]? includeProperties)
@@ -43,6 +51,15 @@ public class GenericRepository<TEntity, TKey>(SmartCanteenDbContext context) : I
         if (includeProperties is { Length: > 0 })
             query = includeProperties.Aggregate(query, (current, includeProperty) => current.Include(includeProperty));
 
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<TEntity>> FindListAsync(Expression<Func<TEntity, bool>>? predicate,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>> includeBuilder,
+        CancellationToken cancellationToken = default)
+    {
+        var query = predicate is null ? _dbSet.AsQueryable() : _dbSet.Where(predicate);
+        query = includeBuilder(query);
         return await query.ToListAsync(cancellationToken);
     }
 

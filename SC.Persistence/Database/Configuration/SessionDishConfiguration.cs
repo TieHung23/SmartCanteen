@@ -12,7 +12,6 @@ public class SessionDishConfiguration : IEntityTypeConfiguration<SessionDish>
 
         builder.Property(x => x.DishId).IsRequired();
         builder.Property(x => x.SessionId).IsRequired();
-        builder.Property(x => x.Quantity).IsRequired().HasDefaultValue(1);
         builder.Property(x => x.PreparedQuantity);
 
         builder.HasIndex(x => new { x.SessionId, x.DishId }).IsUnique();

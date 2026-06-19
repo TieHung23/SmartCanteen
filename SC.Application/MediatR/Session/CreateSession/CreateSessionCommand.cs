@@ -9,6 +9,8 @@ public class CreateSessionCommand : ICommand<CreateSessionResponse>
     public DateTimeOffset AvailableFrom { get; set; }
     public DateTimeOffset AvailableTo { get; set; }
     public DateTimeOffset AvailableForOrder { get; set; }
+    public DateTimeOffset? FinalizationDeadline { get; set; }
+    public int AutoFinalizePolicy { get; set; }
     public List<MealTemplateInput> MealTemplates { get; set; } = new();
     public List<SessionDishInput> Dishes { get; set; } = new();
 }
@@ -30,5 +32,4 @@ public class MealSettingInput
 public class SessionDishInput
 {
     public Guid DishId { get; set; }
-    public int Quantity { get; set; } = 1;
 }

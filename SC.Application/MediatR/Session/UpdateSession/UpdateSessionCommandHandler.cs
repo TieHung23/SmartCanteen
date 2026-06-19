@@ -101,8 +101,7 @@ internal class UpdateSessionCommandHandler(
 
                 session.AddSessionDish(SessionDish.Create(
                     dishInput.DishId,
-                    session.Id,
-                    dishInput.Quantity > 0 ? dishInput.Quantity : 1));
+                    session.Id));
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);

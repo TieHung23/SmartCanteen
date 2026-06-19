@@ -42,6 +42,14 @@ internal class CreateSessionCommandHandler(
                 request.AvailableForOrder,
                 currentUserId);
 
+            if (request.FinalizationDeadline.HasValue)
+            {
+                session.ConfigureFinalization(
+                    request.FinalizationDeadline.Value,
+                    (SC.Domain.Domain.Session.Enum.AutoFinalizePolicy)request.AutoFinalizePolicy,
+                    currentUserId);
+            }
+
             foreach (var templateInput in request.MealTemplates)
             {
                 if (string.IsNullOrWhiteSpace(templateInput.Name))
@@ -87,8 +95,7 @@ internal class CreateSessionCommandHandler(
 
                 session.AddSessionDish(SessionDish.Create(
                     dishInput.DishId,
-                    session.Id,
-                    dishInput.Quantity > 0 ? dishInput.Quantity : 1));
+                    session.Id));
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -100,6 +107,15 @@ internal class CreateSessionCommandHandler(
             {
                 Id = session.Id,
                 Name = session.Name,
+                Description = session.Description,
+                IsActive = session.IsActive,
+                AvailableFrom = session.AvailableFrom,
+                AvailableTo = session.AvailableTo,
+                AvailableForOrder = session.AvailableForOrder,
+                FinalizationDeadline = session.FinalizationDeadline,
+                AutoFinalizePolicy = (int)session.AutoFinalizePolicy,
+                CreatedAtUtc = session.CreatedAtUtc,
+                CreatedBy = session.CreatedBy,
                 Message = "Session created successfully."
             };
 

@@ -15,7 +15,7 @@ Every response is wrapped in a standard envelope:
 
 ```json
 {
-  "value": { },
+  "value": {},
   "isSuccess": true,
   "isFailure": false,
   "message": "string",
@@ -31,7 +31,7 @@ Paginated response shape:
 ```json
 {
   "value": {
-    "items": [ ],
+    "items": [],
     "pageNumber": 1,
     "pageSize": 10,
     "totalCount": 42,
@@ -49,10 +49,12 @@ Paginated response shape:
 ## Sessions
 
 ### `GET /api/sessions`
+
 **Auth:** AllowAnonymous  
 **Query:** `?name=string&isActive=bool&pageNumber=1&pageSize=10`
 
 **Paginated response items:**
+
 ```json
 {
   "id": "guid",
@@ -62,16 +64,50 @@ Paginated response shape:
   "availableFrom": "2024-01-01T00:00:00Z",
   "availableTo": "2024-01-01T00:00:00Z",
   "availableForOrder": "2024-01-01T00:00:00Z",
+  "finalizationDeadline": "2024-01-01T00:00:00Z",
+  "autoFinalizePolicy": 0,
+  "isFinalized": false,
+  "finalizedAtUtc": null,
+  "createdAtUtc": "2024-01-01T00:00:00Z",
+  "updatedAtUtc": null,
+  "createdBy": "guid",
+  "mealTemplates": [
+    {
+      "id": "guid",
+      "name": "string",
+      "settings": [
+        {
+          "id": "guid",
+          "mealTemplateId": "guid",
+          "categoryId": "guid",
+          "minQuantity": 1,
+          "maxQuantity": 3,
+          "isRequired": true
+        }
+      ]
+    }
+  ],
   "dishes": [
-    { "dishId": "guid", "quantity": 1 }
+    {
+      "id": "guid",
+      "dishId": "guid",
+      "dishName": "string",
+      "imgUrl": "string",
+      "priceAmount": 25.0,
+      "priceCurrency": "Point",
+      "categoryId": "guid",
+      "preparedQuantity": null
+    }
   ]
 }
 ```
 
 ### `GET /api/sessions/{id}`
-**Auth:** AllowAnonymous  
+
+**Auth:** AllowAnonymous
 
 **Response:**
+
 ```json
 {
   "value": {
@@ -82,18 +118,30 @@ Paginated response shape:
     "availableFrom": "2024-01-01T00:00:00Z",
     "availableTo": "2024-01-01T00:00:00Z",
     "availableForOrder": "2024-01-01T00:00:00Z",
+    "finalizationDeadline": "2024-01-01T00:00:00Z",
+    "autoFinalizePolicy": 0,
+    "isFinalized": false,
+    "finalizedAtUtc": null,
+    "createdAtUtc": "2024-01-01T00:00:00Z",
+    "updatedAtUtc": null,
+    "createdBy": "guid",
     "mealTemplates": [
       {
         "id": "guid",
         "name": "string",
         "settings": [
-          { "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }
+          {
+            "id": "guid",
+            "mealTemplateId": "guid",
+            "categoryId": "guid",
+            "minQuantity": 1,
+            "maxQuantity": 3,
+            "isRequired": true
+          }
         ]
       }
     ],
-    "dishes": [
-      { "dishId": "guid", "quantity": 1 }
-    ]
+    "dishes": [{ "id": "guid", "dishId": "guid", "preparedQuantity": null }]
   },
   "isSuccess": true,
   "message": "string"
@@ -101,9 +149,11 @@ Paginated response shape:
 ```
 
 ### `POST /api/sessions`
-**Auth:** Authorize  
+
+**Auth:** Authorize
 
 **Request body:**
+
 ```json
 {
   "name": "string",
@@ -111,27 +161,42 @@ Paginated response shape:
   "availableFrom": "2024-01-01T00:00:00Z",
   "availableTo": "2024-01-01T00:00:00Z",
   "availableForOrder": "2024-01-01T00:00:00Z",
+  "finalizationDeadline": "2024-01-01T00:00:00Z",
+  "autoFinalizePolicy": 0,
   "mealTemplates": [
     {
       "name": "string",
       "settings": [
-        { "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }
+        {
+          "categoryId": "guid",
+          "minQuantity": 1,
+          "maxQuantity": 3,
+          "isRequired": true
+        }
       ]
     }
   ],
-  "dishes": [
-    { "dishId": "guid", "quantity": 1 }
-  ]
+  "dishes": [{ "dishId": "guid" }]
 }
 ```
 
 **201 Response:**
+
 ```json
 {
   "value": {
     "id": "guid",
     "name": "string",
-    "message": "string"
+    "description": "string",
+    "isActive": true,
+    "availableFrom": "2024-01-01T00:00:00Z",
+    "availableTo": "2024-01-01T00:00:00Z",
+    "availableForOrder": "2024-01-01T00:00:00Z",
+    "finalizationDeadline": "2024-01-01T00:00:00Z",
+    "autoFinalizePolicy": 0,
+    "createdAtUtc": "2024-01-01T00:00:00Z",
+    "createdBy": "guid",
+    "message": "Session created successfully."
   },
   "isSuccess": true,
   "message": "string"
@@ -139,9 +204,11 @@ Paginated response shape:
 ```
 
 ### `PUT /api/sessions/{id}`
-**Auth:** Authorize  
+
+**Auth:** Authorize
 
 **Request body:**
+
 ```json
 {
   "name": "string",
@@ -154,17 +221,21 @@ Paginated response shape:
     {
       "name": "string",
       "settings": [
-        { "categoryId": "guid", "minQuantity": 1, "maxQuantity": 3, "isRequired": true }
+        {
+          "categoryId": "guid",
+          "minQuantity": 1,
+          "maxQuantity": 3,
+          "isRequired": true
+        }
       ]
     }
   ],
-  "dishes": [
-    { "dishId": "guid", "quantity": 1 }
-  ]
+  "dishes": [{ "dishId": "guid" }]
 }
 ```
 
 **Response:**
+
 ```json
 {
   "value": {
@@ -178,9 +249,11 @@ Paginated response shape:
 ```
 
 ### `DELETE /api/sessions/{id}`
-**Auth:** Authorize  
+
+**Auth:** Authorize
 
 **Response:**
+
 ```json
 {
   "value": {
@@ -193,19 +266,20 @@ Paginated response shape:
 ```
 
 ### `POST /api/sessions/{id}/finalize`
+
 **Auth:** Authorize (Manager)  
 **Description:** Manager confirms prepared quantities for each dish in the session. Items with sufficient stock are confirmed; items without are marked for change proposals.
 
 **Request body:**
+
 ```json
 {
-  "preparedDishes": [
-    { "dishId": "guid", "preparedQuantity": 10 }
-  ]
+  "preparedDishes": [{ "dishId": "guid", "preparedQuantity": 10 }]
 }
 ```
 
 **Response:**
+
 ```json
 {
   "value": {
@@ -217,4 +291,3 @@ Paginated response shape:
 ```
 
 ---
-
