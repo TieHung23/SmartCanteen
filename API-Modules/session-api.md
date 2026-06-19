@@ -192,5 +192,29 @@ Paginated response shape:
 }
 ```
 
+### `POST /api/sessions/{id}/finalize`
+**Auth:** Authorize (Manager)  
+**Description:** Manager confirms prepared quantities for each dish in the session. Items with sufficient stock are confirmed; items without are marked for change proposals.
+
+**Request body:**
+```json
+{
+  "preparedDishes": [
+    { "dishId": "guid", "preparedQuantity": 10 }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "value": {
+    "message": "Session finalized successfully."
+  },
+  "isSuccess": true,
+  "message": "string"
+}
+```
+
 ---
 

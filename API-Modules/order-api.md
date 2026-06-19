@@ -54,7 +54,7 @@ Each Order references a `WalletTransaction` via `transactionId` (see WalletTrans
 **Auth:** Authorize  
 **Query:** `?userId=guid&sessionId=guid&status=int&pageNumber=1&pageSize=10`  
 `sessionId` filters orders by the selected session.
-Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
+Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled, 4=Preparing, 5=Serving, 6=InHoldingArea, 7=Expired, 8=Disposed`
 
 **Paginated response items:**
 ```json
@@ -86,7 +86,7 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
     "status": 0,
     "totalPrice": 0.0,
     "items": [
-      { "dishId": "guid", "quantity": 1, "unitPrice": 0.0 }
+      { "dishId": "guid", "quantity": 1, "unitPrice": 0.0, "itemStatus": 0 }
     ],
     "createdAtUtc": "2024-01-01T00:00:00Z",
     "updatedAtUtc": "2024-01-01T00:00:00Z | null"
