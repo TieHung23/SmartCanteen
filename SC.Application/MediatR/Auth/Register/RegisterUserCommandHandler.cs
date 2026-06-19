@@ -70,9 +70,9 @@ internal class RegisterUserCommandHandler(
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await userRepository.AddAsync(user, cancellationToken);
 
-            var opaque = tokenGenerator.GenerateOpaqueToken();
-            var ttl = TimeSpan.FromHours(configuration.GetValue("Jwt:EmailVerificationHours", 24));
-            var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, opaque.TokenHash, ttl);
+            var verificationCode = tokenGenerator.GenerateEmailVerificationCode();
+            var ttl = TimeSpan.FromMinutes(configuration.GetValue("Jwt:EmailVerificationCodeMinutes", 5));
+            var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, verificationCode.CodeHash, ttl);
 
             await tokenRepository.AddAsync(verificationToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -80,7 +80,7 @@ internal class RegisterUserCommandHandler(
 
             try
             {
-                await emailSender.SendVerificationLinkAsync(user.Email, opaque.RawToken, cancellationToken);
+                await emailSender.SendVerificationCodeAsync(user.Email, verificationCode.Code, cancellationToken);
             }
             catch (Exception ex)
             {

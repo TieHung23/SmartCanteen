@@ -31,20 +31,16 @@ public sealed class ResendEmailSender : IEmailSender
             new AuthenticationHeaderValue("Bearer", _resendOptions.ApiKey);
     }
 
-    public Task SendVerificationLinkAsync(
+    public Task SendVerificationCodeAsync(
         string toEmail,
-        string rawToken,
+        string code,
         CancellationToken cancellationToken = default)
     {
-        var baseUrl = _frontendOptions.BaseUrl.TrimEnd('/');
-        var path = _frontendOptions.VerifyEmailPath.StartsWith('/')
-            ? _frontendOptions.VerifyEmailPath
-            : "/" + _frontendOptions.VerifyEmailPath;
-        var link = $"{baseUrl}{path}?token={Uri.EscapeDataString(rawToken)}";
         var html = $@"
             <p>Welcome to SmartCanteen!</p>
-            <p>Click the link below to verify your email address:</p>
-            <p><a href=""{link}"">Verify my email</a></p>
+            <p>Your email verification code is:</p>
+            <h2 style=""letter-spacing: 6px;"">{System.Net.WebUtility.HtmlEncode(code)}</h2>
+            <p>This code expires in 5 minutes.</p>
             <p>If you did not create an account, you can ignore this email.</p>";
 
         return SendAsync(toEmail, "Verify your SmartCanteen email", html, cancellationToken);
