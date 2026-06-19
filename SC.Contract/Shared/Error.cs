@@ -53,6 +53,18 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
         "Notification was not found.",
         404);
 
+    // Robot serving & pickup
+    public static readonly Error OrderNotFound = new(
+        "OrderNotFound", "Order was not found.", 404);
+    public static readonly Error ServingJobNotFound = new(
+        "ServingJobNotFound", "No active serving job for this order.", 404);
+    public static readonly Error TrayNotFound = new(
+        "TrayNotFound", "Tray was not found.", 404);
+    public static readonly Error PickupSlotNotFound = new(
+        "PickupSlotNotFound", "Pickup slot was not found.", 404);
+    public static readonly Error PickupSlotNotAvailable = new(
+        "PickupSlotNotAvailable", "Pickup slot is not empty.", 409);
+
     [JsonIgnore] public string Code { get; } = code;
 
     [JsonIgnore] public string Message { get; } = message;
