@@ -8,12 +8,10 @@ services:
       POSTGRES_DB: smartcanteen
       POSTGRES_USER: smartcanteen
       POSTGRES_PASSWORD: smartcanteen
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U smartcanteen -d smartcanteen" ]
+      test: ["CMD-SHELL","pg_isready -U smartcanteen -d smartcanteen"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,10 +19,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: smartcanteen-redis
-    ports:
-      - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD","redis-cli","ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,15 +31,24 @@ services:
       dockerfile: SC.Api/Dockerfile
     container_name: smartcanteen-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=smartcanteen;Username=smartcanteen;Password=smartcanteen;Include Error Detail=true
+
+      ConnectionStrings__DefaultConnection: >
+        Host=postgres;
+        Port=5432;
+        Database=smartcanteen;
+        Username=smartcanteen;
+        Password=smartcanteen
+
       Redis__ConnectionString: redis:6379
+
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     ports:
       - "8080:8080"
 
