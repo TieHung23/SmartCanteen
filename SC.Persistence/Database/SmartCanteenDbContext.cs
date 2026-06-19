@@ -22,6 +22,7 @@ using SC.Domain.Domain.SlotConfiguration.Entity;
 using SC.Domain.Domain.ShelfStock.Entity;
 using SC.Domain.Domain.RobotEventLog.Entity;
 using SC.Domain.Domain.AdminCommandAudit.Entity;
+using SC.Domain.Domain.Order.AggregateRoot;
 
 namespace SC.Persistence.Database;
 
@@ -60,6 +61,7 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<ShelfStock> ShelfStocks => Set<ShelfStock>();
     public DbSet<RobotEventLog> RobotEventLogs => Set<RobotEventLog>();
     public DbSet<AdminCommandAudit> AdminCommandAudits => Set<AdminCommandAudit>();
+    public DbSet<OrderItemChangeProposal> OrderItemChangeProposals => Set<OrderItemChangeProposal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

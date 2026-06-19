@@ -25,13 +25,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         {
             orderItem.WithOwner().HasForeignKey("OrderId");
 
-            orderItem.Property<int>("Id");
-
-            orderItem.HasKey("Id");
+            orderItem.Property(x => x.Id).ValueGeneratedOnAdd();
+            orderItem.HasKey(x => x.Id);
 
             orderItem.Property(x => x.DishId).IsRequired();
-
             orderItem.Property(x => x.Quantity).IsRequired();
+            orderItem.Property(x => x.ItemStatus).IsRequired().HasDefaultValue(SC.Domain.Domain.Order.Enum.OrderItemStatus.Pending);
 
             orderItem.OwnsOne(x => x.UnitPrice, price =>
             {

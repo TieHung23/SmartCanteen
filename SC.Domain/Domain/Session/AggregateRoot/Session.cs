@@ -2,6 +2,7 @@ using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Domain.Dish;
 using SC.Domain.Domain.Session.Entity;
+using SC.Domain.Domain.Session.Enum;
 
 namespace SC.Domain.Domain.Session.AggregateRoot;
 
@@ -20,6 +21,12 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
     public DateTimeOffset AvailableFrom { get; private set; }
     public DateTimeOffset AvailableTo { get; private set; }
     public DateTimeOffset AvailableForOrder { get; private set; }
+
+    public DateTimeOffset? FinalizationDeadline { get; private set; }
+    public AutoFinalizePolicy AutoFinalizePolicy { get; private set; } = AutoFinalizePolicy.AutoReject;
+    public bool IsFinalized { get; private set; }
+    public DateTimeOffset? FinalizedAtUtc { get; private set; }
+
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -65,6 +72,37 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
         AvailableForOrder = availableForOrder;
         IsActive = isActive;
         Touch(updatedBy);
+    }
+
+    public void ConfigureFinalization(DateTimeOffset deadline, AutoFinalizePolicy autoPolicy, Guid updatedBy)
+    {
+        if (IsFinalized)
+            throw new InvalidOperationException("Session is already finalized.");
+        if (deadline <= DateTimeOffset.UtcNow)
+            throw new ArgumentException("Finalization deadline must be in the future.", nameof(deadline));
+
+        FinalizationDeadline = deadline;
+        AutoFinalizePolicy = autoPolicy;
+        Touch(updatedBy);
+    }
+
+    public void Finalize(Guid updatedBy)
+    {
+        if (IsFinalized)
+            throw new InvalidOperationException("Session is already finalized.");
+        if (FinalizationDeadline.HasValue && DateTimeOffset.UtcNow > FinalizationDeadline.Value)
+            throw new InvalidOperationException("Finalization deadline has passed.");
+
+        IsFinalized = true;
+        FinalizedAtUtc = DateTimeOffset.UtcNow;
+        Touch(updatedBy);
+    }
+
+    public void AutoFinalize()
+    {
+        if (IsFinalized) return;
+        IsFinalized = true;
+        FinalizedAtUtc = DateTimeOffset.UtcNow;
     }
 
     public void AddSessionDish(SessionDish sessionDish)

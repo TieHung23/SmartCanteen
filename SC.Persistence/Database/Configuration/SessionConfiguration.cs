@@ -14,6 +14,11 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.Property(x => x.Description).IsRequired().HasMaxLength(500);
         builder.Property(x => x.IsActive).IsRequired();
 
+        builder.Property(x => x.FinalizationDeadline);
+        builder.Property(x => x.AutoFinalizePolicy).IsRequired().HasDefaultValue(SC.Domain.Domain.Session.Enum.AutoFinalizePolicy.AutoReject);
+        builder.Property(x => x.IsFinalized).IsRequired().HasDefaultValue(false);
+        builder.Property(x => x.FinalizedAtUtc);
+
         builder.HasMany(x => x.SessionDishes)
             .WithOne()
             .HasForeignKey("SessionId")

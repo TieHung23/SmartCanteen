@@ -1,6 +1,6 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
-using SC.Domain.Domain.Order.ValueObject;
+using SC.Domain.Domain.Order.Entity;
 using SC.Domain.Domain.Order.Enum;
 
 namespace SC.Domain.Domain.Order.AggregateRoot;
