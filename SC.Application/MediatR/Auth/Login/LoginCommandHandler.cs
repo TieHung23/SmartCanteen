@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Auth.Shared;
@@ -28,8 +27,7 @@ internal class LoginCommandHandler(
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
             var user = await userRepository
-                .GetQueryable(u => u.Email == normalizedEmail)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(u => u.Email == normalizedEmail, cancellationToken);
 
             if (user is null)
             {

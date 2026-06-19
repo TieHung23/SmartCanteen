@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Google.Apis.Auth.OAuth2;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SC.Contract.Services.Notification;
@@ -48,12 +47,12 @@ public sealed class FirebaseNotificationPushPublisher(
         }
 
         var tokens = await deviceTokenRepository
-            .GetQueryable(token =>
+            .FindListAsync(token =>
                 token.UserId == notification.RecipientId
                 && token.IsActive
-                && !token.IsDeleted)
-            .OrderByDescending(token => token.LastUsedAtUtc)
-            .ToListAsync(cancellationToken);
+                && !token.IsDeleted,
+                cancellationToken);
+        tokens = tokens.OrderByDescending(token => token.LastUsedAtUtc).ToList();
 
         if (tokens.Count == 0)
         {

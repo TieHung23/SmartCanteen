@@ -11,10 +11,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.Name)
             .IsRequired()
             .HasMaxLength(200);

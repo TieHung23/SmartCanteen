@@ -6,26 +6,6 @@ public interface IUnitOfWork
 
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
 
-    Task LockUserAsync(Guid userId, CancellationToken cancellationToken = default);
-
-    Task<decimal?> TryDebitUserBalanceAsync(
-        Guid userId,
-        decimal amount,
-        CancellationToken cancellationToken = default);
-
-    Task<decimal?> TryCreditUserBalanceAsync(
-        Guid userId,
-        decimal amount,
-        CancellationToken cancellationToken = default);
-
-    Task<bool> TryReserveSessionDishAsync(
-        Guid sessionId,
-        Guid dishId,
-        int quantity,
-        CancellationToken cancellationToken = default);
-
-    Task LockRefundRequestAsync(Guid refundRequestId, CancellationToken cancellationToken = default);
-
     Task CommitAsync(CancellationToken cancellationToken = default);
 
     Task RollbackAsync(CancellationToken cancellationToken = default);

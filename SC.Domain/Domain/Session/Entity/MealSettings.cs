@@ -1,24 +1,22 @@
 using SC.Domain.Abstraction.Entities;
-using CategoryAggregate = SC.Domain.Domain.Category.AggregateRoot.Category;
 
 namespace SC.Domain.Domain.Session.Entity;
 
-public class MealSettings : Entity<Guid>, IAuditableEntity<Guid>
+public class MealSettings : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private MealSettings()
-    {
-    }
+    private MealSettings() { }
 
-    public required Guid MealTemplateId { get; set; }
-    public required Guid CategoryId { get; set; }
-    public CategoryAggregate Category { get; set; } = null!;
-    public int MinQuantity { get; set; }
-    public int MaxQuantity { get; set; }
-    public bool IsRequired { get; set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public Guid MealTemplateId { get; private set; }
+    public Guid CategoryId { get; private set; }
+    public int MinQuantity { get; private set; }
+    public int MaxQuantity { get; private set; }
+    public bool IsRequired { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static MealSettings Create(Guid mealTemplateId, Guid categoryId, int minQuantity, int maxQuantity, bool isRequired)
     {
@@ -42,4 +40,6 @@ public class MealSettings : Entity<Guid>, IAuditableEntity<Guid>
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
     }
+
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
 }

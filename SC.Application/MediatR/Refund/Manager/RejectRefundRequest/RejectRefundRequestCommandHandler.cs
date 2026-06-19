@@ -13,6 +13,7 @@ internal sealed class RejectRefundRequestCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
     IBusinessNotificationService businessNotificationService,
     ILogger<RejectRefundRequestCommandHandler> logger)
     : ICommandHandler<RejectRefundRequestCommand, RejectRefundRequestResponse>
@@ -24,7 +25,7 @@ internal sealed class RejectRefundRequestCommandHandler(
         try
         {
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockRefundRequestAsync(request.Id, cancellationToken);
+            await refundLockService.LockRefundRequestAsync(request.Id, cancellationToken);
 
             var refund = await refundRepository.GetByIdAsync(
                 request.Id,

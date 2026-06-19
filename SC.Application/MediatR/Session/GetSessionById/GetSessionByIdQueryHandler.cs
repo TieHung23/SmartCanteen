@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -18,11 +17,9 @@ internal class GetSessionByIdQueryHandler(
     {
         try
         {
-            var session = await sessionRepository.GetQueryable(x => x.Id == request.Id)
-                .Include(x => x.MealTemplates)
-                    .ThenInclude(x => x.Settings)
-                .Include(x => x.SessionDishes)
-                .FirstOrDefaultAsync(cancellationToken);
+            var session = await sessionRepository
+                .FindSingleAsync(x => x.Id == request.Id, cancellationToken,
+                    x => x.MealTemplates, x => x.SessionDishes);
 
             if (session is null)
             {

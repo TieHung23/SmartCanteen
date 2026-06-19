@@ -25,11 +25,11 @@ internal sealed class CreateRefundPolicyCommandHandler(
         try
         {
             var exists = await settingRepository
-                .GetQueryable(setting =>
+                .ExistsAsync(setting =>
                     !setting.IsDeleted
                     && setting.Group == RefundPolicyConstants.Group
-                    && setting.Scope == scope)
-                .AnyAsync(cancellationToken);
+                    && setting.Scope == scope,
+                    cancellationToken);
 
             if (exists)
             {

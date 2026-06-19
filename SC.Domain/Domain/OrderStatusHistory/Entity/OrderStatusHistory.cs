@@ -3,45 +3,26 @@ using OrderStatusEnum = SC.Domain.Domain.Order.Enum.OrderStatus;
 
 namespace SC.Domain.Domain.OrderStatusHistory.Entity;
 
-/// <summary>
-/// Nhật ký chuyển trạng thái đơn (audit trail). Mỗi lần Order đổi Status -&gt; 1 dòng.
-/// </summary>
-public class OrderStatusHistory : Entity<Guid>, IAuditableEntity<Guid>
+public class OrderStatusHistory : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private OrderStatusHistory()
+    private OrderStatusHistory() { }
+
+    public Guid OrderId { get; private set; }
+    public OrderStatusEnum? FromStatus { get; private set; }
+    public OrderStatusEnum ToStatus { get; private set; }
+    public string? ReasonCode { get; private set; }
+    public string? Note { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
+
+    public static OrderStatusHistory Create(Guid orderId, OrderStatusEnum? fromStatus, OrderStatusEnum toStatus, Guid changedBy, string? reasonCode = null, string? note = null)
     {
+        return new OrderStatusHistory { Id = Guid.NewGuid(), OrderId = orderId, FromStatus = fromStatus, ToStatus = toStatus, ReasonCode = reasonCode, Note = note, CreatedAtUtc = DateTimeOffset.UtcNow, CreatedBy = changedBy, UpdatedBy = changedBy };
     }
 
-    public required Guid OrderId { get; set; }
-    public OrderStatusEnum? FromStatus { get; set; }
-    public required OrderStatusEnum ToStatus { get; set; }
-    public string? ReasonCode { get; set; }
-    public string? Note { get; set; }
-
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
-
-    public static OrderStatusHistory Create(
-        Guid orderId,
-        OrderStatusEnum? fromStatus,
-        OrderStatusEnum toStatus,
-        Guid changedBy,
-        string? reasonCode = null,
-        string? note = null)
-    {
-        return new OrderStatusHistory
-        {
-            Id = Guid.NewGuid(),
-            OrderId = orderId,
-            FromStatus = fromStatus,
-            ToStatus = toStatus,
-            ReasonCode = reasonCode,
-            Note = note,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = changedBy,
-            UpdatedBy = changedBy
-        };
-    }
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
 }

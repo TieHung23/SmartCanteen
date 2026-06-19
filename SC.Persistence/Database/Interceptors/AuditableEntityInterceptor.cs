@@ -1,6 +1,7 @@
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.Abstraction.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace SC.Persistence.Database.Interceptors;
@@ -31,33 +32,31 @@ public class AuditableEntityInterceptor : SaveChangesInterceptor
         if (context == null) return;
 
         var userId = _currentUserService.UserId;
+        var now = DateTimeOffset.UtcNow;
 
-        foreach (var entry in context.ChangeTracker.Entries<IAuditableEntity<Guid>>())
+        foreach (var entry in context.ChangeTracker.Entries())
         {
+            if (entry.Entity is not IAuditableEntity<Guid>) continue;
+
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAtUtc = DateTimeOffset.UtcNow;
-                entry.Entity.CreatedBy = userId;
+                entry.Property("CreatedAtUtc").CurrentValue = now;
+                entry.Property("CreatedBy").CurrentValue = userId;
             }
 
-            if (entry.State == EntityState.Modified || entry.HasChangedOwnedEntities())
+            if (entry.State == EntityState.Modified || HasChangedOwnedEntities(entry))
             {
-                entry.Entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
-                entry.Entity.UpdatedBy = userId;
+                entry.Property("UpdatedAtUtc").CurrentValue = now;
+                entry.Property("UpdatedBy").CurrentValue = userId;
             }
         }
     }
 
-
-}
-
-public static class ChangeTrackerExtensions
-{
-    public static bool HasChangedOwnedEntities(this Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    private static bool HasChangedOwnedEntities(EntityEntry entry)
     {
-        return entry.References.Any(r => 
-            r.TargetEntry != null && 
-            r.TargetEntry.Metadata.IsOwned() && 
+        return entry.References.Any(r =>
+            r.TargetEntry != null &&
+            r.TargetEntry.Metadata.IsOwned() &&
             (r.TargetEntry.State == EntityState.Added || r.TargetEntry.State == EntityState.Modified));
     }
 }

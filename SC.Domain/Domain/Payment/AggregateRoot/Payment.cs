@@ -4,26 +4,26 @@ using SC.Domain.Domain.Payment.Enum;
 
 namespace SC.Domain.Domain.Payment.AggregateRoot;
 
-public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private Payment()
-    {
-    }
+    private Payment() { }
 
-    public required string GatewayOrderId { get; set; }
-    public string? GatewayTransactionId { get; set; }
-    public decimal AmountVnd { get; set; }
-    public decimal ConvertedPoints { get; set; }
-    public PaymentStatus Status { get; set; }
-    public PaymentMethod Method { get; set; }
-    public PaymentType Type { get; set; }
-    public string? FailureReason { get; set; }
-    public Guid UserId { get; set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? CompletedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string GatewayOrderId { get; private set; } = string.Empty;
+    public string? GatewayTransactionId { get; private set; }
+    public decimal AmountVnd { get; private set; }
+    public decimal ConvertedPoints { get; private set; }
+    public PaymentStatus Status { get; private set; }
+    public PaymentMethod Method { get; private set; }
+    public PaymentType Type { get; private set; }
+    public string? FailureReason { get; private set; }
+    public Guid UserId { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? CompletedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static Payment Create(
         string gatewayOrderId,
@@ -45,14 +45,9 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
             UserId = userId,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
+            UpdatedBy = createdBy,
             Type = type
         };
-    }
-
-    public void MarkAsPending()
-    {
-        Status = PaymentStatus.Pending;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 
     public void MarkAsCompleted(string? gatewayTransactionId, Guid updatedBy)
@@ -60,14 +55,24 @@ public class Payment : AggregateRoot<Guid>, IAuditableEntity<Guid>
         Status = PaymentStatus.Completed;
         GatewayTransactionId = gatewayTransactionId;
         CompletedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
+        Touch(updatedBy);
     }
 
     public void MarkAsFailed(string? failureReason, Guid updatedBy)
     {
         Status = PaymentStatus.Failed;
         FailureReason = failureReason;
+        Touch(updatedBy);
+    }
+
+    public void SoftDelete()
+    {
+        IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
+    }
+
+    private void Touch(Guid updatedBy)
+    {
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

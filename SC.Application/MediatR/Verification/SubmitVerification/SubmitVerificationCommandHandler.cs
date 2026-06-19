@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
@@ -53,8 +52,7 @@ internal class SubmitVerificationCommandHandler(
 
             // BR-39: only one pending request at a time
             var pendingExists = await verificationRepository
-                .GetQueryable(v => v.UserId == userId && v.Status == VerificationStatus.Pending)
-                .AnyAsync(cancellationToken);
+                .ExistsAsync(v => v.UserId == userId && v.Status == VerificationStatus.Pending, cancellationToken);
 
             if (pendingExists)
             {

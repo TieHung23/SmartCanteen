@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SC.Domain.Domain.Cart.AggregateRoot;
-using SC.Domain.Domain.User;
 
 namespace SC.Persistence.Database.Configuration;
 
@@ -10,10 +9,6 @@ public class CartConfiguration : IEntityTypeConfiguration<Cart>
     public void Configure(EntityTypeBuilder<Cart> builder)
     {
         builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
 
         builder.Property(x => x.UserId).IsRequired();
         builder.HasIndex(x => x.UserId).IsUnique();
@@ -25,11 +20,6 @@ public class CartConfiguration : IEntityTypeConfiguration<Cart>
         builder.Property(x => x.Version)
             .IsRequired()
             .IsConcurrencyToken();
-
-        builder.HasOne<User>()
-            .WithOne()
-            .HasForeignKey<Cart>(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();

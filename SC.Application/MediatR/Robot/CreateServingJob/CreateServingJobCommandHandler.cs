@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Robot;
@@ -44,12 +43,12 @@ internal sealed class CreateServingJobCommandHandler(
             }
 
             // Idempotent: order đã có job đang hoạt động -> trả lại
-            var existing = await servingJobRepository
-                .GetQueryable(x => x.OrderId == request.OrderId
+            var existingJobs = await servingJobRepository
+                .FindListAsync(x => x.OrderId == request.OrderId
                                    && x.Status != ServingJobStatus.Cancelled
-                                   && x.Status != ServingJobStatus.Collected)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                                   && x.Status != ServingJobStatus.Collected,
+                    cancellationToken);
+            var existing = existingJobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
 
             if (existing is not null)
             {
@@ -66,10 +65,9 @@ internal sealed class CreateServingJobCommandHandler(
             }
             else
             {
-                tray = await trayRepository
-                    .GetQueryable(x => x.Status == TrayStatus.Available)
-                    .OrderBy(x => x.CreatedAtUtc)
-                    .FirstOrDefaultAsync(cancellationToken);
+                var availableTrays = await trayRepository
+                    .FindListAsync(x => x.Status == TrayStatus.Available, cancellationToken);
+                tray = availableTrays.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
             }
 
             var job = ServingJobEntity.Create(order.Id, currentUserId, tray?.Id);

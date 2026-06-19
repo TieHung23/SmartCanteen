@@ -4,17 +4,11 @@ namespace SC.Domain.Domain.Order.ValueObject;
 
 public class OrderItem : Abstraction.Aggregates.ValueObject
 {
-    private OrderItem()
-    {
-    }
+    private OrderItem() { }
 
-    public Guid DishId { get; set; }
-    public Dish.AggregateRoot.Dish Dish { get; set; } = null!;
-
-    public int Quantity { get; init; }
-    public Money UnitPrice { get; init; } = Money.Create(0);
-
-    public Guid OrderId { get; set; }
+    public Guid DishId { get; private set; }
+    public int Quantity { get; private set; }
+    public Money UnitPrice { get; private set; } = Money.Create(0);
 
     public static OrderItem Create(Guid dishId, int quantity, decimal unitPriceAmount)
     {
@@ -34,6 +28,5 @@ public class OrderItem : Abstraction.Aggregates.ValueObject
         yield return DishId;
         yield return Quantity;
         yield return UnitPrice;
-        yield return OrderId;
     }
 }

@@ -8,23 +8,11 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 {
     public void Configure(EntityTypeBuilder<Category> builder)
     {
-
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.Name)
-            .IsRequired()
-            .HasMaxLength(200);
-
-        builder.Property(x => x.Description)
-            .IsRequired()
-            .HasMaxLength(500);
-
-        builder.Property(x => x.ImgUrl)
-            .HasMaxLength(2048);
-
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Description).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.ImgUrl).HasMaxLength(2048);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();

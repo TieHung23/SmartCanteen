@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -18,30 +17,31 @@ internal class GetAllSessionsQueryHandler(
     {
         try
         {
-            IQueryable<SessionAggregateRoot> query = sessionRepository.GetQueryable();
+            var allSessions = await sessionRepository.FindListAsync(
+                null, cancellationToken, x => x.SessionDishes, x => x.MealTemplates);
+
+            var filtered = allSessions.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Name.Contains(request.Name, StringComparison.OrdinalIgnoreCase));
             }
 
             if (request.IsActive.HasValue)
             {
-                query = query.Where(x => x.IsActive == request.IsActive.Value);
+                filtered = filtered.Where(x => x.IsActive == request.IsActive.Value);
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
 
             var skipCount = request.GetSkipCount();
-            var paginatedSessions = await query
-                .Include(x => x.SessionDishes)
-                .Include(x => x.MealTemplates)
-                    .ThenInclude(x => x.Settings)
+            var paginatedSessions = filteredList
                 .OrderBy(x => x.Name)
                 .Skip(skipCount)
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var responses = paginatedSessions.Select(m => new GetAllSessionsResponse
             {

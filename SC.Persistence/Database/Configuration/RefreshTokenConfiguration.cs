@@ -10,10 +10,6 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.UserId).IsRequired();
         builder.HasIndex(x => x.UserId);
 
@@ -27,14 +23,7 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.Property(x => x.RevokedAt);
         builder.Property(x => x.ReplacedByTokenId);
 
-        builder.HasOne<User>()
-            .WithMany()
-            .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
-
-        builder.Ignore(x => x.DomainEvents);
     }
 }

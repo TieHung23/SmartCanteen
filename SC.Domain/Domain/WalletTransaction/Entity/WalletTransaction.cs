@@ -3,22 +3,22 @@ using SC.Domain.Domain.WalletTransaction.Enum;
 
 namespace SC.Domain.Domain.WalletTransaction.Entity;
 
-public class WalletTransaction : Entity<Guid>, IAuditableEntity<Guid>
+public class WalletTransaction : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private WalletTransaction()
-    {
-    }
+    private WalletTransaction() { }
 
-    public required Guid UserId { get; set; }
-    public decimal Amount { get; set; }
-    public decimal BalanceBefore { get; set; }
-    public decimal BalanceAfter { get; set; }
-    public WalletTransactionType TransactionType { get; set; }
-    public Guid? PaymentId { get; set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public Guid UserId { get; private set; }
+    public decimal Amount { get; private set; }
+    public decimal BalanceBefore { get; private set; }
+    public decimal BalanceAfter { get; private set; }
+    public WalletTransactionType TransactionType { get; private set; }
+    public Guid? PaymentId { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static WalletTransaction Create(
         Guid userId,
@@ -41,5 +41,11 @@ public class WalletTransaction : Entity<Guid>, IAuditableEntity<Guid>
             CreatedBy = userId,
             UpdatedBy = userId
         };
+    }
+
+    public void SoftDelete()
+    {
+        IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
     }
 }

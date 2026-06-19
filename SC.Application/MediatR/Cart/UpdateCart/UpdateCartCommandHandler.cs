@@ -13,6 +13,7 @@ internal sealed class UpdateCartCommandHandler(
     ICartValidationService cartValidationService,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IWalletDomainService walletDomainService,
     ILogger<UpdateCartCommandHandler> logger)
     : ICommandHandler<UpdateCartCommand, CartResponse>
 {
@@ -43,11 +44,10 @@ internal sealed class UpdateCartCommandHandler(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockUserAsync(userId, cancellationToken);
+            await walletDomainService.LockUserAsync(userId, cancellationToken);
 
             var cart = await cartRepository
-                .GetQueryable(x => x.UserId == userId)
-                .SingleOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.UserId == userId, cancellationToken);
 
             var currentVersion = cart?.Version ?? 0;
             if (currentVersion != request.ExpectedVersion)

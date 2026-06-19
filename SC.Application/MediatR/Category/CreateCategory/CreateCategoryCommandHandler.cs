@@ -23,9 +23,8 @@ internal class CreateCategoryCommandHandler(
             var category = CategoryAggregateRoot.Create(
                 request.Name.Trim(),
                 request.Description.Trim(),
-                currentUserService.UserId);
-
-            category.ImgUrl = request.ImgUrl;
+                currentUserService.UserId,
+                request.ImgUrl);
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await categoryRepository.AddAsync(category, cancellationToken);

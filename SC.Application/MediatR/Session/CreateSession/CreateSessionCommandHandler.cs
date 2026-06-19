@@ -3,6 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Dish;
 using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.Domain.Session.Entity;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
@@ -84,12 +85,10 @@ internal class CreateSessionCommandHandler(
                         $"Dish with id {dishInput.DishId} not found or inactive.");
                 }
 
-                session.AddSessionDish(new SessionDish
-                {
-                    DishId = dishInput.DishId,
-                    SessionId = session.Id,
-                    Quantity = dishInput.Quantity > 0 ? dishInput.Quantity : 1
-                });
+                session.AddSessionDish(SessionDish.Create(
+                    dishInput.DishId,
+                    session.Id,
+                    dishInput.Quantity > 0 ? dishInput.Quantity : 1));
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);

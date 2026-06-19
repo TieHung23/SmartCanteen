@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -29,24 +28,22 @@ internal sealed class UnregisterDeviceTokenCommandHandler(
                     "Authenticated user was not found.");
             }
 
-            var query = deviceTokenRepository
-                .GetQueryable(token =>
+            var tokens = await deviceTokenRepository
+                .FindListAsync(token =>
                     token.UserId == userId
                     && token.IsActive
-                    && !token.IsDeleted);
+                    && !token.IsDeleted, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Token))
             {
                 var tokenHash = UserDeviceToken.ComputeTokenHash(request.Token);
-                query = query.Where(token => token.TokenHash == tokenHash);
+                tokens = tokens.Where(token => token.TokenHash == tokenHash).ToList();
             }
             else
             {
                 var deviceId = request.DeviceId!.Trim();
-                query = query.Where(token => token.DeviceId == deviceId);
+                tokens = tokens.Where(token => token.DeviceId == deviceId).ToList();
             }
-
-            var tokens = await query.ToListAsync(cancellationToken);
             foreach (var token in tokens)
             {
                 token.Revoke(userId);

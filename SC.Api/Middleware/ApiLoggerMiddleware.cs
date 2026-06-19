@@ -20,6 +20,13 @@ public class ApiLoggerMiddleware
 
     public async Task InvokeAsync(HttpContext context, IApiLogService apiLogService)
     {
+        // Only log requests whose path contains "/api/".
+        if (!context.Request.Path.StartsWithSegments("/api"))
+        {
+            await _next(context);
+            return;
+        }
+
         var startTime = DateTimeOffset.UtcNow;
         var sw = Stopwatch.StartNew();
 

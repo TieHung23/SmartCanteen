@@ -10,8 +10,15 @@ public interface IGenericRepository<TEntity, in TKey>
     Task<TEntity?> GetByIdAsync(TKey id, CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[] includeProperties);
 
-    IQueryable<TEntity> GetQueryable(Expression<Func<TEntity, bool>>? predicate = null,
+    Task<TEntity?> FindSingleAsync(Expression<Func<TEntity, bool>> predicate,
+        CancellationToken cancellationToken = default,
         params Expression<Func<TEntity, object>>[] includeProperties);
+
+    Task<List<TEntity>> FindListAsync(Expression<Func<TEntity, bool>>? predicate = null,
+        CancellationToken cancellationToken = default,
+        params Expression<Func<TEntity, object>>[] includeProperties);
+
+    Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
 
     Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);
 
