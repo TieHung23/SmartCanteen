@@ -12,6 +12,7 @@ namespace SC.Infrastructure.Services.Auth;
 public sealed class JwtTokenGenerator : IJwtTokenGenerator
 {
     private const int OpaqueTokenBytes = 48;
+    private const int VerificationCodeUpperBound = 1_000_000;
 
     private readonly JwtOptions _options;
 
@@ -71,6 +72,20 @@ public sealed class JwtTokenGenerator : IJwtTokenGenerator
     public string HashOpaqueToken(string rawToken)
     {
         return ComputeSha256(rawToken);
+    }
+
+    public VerificationCodeResult GenerateEmailVerificationCode()
+    {
+        var code = RandomNumberGenerator
+            .GetInt32(0, VerificationCodeUpperBound)
+            .ToString("D6");
+        var codeHash = HashVerificationCode(code);
+        return new VerificationCodeResult(code, codeHash);
+    }
+
+    public string HashVerificationCode(string code)
+    {
+        return ComputeSha256(code.Trim());
     }
 
     private static string ComputeSha256(string input)

@@ -2,9 +2,9 @@ namespace SC.Contract.Services.Email;
 
 public interface IEmailSender
 {
-    Task SendVerificationLinkAsync(
+    Task SendVerificationCodeAsync(
         string toEmail,
-        string rawToken,
+        string code,
         CancellationToken cancellationToken = default);
 
     Task SendPasswordResetLinkAsync(

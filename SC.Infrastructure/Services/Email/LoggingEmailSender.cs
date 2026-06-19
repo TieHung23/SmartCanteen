@@ -21,20 +21,15 @@ public sealed class LoggingEmailSender : IEmailSender
         _logger = logger;
     }
 
-    public Task SendVerificationLinkAsync(
+    public Task SendVerificationCodeAsync(
         string toEmail,
-        string rawToken,
+        string code,
         CancellationToken cancellationToken = default)
     {
-        var baseUrl = _frontendOptions.BaseUrl.TrimEnd('/');
-        var path = _frontendOptions.VerifyEmailPath.StartsWith('/')
-            ? _frontendOptions.VerifyEmailPath
-            : "/" + _frontendOptions.VerifyEmailPath;
-        var link = $"{baseUrl}{path}?token={Uri.EscapeDataString(rawToken)}";
         _logger.LogWarning(
-            "[Dev] No email provider configured. Verification link for {Email}: {Link}",
+            "[Dev] No email provider configured. Verification code for {Email}: {Code}",
             toEmail,
-            link);
+            code);
         return Task.CompletedTask;
     }
 

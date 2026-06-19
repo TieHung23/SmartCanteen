@@ -20,10 +20,22 @@ internal class VerifyEmailCommandHandler(
     {
         try
         {
-            var tokenHash = tokenGenerator.HashOpaqueToken(request.Token);
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await userRepository
+                .GetQueryable(u => u.Email == normalizedEmail)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (user is null)
+            {
+                return Result.Failure<VerifyEmailResponse>(
+                    Error.InvalidOrExpiredToken,
+                    "The verification code is invalid or expired.");
+            }
+
+            var tokenHash = tokenGenerator.HashVerificationCode(request.Code);
 
             var token = await tokenRepository
-                .GetQueryable(t => t.TokenHash == tokenHash)
+                .GetQueryable(t => t.UserId == user.Id && t.TokenHash == tokenHash)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (token is null || !token.IsValid)
@@ -31,14 +43,6 @@ internal class VerifyEmailCommandHandler(
                 return Result.Failure<VerifyEmailResponse>(
                     Error.InvalidOrExpiredToken,
                     "The verification token is invalid or expired.");
-            }
-
-            var user = await userRepository.GetByIdAsync(token.UserId, cancellationToken);
-            if (user is null)
-            {
-                return Result.Failure<VerifyEmailResponse>(
-                    Error.InvalidOrExpiredToken,
-                    "Associated account no longer exists.");
             }
 
             user.ConfirmEmail();
