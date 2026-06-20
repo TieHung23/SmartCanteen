@@ -20,6 +20,13 @@ public class ApiLoggerMiddleware
 
     public async Task InvokeAsync(HttpContext context, IApiLogService apiLogService)
     {
+        // Only log requests whose path contains "/api/".
+        if (!context.Request.Path.StartsWithSegments("/api"))
+        {
+            await _next(context);
+            return;
+        }
+
         var startTime = DateTimeOffset.UtcNow;
         var sw = Stopwatch.StartNew();
 
@@ -85,6 +92,7 @@ public class ApiLoggerMiddleware
                         ApiResponse = responseBodyText,
                         ErrorTrace = error?.ToString(),
                         Message = error?.Message ?? $"Responded {context.Response.StatusCode} in {sw.ElapsedMilliseconds}ms",
+                        StatusCode = context.Response.StatusCode,
                         LocalIpAddress = context.Connection.RemoteIpAddress?.ToString(),
                         CreatedDate = startTime,
                         EndDate = DateTimeOffset.UtcNow,

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -20,30 +19,32 @@ internal class GetAllOrdersQueryHandler(
     {
         try
         {
-            IQueryable<OrderAggregateRoot> query = orderRepository.GetQueryable();
+            var allOrders = await orderRepository.FindListAsync(cancellationToken: cancellationToken);
+            var filtered = allOrders.AsEnumerable();
 
             // If no specific user is requested, filter to current user
             Guid filterUserId = request.UserId ?? currentUserService.UserId;
-            query = query.Where(x => x.CreatedBy == filterUserId);
+            filtered = filtered.Where(x => x.CreatedBy == filterUserId);
 
             if (request.SessionId.HasValue)
             {
-                query = query.Where(x => x.SessionId == request.SessionId.Value);
+                filtered = filtered.Where(x => x.SessionId == request.SessionId.Value);
             }
 
             if (request.Status.HasValue)
             {
-                query = query.Where(x => (int)x.Status == request.Status.Value);
+                filtered = filtered.Where(x => (int)x.Status == request.Status.Value);
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
 
             var skipCount = request.GetSkipCount();
-            var paginatedOrders = await query
+            var paginatedOrders = filteredList
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .Skip(skipCount)
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var responses = paginatedOrders.Select(o => new GetAllOrdersResponse
             {

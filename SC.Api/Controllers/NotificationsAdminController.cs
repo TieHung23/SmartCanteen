@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Notification.Admin.CreateNotification;
 
-namespace SC.Api.Controllers.Admin;
+namespace SC.Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]

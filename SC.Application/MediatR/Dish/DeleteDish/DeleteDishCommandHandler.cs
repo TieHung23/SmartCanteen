@@ -30,7 +30,7 @@ internal class DeleteDishCommandHandler(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            dish.SoftDelete(currentUserService.UserId);
+            dish.SoftDelete();
             dishRepository.Update(dish);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);

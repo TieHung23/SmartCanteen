@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Auth.Shared;
 using SC.Contract.Abstraction.Message;
@@ -29,8 +28,7 @@ internal class ResetPasswordCommandHandler(
         {
             var tokenHash = tokenGenerator.HashOpaqueToken(request.Token);
             var token = await tokenRepository
-                .GetQueryable(t => t.TokenHash == tokenHash)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
             if (token is null || !token.IsValid)
             {
@@ -48,8 +46,7 @@ internal class ResetPasswordCommandHandler(
             }
 
             var activeRefreshTokens = await refreshTokenRepository
-                .GetQueryable(t => t.UserId == user.Id && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow)
-                .ToListAsync(cancellationToken);
+                .FindListAsync(t => t.UserId == user.Id && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, cancellationToken);
 
             user.ChangePassword(passwordHasher.Hash(request.NewPassword));
             token.Consume();

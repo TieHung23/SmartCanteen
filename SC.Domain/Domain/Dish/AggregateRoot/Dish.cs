@@ -1,28 +1,25 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
 using SC.Domain.SharedKernel.ValueObjects;
-using CategoryAggregate = SC.Domain.Domain.Category.AggregateRoot.Category;
 
 namespace SC.Domain.Domain.Dish.AggregateRoot;
 
-public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private Dish()
-    {
-    }
+    private Dish() { }
 
-    public required string Name { get; set; }
-    public required string Description { get; set; }
-    public Money Price { get; set; } = Money.Create(0);
-    public bool IsActive { get; set; } = true;
-    public Guid CategoryId { get; set; }
-    public CategoryAggregate Category { get; set; } = null!;
-    public string? ImgUrl { get; set; }
-    public ICollection<SessionDish> SessionDishes { get; set; } = new List<SessionDish>();
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string Name { get; private set; } = string.Empty;
+    public string Description { get; private set; } = string.Empty;
+    public Money Price { get; private set; } = Money.Create(0);
+    public bool IsActive { get; private set; } = true;
+    public Guid CategoryId { get; private set; }
+    public string? ImgUrl { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static Dish Create(
         string name,
@@ -41,7 +38,8 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
             CategoryId = categoryId,
             ImgUrl = imgUrl,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = createdBy
+            CreatedBy = createdBy,
+            UpdatedBy = createdBy
         };
     }
 
@@ -60,21 +58,23 @@ public class Dish : AggregateRoot<Guid>, IAuditableEntity<Guid>
         CategoryId = categoryId;
         IsActive = isActive;
         ImgUrl = imgUrl;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
+        Touch(updatedBy);
     }
 
     public void MarkInactive(Guid updatedBy)
     {
         IsActive = false;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
+        Touch(updatedBy);
     }
 
-    public void SoftDelete(Guid updatedBy)
+    public void SoftDelete()
     {
         IsDeleted = true;
-        IsActive = false;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
+    }
+
+    private void Touch(Guid updatedBy)
+    {
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

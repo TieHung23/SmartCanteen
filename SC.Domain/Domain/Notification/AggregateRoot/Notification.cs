@@ -4,7 +4,7 @@ using SC.Domain.SharedKernel;
 
 namespace SC.Domain.Domain.Notification.AggregateRoot;
 
-public sealed class Notification : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public sealed class Notification : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
     private Notification()
     {
@@ -20,10 +20,12 @@ public sealed class Notification : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public string? DataJson { get; private set; }
     public bool IsRead { get; private set; }
     public DateTimeOffset? ReadAtUtc { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static Notification Create(
         Guid recipientId,
@@ -85,9 +87,10 @@ public sealed class Notification : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
-    public override void SoftDelete()
+    public void SoftDelete()
     {
-        base.SoftDelete();
+        IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 

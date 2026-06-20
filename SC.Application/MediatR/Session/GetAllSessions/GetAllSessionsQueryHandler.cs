@@ -3,12 +3,14 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
 namespace SC.Application.MediatR.Session.GetAllSessions;
 
 internal class GetAllSessionsQueryHandler(
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ILogger<GetAllSessionsQueryHandler> logger
 ) : IQueryHandler<GetAllSessionsQuery, PaginatedList<GetAllSessionsResponse>>
 {
@@ -18,30 +20,46 @@ internal class GetAllSessionsQueryHandler(
     {
         try
         {
-            IQueryable<SessionAggregateRoot> query = sessionRepository.GetQueryable();
+            var allSessions = await sessionRepository.FindListAsync(
+                null,
+                q => q.Include(x => x.SessionDishes)
+                      .Include(x => x.MealTemplates)
+                      .ThenInclude(x => x.Settings),
+                cancellationToken);
+
+            var filtered = allSessions.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Name.Contains(request.Name, StringComparison.OrdinalIgnoreCase));
             }
 
             if (request.IsActive.HasValue)
             {
-                query = query.Where(x => x.IsActive == request.IsActive.Value);
+                filtered = filtered.Where(x => x.IsActive == request.IsActive.Value);
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
 
             var skipCount = request.GetSkipCount();
-            var paginatedSessions = await query
-                .Include(x => x.SessionDishes)
-                .Include(x => x.MealTemplates)
-                    .ThenInclude(x => x.Settings)
+            var paginatedSessions = filteredList
                 .OrderBy(x => x.Name)
                 .Skip(skipCount)
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
+
+            var allDishIds = paginatedSessions
+                .SelectMany(s => s.SessionDishes)
+                .Select(d => d.DishId)
+                .Distinct()
+                .ToList();
+
+            var dishes = await dishRepository
+                .FindListAsync(d => allDishIds.Contains(d.Id), cancellationToken);
+
+            var dishMap = dishes.ToDictionary(d => d.Id);
 
             var responses = paginatedSessions.Select(m => new GetAllSessionsResponse
             {
@@ -52,6 +70,13 @@ internal class GetAllSessionsQueryHandler(
                 AvailableFrom = m.AvailableFrom,
                 AvailableTo = m.AvailableTo,
                 AvailableForOrder = m.AvailableForOrder,
+                FinalizationDeadline = m.FinalizationDeadline,
+                AutoFinalizePolicy = (int)m.AutoFinalizePolicy,
+                IsFinalized = m.IsFinalized,
+                FinalizedAtUtc = m.FinalizedAtUtc,
+                CreatedAtUtc = m.CreatedAtUtc,
+                UpdatedAtUtc = m.UpdatedAtUtc,
+                CreatedBy = m.CreatedBy,
                 MealTemplates = m.MealTemplates
                     .Where(template => !template.IsDeleted)
                     .Select(template => new MealTemplateDto
@@ -62,6 +87,8 @@ internal class GetAllSessionsQueryHandler(
                             .Where(setting => !setting.IsDeleted)
                             .Select(setting => new MealSettingDto
                             {
+                                Id = setting.Id,
+                                MealTemplateId = setting.MealTemplateId,
                                 CategoryId = setting.CategoryId,
                                 MinQuantity = setting.MinQuantity,
                                 MaxQuantity = setting.MaxQuantity,
@@ -69,10 +96,20 @@ internal class GetAllSessionsQueryHandler(
                             }).ToList()
                     }).ToList(),
                 Dishes = m.SessionDishes
-                    .Select(dm => new SessionDishDto
+                    .Select(dm =>
                     {
-                        DishId = dm.DishId,
-                        Quantity = dm.Quantity
+                        var dish = dishMap.GetValueOrDefault(dm.DishId);
+                        return new SessionDishDto
+                        {
+                            Id = dm.Id,
+                            DishId = dm.DishId,
+                            DishName = dish?.Name ?? string.Empty,
+                            ImgUrl = dish?.ImgUrl,
+                            PriceAmount = dish?.Price.Amount ?? 0,
+                            PriceCurrency = dish?.Price.Currency ?? string.Empty,
+                            CategoryId = dish?.CategoryId ?? Guid.Empty,
+                            PreparedQuantity = dm.PreparedQuantity
+                        };
                     })
                     .ToList()
             }).ToList();

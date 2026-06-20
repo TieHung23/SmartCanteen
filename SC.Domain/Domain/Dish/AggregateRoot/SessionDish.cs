@@ -1,13 +1,31 @@
-using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
+using SC.Domain.Abstraction.Entities;
 
-namespace SC.Domain.Domain.Dish.AggregateRoot;
+namespace SC.Domain.Domain.Dish;
 
-public class SessionDish
+public class SessionDish : Entity<Guid>
 {
-    public Guid DishId { get; set; }
-    public Guid SessionId { get; set; }
-    public int Quantity { get; set; }
+    private SessionDish() { }
 
-    public Dish Dish { get; set; } = null!;
-    public SessionAggregateRoot Session { get; set; } = null!;
+    public Guid DishId { get; private set; }
+    public Guid SessionId { get; private set; }
+    public int? PreparedQuantity { get; private set; }
+
+    public static SessionDish Create(Guid dishId, Guid sessionId)
+    {
+        return new SessionDish
+        {
+            Id = Guid.NewGuid(),
+            DishId = dishId,
+            SessionId = sessionId
+        };
+    }
+
+    public void SetPreparedQuantity(int preparedQuantity)
+    {
+        if (preparedQuantity < 0)
+            throw new ArgumentException("Prepared quantity cannot be negative.", nameof(preparedQuantity));
+        PreparedQuantity = preparedQuantity;
+    }
+
+    public bool HasEnoughFor(int orderedQuantity) => PreparedQuantity.HasValue && PreparedQuantity >= orderedQuantity;
 }

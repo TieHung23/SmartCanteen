@@ -3,24 +3,25 @@ using SC.Domain.Abstraction.Entities;
 
 namespace SC.Domain.Domain.Setting.AggregateRoot;
 
-public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
     private Setting()
     {
     }
 
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Group { get; set; } = string.Empty;
-    public string Scope { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty;
-    
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string Code { get; private set; } = string.Empty;
+    public string Name { get; private set; } = string.Empty;
+    public string Description { get; private set; } = string.Empty;
+    public string Group { get; private set; } = string.Empty;
+    public string Scope { get; private set; } = string.Empty;
+    public string Value { get; private set; } = string.Empty;
+    public string Type { get; private set; } = string.Empty;
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static Setting Create(
         string code,
@@ -81,9 +82,12 @@ public class Setting : AggregateRoot<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
     }
 
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
+
     public void SoftDelete(Guid updatedBy)
     {
         IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

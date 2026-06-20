@@ -5,7 +5,7 @@ using SC.Domain.SharedKernel;
 
 namespace SC.Domain.Domain.Notification.Entity;
 
-public sealed class UserDeviceToken : Entity<Guid>, IAuditableEntity<Guid>
+public sealed class UserDeviceToken : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
     private UserDeviceToken()
     {
@@ -20,10 +20,12 @@ public sealed class UserDeviceToken : Entity<Guid>, IAuditableEntity<Guid>
     public bool IsActive { get; private set; }
     public DateTimeOffset LastUsedAtUtc { get; private set; }
     public DateTimeOffset? RevokedAtUtc { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static UserDeviceToken Register(
         Guid userId,
@@ -113,6 +115,8 @@ public sealed class UserDeviceToken : Entity<Guid>, IAuditableEntity<Guid>
         UpdatedBy = updatedBy;
         SoftDelete();
     }
+
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
 
     public static string ComputeTokenHash(string token)
     {

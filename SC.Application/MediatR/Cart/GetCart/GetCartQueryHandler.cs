@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -13,6 +12,7 @@ internal sealed class GetCartQueryHandler(
     IGenericRepository<SC.Domain.Domain.Session.AggregateRoot.Session, Guid> sessionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IWalletDomainService walletDomainService,
     ILogger<GetCartQueryHandler> logger)
     : IQueryHandler<GetCartQuery, CartResponse>
 {
@@ -24,8 +24,7 @@ internal sealed class GetCartQueryHandler(
         {
             var userId = currentUserService.UserId;
             var cart = await cartRepository
-                .GetQueryable(x => x.UserId == userId)
-                .SingleOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.UserId == userId, cancellationToken);
 
             if (cart is null)
             {
@@ -46,11 +45,10 @@ internal sealed class GetCartQueryHandler(
             if (activeCartData.Sessions.Count != cartData.Sessions.Count)
             {
                 await unitOfWork.BeginTransactionAsync(cancellationToken);
-                await unitOfWork.LockUserAsync(userId, cancellationToken);
+                await walletDomainService.LockUserAsync(userId, cancellationToken);
 
                 var currentCart = await cartRepository
-                    .GetQueryable(x => x.UserId == userId)
-                    .SingleOrDefaultAsync(cancellationToken);
+                    .FindSingleAsync(x => x.UserId == userId, cancellationToken);
 
                 if (currentCart is not null && currentCart.Version == cart.Version)
                 {
@@ -102,14 +100,14 @@ internal sealed class GetCartQueryHandler(
 
         var now = DateTimeOffset.UtcNow;
         var sessionIds = cartData.Sessions.Select(x => x.SessionId).Distinct().ToList();
-        var availableSessionIds = await sessionRepository
-            .GetQueryable(x =>
+        var availableSessions = await sessionRepository
+            .FindListAsync(x =>
                 sessionIds.Contains(x.Id)
                 && !x.IsDeleted
                 && x.IsActive
-                && x.AvailableForOrder >= now)
-            .Select(x => x.Id)
-            .ToListAsync(cancellationToken);
+                && x.AvailableForOrder >= now,
+                cancellationToken);
+        var availableSessionIds = availableSessions.Select(x => x.Id).ToList();
 
         var availableSessionIdSet = availableSessionIds.ToHashSet();
         return new CartData

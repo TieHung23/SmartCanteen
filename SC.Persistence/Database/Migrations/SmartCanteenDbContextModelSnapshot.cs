@@ -37,10 +37,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("ParametersJson")
                         .HasColumnType("text");
@@ -81,11 +82,6 @@ namespace SC.Persistence.Database.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -119,6 +115,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -129,9 +128,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(2048)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -164,6 +161,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -177,9 +177,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -199,22 +197,25 @@ namespace SC.Persistence.Database.Migrations
                     b.ToTable("Dishes");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.SessionDish", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Dish.SessionDish", b =>
                 {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("DishId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("PreparedQuantity")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Quantity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1);
+                    b.HasKey("Id");
 
-                    b.HasKey("DishId", "SessionId");
-
-                    b.HasIndex("SessionId");
+                    b.HasIndex("SessionId", "DishId")
+                        .IsUnique();
 
                     b.ToTable("SessionDish");
                 });
@@ -282,6 +283,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<string>("RequestId")
                         .HasColumnType("text");
 
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.ToTable("ApiLogs");
@@ -307,10 +311,11 @@ namespace SC.Persistence.Database.Migrations
                         .HasMaxLength(8000)
                         .HasColumnType("character varying(8000)");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsRead")
                         .ValueGeneratedOnAdd()
@@ -353,9 +358,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RecipientId", "IsDeleted", "CreatedAtUtc");
-
-                    b.HasIndex("RecipientId", "IsRead", "IsDeleted");
+                    b.HasIndex("RecipientId", "CreatedAtUtc");
 
                     b.ToTable("Notifications");
                 });
@@ -376,6 +379,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("DeviceId")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -386,9 +392,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasDefaultValue(true);
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("LastUsedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -427,8 +431,6 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("UserId", "DeviceId");
 
-                    b.HasIndex("UserId", "IsActive", "IsDeleted");
-
                     b.ToTable("UserDeviceTokens");
                 });
 
@@ -444,10 +446,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<Guid?>("MealTemplateId")
                         .HasColumnType("uuid");
@@ -478,6 +481,50 @@ namespace SC.Persistence.Database.Migrations
                     b.ToTable("Orders");
                 });
 
+            modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.OrderItemChangeProposal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CurrentDishId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ProposalStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid?>("SuggestedDishId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("OrderItemChangeProposals");
+                });
+
             modelBuilder.Entity("SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -490,13 +537,14 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("FromStatus")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Note")
                         .HasMaxLength(1000)
@@ -548,6 +596,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -562,9 +613,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<int>("Method")
                         .HasColumnType("integer");
@@ -615,10 +664,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid");
@@ -660,15 +710,16 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("OrderAmountSnapshot")
                         .HasPrecision(18, 2)
@@ -722,10 +773,7 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_RefundRequests_OrderId_Active")
-                        .HasFilter("\"IsDeleted\" = FALSE AND \"Status\" IN (1, 2)");
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("Status");
 
@@ -750,6 +798,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -761,9 +812,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(1000)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("RefundRequestId")
                         .HasColumnType("uuid");
@@ -801,15 +850,16 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("IpAddress")
                         .IsRequired()
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LastHeartbeatUtc")
                         .HasColumnType("timestamp with time zone");
@@ -850,13 +900,14 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("EventType")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Message")
                         .HasMaxLength(1000)
@@ -910,14 +961,15 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("FailureReason")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid");
@@ -958,6 +1010,11 @@ namespace SC.Persistence.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AutoFinalizePolicy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTimeOffset>("AvailableForOrder")
                         .HasColumnType("timestamp with time zone");
 
@@ -973,15 +1030,27 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<DateTimeOffset?>("FinalizationDeadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("FinalizedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsFinalized")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
@@ -1017,10 +1086,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsRequired")
                         .HasColumnType("boolean");
@@ -1061,10 +1131,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1104,6 +1175,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1115,9 +1189,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1165,13 +1237,14 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("DishId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
@@ -1211,13 +1284,14 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("DishId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("LaneCode")
                         .IsRequired()
@@ -1266,10 +1340,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid?>("CurrentOrderId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -1307,11 +1382,6 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -1355,11 +1425,6 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -1398,11 +1463,6 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
 
                     b.Property<Guid?>("ReplacedByTokenId")
                         .HasColumnType("uuid");
@@ -1453,6 +1513,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1473,9 +1536,7 @@ namespace SC.Persistence.Database.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
@@ -1543,11 +1604,6 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -1606,10 +1662,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<Guid?>("PaymentId")
                         .HasColumnType("uuid");
@@ -1637,23 +1694,8 @@ namespace SC.Persistence.Database.Migrations
                     b.ToTable("WalletTransaction");
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Cart.AggregateRoot.Cart", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithOne()
-                        .HasForeignKey("SC.Domain.Domain.Cart.AggregateRoot.Cart", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "Price", b1 =>
                         {
                             b1.Property<Guid>("DishId")
@@ -1676,95 +1718,56 @@ namespace SC.Persistence.Database.Migrations
                                 .HasForeignKey("DishId");
                         });
 
-                    b.Navigation("Category");
-
                     b.Navigation("Price")
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.SessionDish", b =>
+            modelBuilder.Entity("SC.Domain.Domain.Dish.SessionDish", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Dish.AggregateRoot.Dish", "Dish")
-                        .WithMany("SessionDishes")
-                        .HasForeignKey("DishId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SC.Domain.Domain.Session.AggregateRoot.Session", "Session")
+                    b.HasOne("SC.Domain.Domain.Session.AggregateRoot.Session", null)
                         .WithMany("SessionDishes")
                         .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Dish");
-
-                    b.Navigation("Session");
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.Notification.AggregateRoot.Notification", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("RecipientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.Notification.Entity.UserDeviceToken", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Order.AggregateRoot.Order", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Session.Entity.MealTemplate", "MealTemplate")
-                        .WithMany()
-                        .HasForeignKey("MealTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SC.Domain.Domain.Session.AggregateRoot.Session", "Session")
-                        .WithMany()
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.OwnsMany("SC.Domain.Domain.Order.ValueObject.OrderItem", "OrderItems", b1 =>
+                    b.OwnsMany("SC.Domain.Domain.Order.Entity.OrderItem", "OrderItems", b1 =>
                         {
-                            b1.Property<Guid>("OrderId")
-                                .HasColumnType("uuid");
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
                             b1.Property<Guid>("DishId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("ItemStatus")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(0);
+
+                            b1.Property<Guid>("OrderId")
                                 .HasColumnType("uuid");
 
                             b1.Property<int>("Quantity")
                                 .HasColumnType("integer");
 
-                            b1.HasKey("OrderId", "DishId");
+                            b1.HasKey("Id");
 
-                            b1.HasIndex("DishId");
+                            b1.HasIndex("OrderId");
 
                             b1.ToTable("OrderItem");
-
-                            b1.HasOne("SC.Domain.Domain.Dish.AggregateRoot.Dish", "Dish")
-                                .WithMany()
-                                .HasForeignKey("DishId")
-                                .OnDelete(DeleteBehavior.Restrict)
-                                .IsRequired();
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
 
                             b1.OwnsOne("SC.Domain.SharedKernel.ValueObjects.Money", "UnitPrice", b2 =>
                                 {
-                                    b2.Property<Guid>("OrderItemOrderId")
-                                        .HasColumnType("uuid");
-
-                                    b2.Property<Guid>("OrderItemDishId")
-                                        .HasColumnType("uuid");
+                                    b2.Property<int>("OrderItemId")
+                                        .HasColumnType("integer");
 
                                     b2.Property<decimal>("Amount")
                                         .HasPrecision(18, 2)
@@ -1775,45 +1778,19 @@ namespace SC.Persistence.Database.Migrations
                                         .HasMaxLength(10)
                                         .HasColumnType("character varying(10)");
 
-                                    b2.HasKey("OrderItemOrderId", "OrderItemDishId");
+                                    b2.HasKey("OrderItemId");
 
                                     b2.ToTable("OrderItem");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("OrderItemOrderId", "OrderItemDishId");
+                                        .HasForeignKey("OrderItemId");
                                 });
-
-                            b1.Navigation("Dish");
 
                             b1.Navigation("UnitPrice")
                                 .IsRequired();
                         });
 
-                    b.Navigation("MealTemplate");
-
                     b.Navigation("OrderItems");
-
-                    b.Navigation("Session");
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.Refund.AggregateRoot.RefundRequest", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.Order.AggregateRoot.Order", null)
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction", null)
-                        .WithMany()
-                        .HasForeignKey("WalletTransactionId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Refund.Entity.RefundRequestImage", b =>
@@ -1827,55 +1804,18 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Session.Entity.MealSettings", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Category.AggregateRoot.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("SC.Domain.Domain.Session.Entity.MealTemplate", null)
                         .WithMany("Settings")
                         .HasForeignKey("MealTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Session.Entity.MealTemplate", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.Session.AggregateRoot.Session", "Session")
+                    b.HasOne("SC.Domain.Domain.Session.AggregateRoot.Session", null)
                         .WithMany("MealTemplates")
                         .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Session");
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.User.EmailVerificationToken", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.User.PasswordResetToken", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.User.RefreshToken", b =>
-                {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1910,12 +1850,6 @@ namespace SC.Persistence.Database.Migrations
 
             modelBuilder.Entity("SC.Domain.Domain.Verification.AggregateRoot.VerificationRequest", b =>
                 {
-                    b.HasOne("SC.Domain.Domain.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.OwnsMany("SC.Domain.Domain.Verification.ValueObject.VerificationDocument", "Documents", b1 =>
                         {
                             b1.Property<Guid>("VerificationRequestId")
@@ -1958,11 +1892,6 @@ namespace SC.Persistence.Database.Migrations
                         });
 
                     b.Navigation("Documents");
-                });
-
-            modelBuilder.Entity("SC.Domain.Domain.Dish.AggregateRoot.Dish", b =>
-                {
-                    b.Navigation("SessionDishes");
                 });
 
             modelBuilder.Entity("SC.Domain.Domain.Refund.AggregateRoot.RefundRequest", b =>

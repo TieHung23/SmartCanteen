@@ -19,6 +19,7 @@ public class ApiLog
     public string? RequestId { get; set; }
     public string? ApiDesc { get; set; }
     public string? ApiVer { get; set; }
+    public int StatusCode { get; set; }
     public DateTimeOffset CreatedDate { get; set; }
     public DateTimeOffset? EndDate { get; set; }
 }

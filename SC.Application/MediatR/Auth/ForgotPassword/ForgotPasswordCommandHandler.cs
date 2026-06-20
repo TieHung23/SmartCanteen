@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Auth.Shared;
@@ -33,16 +32,14 @@ internal class ForgotPasswordCommandHandler(
         {
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
             var user = await userRepository
-                .GetQueryable(u => u.Email == normalizedEmail)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(u => u.Email == normalizedEmail, cancellationToken);
 
             // Keep the same response for unknown and Google-only accounts to prevent enumeration.
             if (user is null || user.PasswordHash is null)
                 return Success();
 
             var activeTokens = await tokenRepository
-                .GetQueryable(t => t.UserId == user.Id && t.ConsumedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow)
-                .ToListAsync(cancellationToken);
+                .FindListAsync(t => t.UserId == user.Id && t.ConsumedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, cancellationToken);
 
             var opaque = tokenGenerator.GenerateOpaqueToken();
             var ttl = TimeSpan.FromMinutes(configuration.GetValue("Jwt:PasswordResetMinutes", 60));

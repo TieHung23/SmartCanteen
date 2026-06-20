@@ -19,6 +19,8 @@ internal sealed class ApproveRefundRequestCommandHandler(
     IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
+    IWalletDomainService walletDomainService,
     IBusinessNotificationService businessNotificationService,
     ILogger<ApproveRefundRequestCommandHandler> logger)
     : ICommandHandler<ApproveRefundRequestCommand, ApproveRefundRequestResponse>
@@ -30,7 +32,7 @@ internal sealed class ApproveRefundRequestCommandHandler(
         try
         {
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockRefundRequestAsync(request.Id, cancellationToken);
+            await refundLockService.LockRefundRequestAsync(request.Id, cancellationToken);
 
             var refund = await refundRepository.GetByIdAsync(
                 request.Id,
@@ -52,7 +54,7 @@ internal sealed class ApproveRefundRequestCommandHandler(
                     "Refund request is no longer pending.");
             }
 
-            await unitOfWork.LockUserAsync(refund.UserId, cancellationToken);
+            await walletDomainService.LockUserAsync(refund.UserId, cancellationToken);
             var user = await userRepository.GetByIdAsync(
                 refund.UserId,
                 cancellationToken);
@@ -67,7 +69,7 @@ internal sealed class ApproveRefundRequestCommandHandler(
 
             var balanceBefore = user.Balance.Amount;
             var balanceAfter = balanceBefore + refund.RefundAmount;
-            user.Balance = Money.Create(balanceAfter, user.Balance.Currency);
+            user.UpdateBalance(Money.Create(balanceAfter, user.Balance.Currency));
 
             var walletTransaction = WalletTransaction.Create(
                 user.Id,

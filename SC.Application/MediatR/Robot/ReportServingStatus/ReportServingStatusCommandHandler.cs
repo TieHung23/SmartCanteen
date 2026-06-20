@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -32,12 +31,12 @@ internal sealed class ReportServingStatusCommandHandler(
 
         try
         {
-            var job = await servingJobRepository
-                .GetQueryable(x => x.OrderId == request.OrderId
+            var jobs = await servingJobRepository
+                .FindListAsync(x => x.OrderId == request.OrderId
                                    && x.Status != ServingJobStatus.Cancelled
-                                   && x.Status != ServingJobStatus.Collected)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                                   && x.Status != ServingJobStatus.Collected,
+                    cancellationToken);
+            var job = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
 
             if (job is null)
             {

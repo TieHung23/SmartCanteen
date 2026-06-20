@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -22,11 +21,11 @@ internal sealed class DeleteNotificationCommandHandler(
         try
         {
             var notification = await notificationRepository
-                .GetQueryable(item =>
+                .FindSingleAsync(item =>
                     item.Id == request.Id
                     && item.RecipientId == currentUserService.UserId
-                    && !item.IsDeleted)
-                .SingleOrDefaultAsync(cancellationToken);
+                    && !item.IsDeleted,
+                    cancellationToken);
 
             if (notification is null)
             {

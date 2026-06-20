@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
@@ -30,8 +29,7 @@ internal class RegisterUserCommandHandler(
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
             var emailTaken = await userRepository
-                .GetQueryable(u => u.Email == normalizedEmail)
-                .AnyAsync(cancellationToken);
+                .ExistsAsync(u => u.Email == normalizedEmail, cancellationToken);
 
             if (emailTaken)
             {
@@ -43,8 +41,7 @@ internal class RegisterUserCommandHandler(
             if (!string.IsNullOrWhiteSpace(request.StudentId))
             {
                 var studentIdTaken = await userRepository
-                    .GetQueryable(u => u.StudentId == request.StudentId)
-                    .AnyAsync(cancellationToken);
+                    .ExistsAsync(u => u.StudentId == request.StudentId, cancellationToken);
 
                 if (studentIdTaken)
                 {

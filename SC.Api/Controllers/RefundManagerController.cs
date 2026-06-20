@@ -7,7 +7,7 @@ using SC.Application.MediatR.Refund.Manager.GetRefundRequestDetail;
 using SC.Application.MediatR.Refund.Manager.GetRefundRequests;
 using SC.Application.MediatR.Refund.Manager.RejectRefundRequest;
 
-namespace SC.Api.Controllers.Manager;
+namespace SC.Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]

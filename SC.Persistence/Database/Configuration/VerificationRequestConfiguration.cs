@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SC.Domain.Domain.User;
 using SC.Domain.Domain.Verification.AggregateRoot;
 
 namespace SC.Persistence.Database.Configuration;
@@ -10,10 +9,6 @@ public class VerificationRequestConfiguration : IEntityTypeConfiguration<Verific
     public void Configure(EntityTypeBuilder<VerificationRequest> builder)
     {
         builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
 
         builder.Property(x => x.UserId).IsRequired();
         builder.HasIndex(x => x.UserId);
@@ -31,11 +26,6 @@ public class VerificationRequestConfiguration : IEntityTypeConfiguration<Verific
 
         builder.Property(x => x.RejectionReason)
             .HasMaxLength(500);
-
-        builder.HasOne<User>()
-            .WithMany()
-            .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         builder.OwnsMany(x => x.Documents, document =>
         {

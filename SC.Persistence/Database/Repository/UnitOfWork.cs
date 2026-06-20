@@ -1,197 +1,29 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Logging;
 using SC.Domain.Abstraction.Repositories;
 
 namespace SC.Persistence.Database.Repository;
 
-public class UnitOfWork(SmartCanteenDbContext context, ILogger<UnitOfWork> logger) : IUnitOfWork
+public class UnitOfWork(SmartCanteenDbContext context) : IUnitOfWork
 {
-    private readonly SmartCanteenDbContext _context = context;
-    private readonly ILogger<UnitOfWork> _logger = logger;
-
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Saving changes to database");
-        return await _context.SaveChangesAsync(cancellationToken);
+        return await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Beginning database transaction");
-        await _context.Database.BeginTransactionAsync(cancellationToken);
-    }
-
-    public async Task LockRefundRequestAsync(
-        Guid refundRequestId,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation(
-            "Locking refund request {RefundRequestId}",
-            refundRequestId);
-        await _context.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-             SELECT 1
-             FROM "RefundRequests"
-             WHERE "Id" = {refundRequestId}
-             FOR UPDATE
-             """,
-            cancellationToken);
-    }
-    public async Task LockUserAsync(
-        Guid userId,
-        CancellationToken cancellationToken = default)
-    {
-        var connection = _context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        await using var command = connection.CreateCommand();
-        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
-        command.CommandText =
-            """
-            SELECT 1
-            FROM "Users"
-            WHERE "Id" = @userId
-            FOR UPDATE
-            """;
-
-        var userIdParameter = command.CreateParameter();
-        userIdParameter.ParameterName = "userId";
-        userIdParameter.Value = userId;
-        command.Parameters.Add(userIdParameter);
-
-        await command.ExecuteScalarAsync(cancellationToken);
-    }
-
-    public async Task<decimal?> TryDebitUserBalanceAsync(
-        Guid userId,
-        decimal amount,
-        CancellationToken cancellationToken = default)
-    {
-        var connection = _context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        await using var command = connection.CreateCommand();
-        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
-        command.CommandText =
-            """
-            UPDATE "Users"
-            SET "Balance_Amount" = "Balance_Amount" - @amount
-            WHERE "Id" = @userId
-              AND "Balance_Amount" >= @amount
-            RETURNING "Balance_Amount";
-            """;
-
-        var userIdParameter = command.CreateParameter();
-        userIdParameter.ParameterName = "userId";
-        userIdParameter.Value = userId;
-        command.Parameters.Add(userIdParameter);
-
-        var amountParameter = command.CreateParameter();
-        amountParameter.ParameterName = "amount";
-        amountParameter.Value = amount;
-        command.Parameters.Add(amountParameter);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is null or DBNull ? null : Convert.ToDecimal(result);
-    }
-
-    public async Task<decimal?> TryCreditUserBalanceAsync(
-        Guid userId,
-        decimal amount,
-        CancellationToken cancellationToken = default)
-    {
-        var connection = _context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        await using var command = connection.CreateCommand();
-        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
-        command.CommandText =
-            """
-            UPDATE "Users"
-            SET "Balance_Amount" = "Balance_Amount" + @amount
-            WHERE "Id" = @userId
-            RETURNING "Balance_Amount";
-            """;
-
-        var userIdParameter = command.CreateParameter();
-        userIdParameter.ParameterName = "userId";
-        userIdParameter.Value = userId;
-        command.Parameters.Add(userIdParameter);
-
-        var amountParameter = command.CreateParameter();
-        amountParameter.ParameterName = "amount";
-        amountParameter.Value = amount;
-        command.Parameters.Add(amountParameter);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is null or DBNull ? null : Convert.ToDecimal(result);
-    }
-
-    public async Task<bool> TryReserveSessionDishAsync(
-        Guid sessionId,
-        Guid dishId,
-        int quantity,
-        CancellationToken cancellationToken = default)
-    {
-        var connection = _context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        await using var command = connection.CreateCommand();
-        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
-        command.CommandText =
-            """
-            UPDATE "SessionDish"
-            SET "Quantity" = "Quantity" - @quantity
-            WHERE "SessionId" = @sessionId
-              AND "DishId" = @dishId
-              AND "Quantity" >= @quantity
-            RETURNING "Quantity";
-            """;
-
-        var sessionIdParameter = command.CreateParameter();
-        sessionIdParameter.ParameterName = "sessionId";
-        sessionIdParameter.Value = sessionId;
-        command.Parameters.Add(sessionIdParameter);
-
-        var dishIdParameter = command.CreateParameter();
-        dishIdParameter.ParameterName = "dishId";
-        dishIdParameter.Value = dishId;
-        command.Parameters.Add(dishIdParameter);
-
-        var quantityParameter = command.CreateParameter();
-        quantityParameter.ParameterName = "quantity";
-        quantityParameter.Value = quantity;
-        command.Parameters.Add(quantityParameter);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is not null and not DBNull;
+        await context.Database.BeginTransactionAsync(cancellationToken);
     }
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Committing database transaction");
-        await _context.Database.CommitTransactionAsync(cancellationToken);
+        await context.Database.CommitTransactionAsync(cancellationToken);
     }
 
     public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Rolling back database transaction");
-        if (_context.Database.CurrentTransaction is not null)
+        if (context.Database.CurrentTransaction is not null)
         {
-            await _context.Database.RollbackTransactionAsync(cancellationToken);
+            await context.Database.RollbackTransactionAsync(cancellationToken);
         }
     }
 }

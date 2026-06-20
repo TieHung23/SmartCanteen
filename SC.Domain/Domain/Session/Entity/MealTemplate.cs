@@ -2,22 +2,21 @@ using SC.Domain.Abstraction.Entities;
 
 namespace SC.Domain.Domain.Session.Entity;
 
-public class MealTemplate : Entity<Guid>, IAuditableEntity<Guid>
+public class MealTemplate : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private MealTemplate()
-    {
-    }
+    private readonly List<MealSettings> _settings = [];
 
-    public required Guid SessionId { get; set; }
-    public required string Name { get; set; }
+    private MealTemplate() { }
 
-    public AggregateRoot.Session Session { get; set; } = null!;
-    public ICollection<MealSettings> Settings { get; set; } = new List<MealSettings>();
-
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public Guid SessionId { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    public IReadOnlyCollection<MealSettings> Settings => _settings.AsReadOnly();
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static MealTemplate Create(Guid sessionId, string name)
     {
@@ -32,11 +31,13 @@ public class MealTemplate : Entity<Guid>, IAuditableEntity<Guid>
 
     public void AddSetting(Guid categoryId, int minQuantity, int maxQuantity, bool isRequired)
     {
-        Settings.Add(MealSettings.Create(Id, categoryId, minQuantity, maxQuantity, isRequired));
+        _settings.Add(MealSettings.Create(Id, categoryId, minQuantity, maxQuantity, isRequired));
     }
 
     public void ClearSettings()
     {
-        Settings.Clear();
+        _settings.Clear();
     }
+
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
 }

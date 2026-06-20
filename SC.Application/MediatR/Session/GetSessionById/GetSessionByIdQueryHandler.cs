@@ -3,12 +3,14 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
 namespace SC.Application.MediatR.Session.GetSessionById;
 
 internal class GetSessionByIdQueryHandler(
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ILogger<GetSessionByIdQueryHandler> logger
 ) : IQueryHandler<GetSessionByIdQuery, GetSessionByIdResponse>
 {
@@ -18,11 +20,12 @@ internal class GetSessionByIdQueryHandler(
     {
         try
         {
-            var session = await sessionRepository.GetQueryable(x => x.Id == request.Id)
-                .Include(x => x.MealTemplates)
-                    .ThenInclude(x => x.Settings)
-                .Include(x => x.SessionDishes)
-                .FirstOrDefaultAsync(cancellationToken);
+            var session = await sessionRepository
+                .FindSingleAsync(x => x.Id == request.Id,
+                    q => q.Include(x => x.MealTemplates)
+                          .ThenInclude(x => x.Settings)
+                          .Include(x => x.SessionDishes),
+                    cancellationToken);
 
             if (session is null)
             {
@@ -30,6 +33,11 @@ internal class GetSessionByIdQueryHandler(
                     Error.NullValue,
                     $"Session with id {request.Id} not found.");
             }
+
+            var dishIds = session.SessionDishes.Select(d => d.DishId).Distinct().ToList();
+            var dishes = await dishRepository
+                .FindListAsync(d => dishIds.Contains(d.Id), cancellationToken);
+            var dishMap = dishes.ToDictionary(d => d.Id);
 
             var response = new GetSessionByIdResponse
             {
@@ -40,6 +48,13 @@ internal class GetSessionByIdQueryHandler(
                 AvailableFrom = session.AvailableFrom,
                 AvailableTo = session.AvailableTo,
                 AvailableForOrder = session.AvailableForOrder,
+                FinalizationDeadline = session.FinalizationDeadline,
+                AutoFinalizePolicy = (int)session.AutoFinalizePolicy,
+                IsFinalized = session.IsFinalized,
+                FinalizedAtUtc = session.FinalizedAtUtc,
+                CreatedAtUtc = session.CreatedAtUtc,
+                UpdatedAtUtc = session.UpdatedAtUtc,
+                CreatedBy = session.CreatedBy,
                 MealTemplates = session.MealTemplates
                     .Where(t => !t.IsDeleted)
                     .Select(t => new MealTemplateDto
@@ -50,6 +65,8 @@ internal class GetSessionByIdQueryHandler(
                             .Where(s => !s.IsDeleted)
                             .Select(s => new MealSettingDto
                             {
+                                Id = s.Id,
+                                MealTemplateId = s.MealTemplateId,
                                 CategoryId = s.CategoryId,
                                 MinQuantity = s.MinQuantity,
                                 MaxQuantity = s.MaxQuantity,
@@ -58,10 +75,20 @@ internal class GetSessionByIdQueryHandler(
                     })
                     .ToList(),
                 Dishes = session.SessionDishes
-                    .Select(dm => new SessionDishDto
+                    .Select(dm =>
                     {
-                        DishId = dm.DishId,
-                        Quantity = dm.Quantity
+                        var dish = dishMap.GetValueOrDefault(dm.DishId);
+                        return new SessionDishDto
+                        {
+                            Id = dm.Id,
+                            DishId = dm.DishId,
+                            DishName = dish?.Name ?? string.Empty,
+                            ImgUrl = dish?.ImgUrl,
+                            PriceAmount = dish?.Price.Amount ?? 0,
+                            PriceCurrency = dish?.Price.Currency ?? string.Empty,
+                            CategoryId = dish?.CategoryId ?? Guid.Empty,
+                            PreparedQuantity = dm.PreparedQuantity
+                        };
                     })
                     .ToList()
             };

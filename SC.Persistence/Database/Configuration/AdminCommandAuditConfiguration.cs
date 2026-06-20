@@ -10,10 +10,6 @@ public class AdminCommandAuditConfiguration : IEntityTypeConfiguration<AdminComm
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.CommandType)
             .IsRequired()
             .HasConversion<int>();

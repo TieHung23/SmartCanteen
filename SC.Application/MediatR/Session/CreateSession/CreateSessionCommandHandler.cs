@@ -3,6 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Dish;
 using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.Domain.Session.Entity;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
@@ -40,6 +41,14 @@ internal class CreateSessionCommandHandler(
                 request.AvailableTo,
                 request.AvailableForOrder,
                 currentUserId);
+
+            if (request.FinalizationDeadline.HasValue)
+            {
+                session.ConfigureFinalization(
+                    request.FinalizationDeadline.Value,
+                    (SC.Domain.Domain.Session.Enum.AutoFinalizePolicy)request.AutoFinalizePolicy,
+                    currentUserId);
+            }
 
             foreach (var templateInput in request.MealTemplates)
             {
@@ -84,12 +93,9 @@ internal class CreateSessionCommandHandler(
                         $"Dish with id {dishInput.DishId} not found or inactive.");
                 }
 
-                session.AddSessionDish(new SessionDish
-                {
-                    DishId = dishInput.DishId,
-                    SessionId = session.Id,
-                    Quantity = dishInput.Quantity > 0 ? dishInput.Quantity : 1
-                });
+                session.AddSessionDish(SessionDish.Create(
+                    dishInput.DishId,
+                    session.Id));
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -101,6 +107,15 @@ internal class CreateSessionCommandHandler(
             {
                 Id = session.Id,
                 Name = session.Name,
+                Description = session.Description,
+                IsActive = session.IsActive,
+                AvailableFrom = session.AvailableFrom,
+                AvailableTo = session.AvailableTo,
+                AvailableForOrder = session.AvailableForOrder,
+                FinalizationDeadline = session.FinalizationDeadline,
+                AutoFinalizePolicy = (int)session.AutoFinalizePolicy,
+                CreatedAtUtc = session.CreatedAtUtc,
+                CreatedBy = session.CreatedBy,
                 Message = "Session created successfully."
             };
 

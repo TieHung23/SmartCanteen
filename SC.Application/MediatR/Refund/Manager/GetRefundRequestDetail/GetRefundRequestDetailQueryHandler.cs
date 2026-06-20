@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -19,12 +18,11 @@ internal sealed class GetRefundRequestDetailQueryHandler(
         try
         {
             var refund = await refundRepository
-                .GetQueryable(refund =>
+                .FindSingleAsync(refund =>
                     !refund.IsDeleted
-                    && refund.Id == request.Id)
-                .AsNoTracking()
-                .Include(refund => refund.Images)
-                .FirstOrDefaultAsync(cancellationToken);
+                    && refund.Id == request.Id,
+                    cancellationToken,
+                    refund => refund.Images);
 
             if (refund is null)
             {

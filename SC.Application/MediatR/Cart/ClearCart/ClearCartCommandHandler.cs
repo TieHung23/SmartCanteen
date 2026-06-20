@@ -12,6 +12,7 @@ internal sealed class ClearCartCommandHandler(
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IWalletDomainService walletDomainService,
     ILogger<ClearCartCommandHandler> logger)
     : ICommandHandler<ClearCartCommand, CartResponse>
 {
@@ -31,11 +32,10 @@ internal sealed class ClearCartCommandHandler(
         try
         {
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockUserAsync(userId, cancellationToken);
+            await walletDomainService.LockUserAsync(userId, cancellationToken);
 
             var cart = await cartRepository
-                .GetQueryable(x => x.UserId == userId)
-                .SingleOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.UserId == userId, cancellationToken);
 
             var currentVersion = cart?.Version ?? 0;
             if (currentVersion != request.ExpectedVersion)
