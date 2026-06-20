@@ -1,119 +1,77 @@
 ﻿# SmartCanteen Verification API
 
-> Generated from `API-Document.md`. Run `.\tools\generate-api-modules.ps1` after updating the main document.
+Base URL: `/api/verification` (user) / `/api/admin/verifications` (manager)  
+API Version: `1.0`
 
-# SmartCanteen API Documentation
-
-Base URL: `/api`  
-API Version: `1.0`  
-All timestamps: `DateTimeOffset` (ISO 8601)  
-Currency: **Point** (no currency field exposed)
-
-Module documentation: [`API-Modules/README.md`](API-Modules/README.md)
-
-Every response is wrapped in a standard envelope:
-
-```json
-{
-  "value": { },
-  "isSuccess": true,
-  "isFailure": false,
-  "message": "string",
-  "error": null
-}
-```
-
-On failure `value` is null, `isSuccess` false, `error` is a string code.
-
-Pagination query param defaults: `pageNumber=1`, `pageSize=10` (max 100).  
-Paginated response shape:
-
-```json
-{
-  "value": {
-    "items": [ ],
-    "pageNumber": 1,
-    "pageSize": 10,
-    "totalCount": 42,
-    "totalPages": 5,
-    "hasPreviousPage": false,
-    "hasNextPage": true
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
+DocumentType: `1=StudentCard, 2=NationalId, 3=Other`  
+VerificationStatus: `1=Pending, 2=Approved, 3=Rejected, 4=Expired`
 
 ---
 
-## Verification
+## User Endpoints
 
 ### `POST /api/verification/submit`
-**Auth:** Authorize  
-**Content-Type:** `multipart/form-data`
+Auth: `[Authorize]`  
+Content-Type: `multipart/form-data`
 
 **Fields:**
-- `files`: `List<IFormFile>` — the uploaded documents
-- `documentTypes`: `List<int>` — one per file, `0=StudentCard, 1=Transcript, 2=Other`
+- `files`: `List<IFormFile>` — at least 1 required
+- `documentTypes`: `List<int>` — one per file, must match count
 
-**201 Response:**
+**Validation:**
+- Account status must be `PendingIdentityVerification` (3)
+- Only one pending request at a time
+- Files validated by `IFileValidator` (name, size, MIME)
+- Uploaded to Cloudinary
+
+**201:**
 ```json
-{
-  "value": "guid",
-  "isSuccess": true,
-  "message": "string"
-}
+{ "value": "guid", "isSuccess": true, "message": "Verification request submitted." }
 ```
 
-### `GET /api/verification/me`
-**Auth:** Authorize  
+**Errors:** `400` — no files, count mismatch, account not awaiting verification, pending request exists.
 
-**Response:**
+---
+
+### `GET /api/verification/me`
+Auth: `[Authorize]`
+
 ```json
 {
   "value": {
     "requestId": "guid | null",
     "status": 0,
-    "submittedAt": "2024-01-01T00:00:00Z | null",
-    "reviewedAt": "2024-01-01T00:00:00Z | null",
+    "submittedAt": "... | null",
+    "reviewedAt": "... | null",
     "rejectionReason": "string | null",
     "hasOpenRequest": true
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
-VerificationStatus: `0=Pending, 1=Approved, 2=Rejected, 3=Expired`
 
 ---
 
----
+## Manager Endpoints
 
-## Manager – Verification
-
-All endpoints below require `Role=Manager`.
-Prefix: `/api/admin/verifications`
+Auth: `[Authorize(Roles = "Manager")]` for all.
 
 ### `GET /api/admin/verifications`
-**Auth:** Manager
 **Query:** `?pageNumber=1&pageSize=10`
 
-**Paginated response items:**
+Paginated items:
 ```json
 {
   "id": "guid",
   "userId": "guid",
   "userEmail": "string",
   "userName": "string",
-  "submittedAt": "2024-01-01T00:00:00Z",
+  "submittedAt": "...",
   "documentCount": 0
 }
 ```
 
 ### `GET /api/admin/verifications/{id}`
-**Auth:** Manager
-
-**Response:**
 ```json
 {
   "value": {
@@ -123,13 +81,13 @@ Prefix: `/api/admin/verifications`
     "userName": "string",
     "studentId": "string | null",
     "majorOrClass": "string | null",
-    "dateOfBirth": "2024-01-15 | null",
+    "dateOfBirth": "... | null",
     "status": 0,
-    "submittedAt": "2024-01-01T00:00:00Z",
-    "reviewedAt": "2024-01-01T00:00:00Z | null",
+    "submittedAt": "...",
+    "reviewedAt": "... | null",
     "reviewedBy": "guid | null",
     "rejectionReason": "string | null",
-    "expiresAt": "2024-01-01T00:00:00Z",
+    "expiresAt": "...",
     "documents": [
       {
         "id": "guid",
@@ -138,50 +96,26 @@ Prefix: `/api/admin/verifications`
         "fileName": "string",
         "fileSize": 0,
         "mimeType": "string",
-        "uploadedAt": "2024-01-01T00:00:00Z"
+        "uploadedAt": "..."
       }
     ]
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
+`404` if not found.
 
 ### `POST /api/admin/verifications/{id}/approve`
-**Auth:** Manager
-**No request body.**
-
-**Response:**
+No body. Returns:
 ```json
-{
-  "value": {
-    "id": "guid",
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
+{ "value": { "id": "guid", "message": "string" }, "isSuccess": true }
 ```
 
 ### `POST /api/admin/verifications/{id}/reject`
-**Auth:** Manager
-
-**Request body:**
 ```json
-{
-  "reason": "string"
-}
+{ "reason": "string" }
 ```
-
-**Response:**
+Returns:
 ```json
-{
-  "value": {
-    "id": "guid",
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
+{ "value": { "id": "guid", "message": "string" }, "isSuccess": true }
 ```
-
