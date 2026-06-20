@@ -8,10 +8,10 @@ using SC.Contract.Shared;
 using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
-using SC.Domain.Domain.WalletTransaction.Entity;
 using SC.Domain.Domain.WalletTransaction.Enum;
 using CartAggregateRoot = SC.Domain.Domain.Cart.AggregateRoot.Cart;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
+using WalletTransactionEntity = SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction;
 
 namespace SC.Application.MediatR.Order.CreateOrder;
 
@@ -19,7 +19,7 @@ internal class CreateOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IUserRepository userRepository,
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
-    IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
+    IGenericRepository<WalletTransactionEntity, Guid> walletTransactionRepository,
     ICartValidationService cartValidationService,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
@@ -181,7 +181,7 @@ internal class CreateOrderCommandHandler(
 
             var balanceBefore = balanceAfter.Value + totalPrice;
 
-            var transaction = WalletTransaction.Create(
+            var transaction = WalletTransactionEntity.Create(
                 currentUserId,
                 -totalPrice,
                 balanceBefore,
