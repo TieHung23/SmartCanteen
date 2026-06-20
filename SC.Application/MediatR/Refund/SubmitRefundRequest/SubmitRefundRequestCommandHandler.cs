@@ -43,12 +43,11 @@ internal sealed class SubmitRefundRequestCommandHandler(
             }
 
             var order = await orderRepository
-                .GetQueryable(order =>
+                .FindSingleAsync(order =>
                     !order.IsDeleted
                     && order.Id == request.OrderId
-                    && order.CreatedBy == userId)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(cancellationToken);
+                    && order.CreatedBy == userId,
+                    cancellationToken);
 
             if (order is null)
             {
@@ -58,12 +57,12 @@ internal sealed class SubmitRefundRequestCommandHandler(
             }
 
             var activeRequestExists = await refundRepository
-                .GetQueryable(refund =>
+                .ExistsAsync(refund =>
                     !refund.IsDeleted
                     && refund.OrderId == order.Id
                     && (refund.Status == RefundRequestStatus.Pending
-                        || refund.Status == RefundRequestStatus.Approved))
-                .AnyAsync(cancellationToken);
+                        || refund.Status == RefundRequestStatus.Approved),
+                    cancellationToken);
 
             if (activeRequestExists)
             {
@@ -74,12 +73,11 @@ internal sealed class SubmitRefundRequestCommandHandler(
 
             var normalizedPolicyCode = request.PolicyCode.Trim();
             var policySettings = await settingRepository
-                .GetQueryable(setting =>
+                .FindListAsync(setting =>
                     !setting.IsDeleted
                     && setting.Group.ToUpper() == RefundPolicyConstants.Group
-                    && setting.Scope.ToLower() == normalizedPolicyCode.ToLower())
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
+                    && setting.Scope.ToLower() == normalizedPolicyCode.ToLower(),
+                    cancellationToken);
 
             if (!RefundPolicyDefinition.TryCreate(
                     normalizedPolicyCode,

@@ -15,11 +15,6 @@ public sealed class UserDeviceTokenConfiguration
         builder.Property(token => token.UserId)
             .IsRequired();
 
-        builder.HasOne<SC.Domain.Domain.User.User>()
-            .WithMany()
-            .HasForeignKey(token => token.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.Property(token => token.Token)
             .IsRequired()
             .HasMaxLength(DeviceTokenConstraints.TokenMaxLength);
@@ -42,10 +37,6 @@ public sealed class UserDeviceTokenConfiguration
             .IsRequired()
             .HasDefaultValue(true);
 
-        builder.Property(token => token.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(token => token.LastUsedAtUtc)
             .IsRequired();
 
@@ -57,13 +48,6 @@ public sealed class UserDeviceTokenConfiguration
 
         builder.HasIndex(token => token.TokenHash)
             .IsUnique();
-
-        builder.HasIndex(token => new
-        {
-            token.UserId,
-            token.IsActive,
-            token.IsDeleted
-        });
 
         builder.HasIndex(token => new
         {

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -21,31 +20,33 @@ internal sealed class GetNotificationsQueryHandler(
         try
         {
             var userId = currentUserService.UserId;
-            var query = notificationRepository
-                .GetQueryable(notification =>
+            var allNotifications = await notificationRepository
+                .FindListAsync(notification =>
                     notification.RecipientId == userId
-                    && !notification.IsDeleted)
-                .AsNoTracking();
+                    && !notification.IsDeleted,
+                    cancellationToken);
+            var filtered = allNotifications.AsEnumerable();
 
             if (request.IsRead.HasValue)
             {
-                query = query.Where(notification =>
+                filtered = filtered.Where(notification =>
                     notification.IsRead == request.IsRead.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Type))
             {
                 var type = request.Type.Trim();
-                query = query.Where(notification => notification.Type == type);
+                filtered = filtered.Where(notification => notification.Type == type);
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
-            var notifications = await query
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
+            var notifications = filteredList
                 .OrderByDescending(notification => notification.CreatedAtUtc)
                 .ThenByDescending(notification => notification.Id)
                 .Skip(request.GetSkipCount())
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             return Result.Success(
                 new PaginatedList<NotificationResponse>(

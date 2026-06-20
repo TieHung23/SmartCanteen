@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Auth.Shared;
@@ -27,8 +26,7 @@ internal class RefreshTokenCommandHandler(
             var providedHash = tokenGenerator.HashOpaqueToken(request.RefreshToken);
 
             var existing = await refreshTokenRepository
-                .GetQueryable(t => t.TokenHash == providedHash)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(t => t.TokenHash == providedHash, cancellationToken);
 
             if (existing is null || !existing.IsActive)
             {

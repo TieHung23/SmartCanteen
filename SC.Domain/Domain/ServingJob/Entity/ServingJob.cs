@@ -3,32 +3,25 @@ using SC.Domain.Domain.ServingJob.Enum;
 
 namespace SC.Domain.Domain.ServingJob.Entity;
 
-/// <summary>
-/// Hàng đợi phục vụ (PUSH/BUFFER). BE tạo job khi thanh toán xong, bind Order↔Tray,
-/// đẩy (SignalR) cho robot service. Robot service báo trạng thái ngược lại.
-/// </summary>
-public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>
+public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private ServingJob()
-    {
-    }
+    private ServingJob() { }
 
-    public required Guid OrderId { get; set; }
-    public Guid? TrayId { get; set; }
-    public Guid? RobotArmId { get; set; }
-    public Guid? PickupSlotId { get; set; }
-
-    public ServingJobStatus Status { get; set; } = ServingJobStatus.Queued;
-
-    public DateTimeOffset? PushedAtUtc { get; set; }
-    public DateTimeOffset? AcknowledgedAtUtc { get; set; }
-    public DateTimeOffset? CompletedAtUtc { get; set; }
-    public string? FailureReason { get; set; }
-
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public Guid OrderId { get; private set; }
+    public Guid? TrayId { get; private set; }
+    public Guid? RobotArmId { get; private set; }
+    public Guid? PickupSlotId { get; private set; }
+    public ServingJobStatus Status { get; private set; } = ServingJobStatus.Queued;
+    public DateTimeOffset? PushedAtUtc { get; private set; }
+    public DateTimeOffset? AcknowledgedAtUtc { get; private set; }
+    public DateTimeOffset? CompletedAtUtc { get; private set; }
+    public string? FailureReason { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static ServingJob Create(Guid orderId, Guid createdBy, Guid? trayId = null)
     {
@@ -91,6 +84,12 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>
         Status = ServingJobStatus.Cancelled;
         CompletedAtUtc = DateTimeOffset.UtcNow;
         Touch(updatedBy);
+    }
+
+    public void SoftDelete()
+    {
+        IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
     }
 
     private void Touch(Guid updatedBy)

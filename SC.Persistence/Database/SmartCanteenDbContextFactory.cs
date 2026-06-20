@@ -9,7 +9,7 @@ public class SmartCanteenDbContextFactory : IDesignTimeDbContextFactory<SmartCan
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
                                ??
-                               "Host=localhost;Port=5432;Database=smartcanteen;Username=smartcanteen;Password=smartcanteen;Include Error Detail=true";
+                               "Host=178.128.100.1;Port=5432;Database=smartcanteen;Username=smartcanteen;Password=smartcanteen;Include Error Detail=true";
 
         var optionsBuilder = new DbContextOptionsBuilder<SmartCanteenDbContext>();
         optionsBuilder.UseNpgsql(connectionString,

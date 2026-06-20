@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -24,10 +23,9 @@ internal class GetMyVerificationStatusQueryHandler(
             if (userId == Guid.Empty)
                 return Result.Failure<VerificationStatusResponse>(Error.Forbidden, "Not authenticated.");
 
-            var latest = await verificationRepository
-                .GetQueryable(v => v.UserId == userId)
-                .OrderByDescending(v => v!.SubmittedAt)
-                .FirstOrDefaultAsync(cancellationToken);
+            var allRequests = await verificationRepository
+                .FindListAsync(v => v.UserId == userId, cancellationToken);
+            var latest = allRequests.OrderByDescending(v => v!.SubmittedAt).FirstOrDefault();
 
             if (latest is null)
             {

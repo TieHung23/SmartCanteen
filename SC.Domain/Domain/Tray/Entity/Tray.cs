@@ -3,23 +3,19 @@ using SC.Domain.Domain.Tray.Enum;
 
 namespace SC.Domain.Domain.Tray.Entity;
 
-/// <summary>
-/// Khay tái dùng trong pool. Mỗi khay có mã (ArUco/barcode) duy nhất để robot &amp; sensor nhận diện.
-/// </summary>
-public class Tray : Entity<Guid>, IAuditableEntity<Guid>
+public class Tray : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private Tray()
-    {
-    }
+    private Tray() { }
 
-    public required string Code { get; set; }
-    public TrayStatus Status { get; set; } = TrayStatus.Available;
-    public Guid? CurrentOrderId { get; set; }
-
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string Code { get; private set; } = string.Empty;
+    public TrayStatus Status { get; private set; } = TrayStatus.Available;
+    public Guid? CurrentOrderId { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static Tray Create(string code, Guid createdBy)
     {
@@ -34,35 +30,10 @@ public class Tray : Entity<Guid>, IAuditableEntity<Guid>
         };
     }
 
-    public void Reserve(Guid orderId, Guid updatedBy)
-    {
-        CurrentOrderId = orderId;
-        Status = TrayStatus.Reserved;
-        Touch(updatedBy);
-    }
-
-    public void MarkInUse(Guid updatedBy)
-    {
-        Status = TrayStatus.InUse;
-        Touch(updatedBy);
-    }
-
-    public void MarkAtSlot(Guid updatedBy)
-    {
-        Status = TrayStatus.AtSlot;
-        Touch(updatedBy);
-    }
-
-    public void Release(Guid updatedBy)
-    {
-        CurrentOrderId = null;
-        Status = TrayStatus.Available;
-        Touch(updatedBy);
-    }
-
-    private void Touch(Guid updatedBy)
-    {
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
-    }
+    public void Reserve(Guid orderId, Guid updatedBy) { CurrentOrderId = orderId; Status = TrayStatus.Reserved; Touch(updatedBy); }
+    public void MarkInUse(Guid updatedBy) { Status = TrayStatus.InUse; Touch(updatedBy); }
+    public void MarkAtSlot(Guid updatedBy) { Status = TrayStatus.AtSlot; Touch(updatedBy); }
+    public void Release(Guid updatedBy) { CurrentOrderId = null; Status = TrayStatus.Available; Touch(updatedBy); }
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
+    private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }
 }

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -18,8 +17,7 @@ internal class GetDishByIdQueryHandler(
     {
         try
         {
-            var dish = await dishRepository.GetQueryable(x => x.Id == request.Id && !x.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
+            var dish = await dishRepository.FindSingleAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
 
             if (dish is null)
             {

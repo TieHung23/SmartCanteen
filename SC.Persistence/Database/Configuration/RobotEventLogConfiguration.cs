@@ -10,10 +10,6 @@ public class RobotEventLogConfiguration : IEntityTypeConfiguration<RobotEventLog
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.RobotArmId);
         builder.Property(x => x.ServingJobId);
         builder.HasIndex(x => x.ServingJobId);

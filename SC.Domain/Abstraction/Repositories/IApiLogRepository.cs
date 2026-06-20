@@ -9,4 +9,15 @@ public interface IApiLogRepository
     Task<List<ApiLog>> GetOldLogsAsync(int daysOld = 60, int limit = 500);
     Task<int> CountOldLogsAsync(int daysOld = 60);
     Task<int> DeleteByRequestIdsAsync(IEnumerable<string> requestIds);
+
+    Task<List<ApiLog>> GetFilteredLogsAsync(
+        string? logLevel,
+        string? method,
+        string? url,
+        int? statusCodeMin,
+        DateTimeOffset? fromDate,
+        DateTimeOffset? toDate,
+        CancellationToken ct = default);
+
+    Task<ApiLog?> GetByIdAsync(Guid id, CancellationToken ct = default);
 }

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Auth.Shared;
 using SC.Contract.Abstraction.Message;
@@ -57,8 +56,7 @@ internal class ChangePasswordCommandHandler(
             }
 
             var activeRefreshTokens = await refreshTokenRepository
-                .GetQueryable(t => t.UserId == user.Id && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow)
-                .ToListAsync(cancellationToken);
+                .FindListAsync(t => t.UserId == user.Id && t.RevokedAt == null && t.ExpiresAt > DateTimeOffset.UtcNow, cancellationToken);
 
             user.ChangePassword(passwordHasher.Hash(request.NewPassword));
             foreach (var refreshToken in activeRefreshTokens)

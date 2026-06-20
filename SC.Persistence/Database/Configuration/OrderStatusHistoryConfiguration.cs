@@ -10,10 +10,6 @@ public class OrderStatusHistoryConfiguration : IEntityTypeConfiguration<OrderSta
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.OrderId).IsRequired();
         builder.HasIndex(x => x.OrderId);
 

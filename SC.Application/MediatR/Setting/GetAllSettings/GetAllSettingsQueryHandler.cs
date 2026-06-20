@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -18,53 +17,56 @@ internal class GetAllSettingsQueryHandler(
     {
         try
         {
-            IQueryable<SettingAggregateRoot> query = settingRepository.GetQueryable(x => !x.IsDeleted);
+            var allSettings = await settingRepository
+                .FindListAsync(x => !x.IsDeleted, cancellationToken);
+            var filtered = allSettings.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
                 var code = request.Code.Trim().ToLower();
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
                 var name = request.Name.Trim().ToLower();
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Name.ToLower().Contains(name));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Group))
             {
                 var group = request.Group.Trim().ToLower();
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Group.ToLower().Contains(group));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Scope))
             {
                 var scope = request.Scope.Trim().ToLower();
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Scope.ToLower().Contains(scope));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Type))
             {
                 var type = request.Type.Trim().ToLower();
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Type.ToLower().Contains(type));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
 
             var skipCount = request.GetSkipCount();
-            var paginatedSettings = await query
+            var paginatedSettings = filteredList
                 .OrderBy(x => x.Group)
                 .ThenBy(x => x.Scope)
                 .ThenBy(x => x.Code)
                 .Skip(skipCount)
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var responses = paginatedSettings.Select(s => new GetAllSettingsResponse
             {

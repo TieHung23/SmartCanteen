@@ -1,32 +1,46 @@
 using SC.Domain.Abstraction.Aggregates;
 using SC.Domain.Abstraction.Entities;
-using SC.Domain.Domain.Dish.AggregateRoot;
+using SC.Domain.Domain.Dish;
 using SC.Domain.Domain.Session.Entity;
-
-// ReSharper disable All
+using SC.Domain.Domain.Session.Enum;
 
 namespace SC.Domain.Domain.Session.AggregateRoot;
 
-public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private Session()
-    {
-    }
+    private readonly List<SessionDish> _sessionDishes = [];
+    private readonly List<MealTemplate> _mealTemplates = [];
 
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public bool IsActive { get; set; } = true;
-    public ICollection<SessionDish> SessionDishes { get; set; } = new List<SessionDish>();
-    public ICollection<MealTemplate> MealTemplates { get; set; } = new List<MealTemplate>();
-    public DateTimeOffset AvailableFrom { get; set; }
-    public DateTimeOffset AvailableTo { get; set; }
-    public DateTimeOffset AvailableForOrder { get; set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    private Session() { }
 
-    public static Session Create(string name, string description, DateTimeOffset availableFrom, DateTimeOffset availableTo, DateTimeOffset availableForOrder, Guid createdBy)
+    public string Name { get; private set; } = string.Empty;
+    public string Description { get; private set; } = string.Empty;
+    public bool IsActive { get; private set; } = true;
+    public IReadOnlyCollection<SessionDish> SessionDishes => _sessionDishes.AsReadOnly();
+    public IReadOnlyCollection<MealTemplate> MealTemplates => _mealTemplates.AsReadOnly();
+    public DateTimeOffset AvailableFrom { get; private set; }
+    public DateTimeOffset AvailableTo { get; private set; }
+    public DateTimeOffset AvailableForOrder { get; private set; }
+
+    public DateTimeOffset? FinalizationDeadline { get; private set; }
+    public AutoFinalizePolicy AutoFinalizePolicy { get; private set; } = AutoFinalizePolicy.AutoReject;
+    public bool IsFinalized { get; private set; }
+    public DateTimeOffset? FinalizedAtUtc { get; private set; }
+
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
+
+    public static Session Create(
+        string name,
+        string description,
+        DateTimeOffset availableFrom,
+        DateTimeOffset availableTo,
+        DateTimeOffset availableForOrder,
+        Guid createdBy)
     {
         return new Session
         {
@@ -37,11 +51,19 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>
             AvailableTo = availableTo,
             AvailableForOrder = availableForOrder,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = createdBy
+            CreatedBy = createdBy,
+            UpdatedBy = createdBy
         };
     }
 
-    public void Update(string name, string description, DateTimeOffset availableFrom, DateTimeOffset availableTo, DateTimeOffset availableForOrder, bool isActive, Guid updatedBy)
+    public void Update(
+        string name,
+        string description,
+        DateTimeOffset availableFrom,
+        DateTimeOffset availableTo,
+        DateTimeOffset availableForOrder,
+        bool isActive,
+        Guid updatedBy)
     {
         Name = name;
         Description = description;
@@ -49,32 +71,79 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>
         AvailableTo = availableTo;
         AvailableForOrder = availableForOrder;
         IsActive = isActive;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
+        Touch(updatedBy);
+    }
+
+    public void ConfigureFinalization(DateTimeOffset deadline, AutoFinalizePolicy autoPolicy, Guid updatedBy)
+    {
+        if (IsFinalized)
+            throw new InvalidOperationException("Session is already finalized.");
+        if (deadline <= DateTimeOffset.UtcNow)
+            throw new ArgumentException("Finalization deadline must be in the future.", nameof(deadline));
+
+        FinalizationDeadline = deadline;
+        AutoFinalizePolicy = autoPolicy;
+        Touch(updatedBy);
+    }
+
+    public void Finalize(Guid updatedBy)
+    {
+        if (IsFinalized)
+            throw new InvalidOperationException("Session is already finalized.");
+        if (FinalizationDeadline.HasValue && DateTimeOffset.UtcNow > FinalizationDeadline.Value)
+            throw new InvalidOperationException("Finalization deadline has passed.");
+
+        IsFinalized = true;
+        FinalizedAtUtc = DateTimeOffset.UtcNow;
+        Touch(updatedBy);
+    }
+
+    public void AutoFinalize()
+    {
+        if (IsFinalized) return;
+        IsFinalized = true;
+        FinalizedAtUtc = DateTimeOffset.UtcNow;
     }
 
     public void AddSessionDish(SessionDish sessionDish)
     {
-        SessionDishes.Add(sessionDish);
+        _sessionDishes.Add(sessionDish);
     }
 
     public void RemoveSessionDish(SessionDish sessionDish)
     {
-        SessionDishes.Remove(sessionDish);
+        _sessionDishes.Remove(sessionDish);
     }
 
     public void AddMealTemplate(MealTemplate mealTemplate)
     {
-        MealTemplates.Add(mealTemplate);
+        _mealTemplates.Add(mealTemplate);
     }
 
     public void RemoveMealTemplate(MealTemplate mealTemplate)
     {
-        MealTemplates.Remove(mealTemplate);
+        _mealTemplates.Remove(mealTemplate);
     }
 
     public void ClearMealTemplates()
     {
-        MealTemplates.Clear();
+        _mealTemplates.Clear();
+    }
+
+    public void ClearSessionDishes()
+    {
+        _sessionDishes.Clear();
+    }
+
+    public void SoftDelete()
+    {
+        IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
+    }
+
+    private void Touch(Guid updatedBy)
+    {
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
     }
 }

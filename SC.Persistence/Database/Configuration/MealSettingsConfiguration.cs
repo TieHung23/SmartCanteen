@@ -10,17 +10,8 @@ public class MealSettingsConfiguration : IEntityTypeConfiguration<MealSettings>
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.MealTemplateId).IsRequired();
         builder.Property(x => x.CategoryId).IsRequired();
-
-        builder.HasOne(x => x.Category)
-            .WithMany()
-            .HasForeignKey(x => x.CategoryId);
-
         builder.Property(x => x.MinQuantity).IsRequired();
         builder.Property(x => x.MaxQuantity).IsRequired();
         builder.Property(x => x.IsRequired).IsRequired();

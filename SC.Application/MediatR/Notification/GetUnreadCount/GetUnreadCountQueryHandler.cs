@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -20,12 +19,13 @@ internal sealed class GetUnreadCountQueryHandler(
     {
         try
         {
-            var count = await notificationRepository
-                .GetQueryable(notification =>
+            var notifications = await notificationRepository
+                .FindListAsync(notification =>
                     notification.RecipientId == currentUserService.UserId
                     && !notification.IsRead
-                    && !notification.IsDeleted)
-                .CountAsync(cancellationToken);
+                    && !notification.IsDeleted,
+                    cancellationToken);
+            var count = notifications.Count;
 
             return Result.Success(
                 new GetUnreadCountResponse(count),

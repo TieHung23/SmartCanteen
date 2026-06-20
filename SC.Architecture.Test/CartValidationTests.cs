@@ -404,5 +404,44 @@ public class CartValidationTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<TEntity?> FindSingleAsync(
+            Expression<Func<TEntity, bool>> predicate,
+            CancellationToken cancellationToken = default,
+            params Expression<Func<TEntity, object>>[] includeProperties)
+        {
+            throw new InvalidOperationException("Repository should not be used by these validation tests.");
+        }
+
+        public Task<TEntity?> FindSingleAsync(
+            Expression<Func<TEntity, bool>> predicate,
+            Func<IQueryable<TEntity>, IQueryable<TEntity>> includeBuilder,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("Repository should not be used by these validation tests.");
+        }
+
+        public Task<List<TEntity>> FindListAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            CancellationToken cancellationToken = default,
+            params Expression<Func<TEntity, object>>[] includeProperties)
+        {
+            throw new InvalidOperationException("Repository should not be used by these validation tests.");
+        }
+
+        public Task<List<TEntity>> FindListAsync(
+            Expression<Func<TEntity, bool>>? predicate,
+            Func<IQueryable<TEntity>, IQueryable<TEntity>> includeBuilder,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("Repository should not be used by these validation tests.");
+        }
+
+        public Task<bool> ExistsAsync(
+            Expression<Func<TEntity, bool>> predicate,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("Repository should not be used by these validation tests.");
+        }
     }
 }

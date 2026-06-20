@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -25,11 +24,11 @@ internal sealed class UpdateRefundPolicyCommandHandler(
         try
         {
             var settings = await settingRepository
-                .GetQueryable(setting =>
+                .FindListAsync(setting =>
                     !setting.IsDeleted
                     && setting.Group == RefundPolicyConstants.Group
-                    && setting.Scope == scope)
-                .ToListAsync(cancellationToken);
+                    && setting.Scope == scope,
+                    cancellationToken);
 
             if (settings.Count == 0)
             {

@@ -29,7 +29,7 @@ internal class DeleteCategoryCommandHandler(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            category.SoftDelete(currentUserService.UserId);
+            category.SoftDelete();
             categoryRepository.Update(category);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);

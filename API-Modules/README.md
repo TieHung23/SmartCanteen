@@ -8,6 +8,7 @@ The module files are generated from [`API-Document.md`](../API-Document.md).
 | Category | [`category-api.md`](category-api.md) |
 | Dish | [`dish-api.md`](dish-api.md) |
 | Session | [`session-api.md`](session-api.md) |
+| Change Proposal | [`change-proposal-api.md`](change-proposal-api.md) |
 | Order | [`order-api.md`](order-api.md) |
 | Payment / Wallet | [`payment-api.md`](payment-api.md) |
 | Setting | [`setting-api.md`](setting-api.md) |

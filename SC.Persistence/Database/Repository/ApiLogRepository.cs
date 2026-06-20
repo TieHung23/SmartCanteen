@@ -56,6 +56,47 @@ public class ApiLogRepository : IApiLogRepository
             .ExecuteDeleteAsync();
     }
 
+    public async Task<List<ApiLog>> GetFilteredLogsAsync(
+        string? logLevel,
+        string? method,
+        string? url,
+        int? statusCodeMin,
+        DateTimeOffset? fromDate,
+        DateTimeOffset? toDate,
+        CancellationToken ct = default)
+    {
+        var query = _db.ApiLogs.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(logLevel))
+            query = query.Where(x => x.LogLevel == logLevel);
+
+        if (!string.IsNullOrWhiteSpace(method))
+            query = query.Where(x => x.ApiMethod == method);
+
+        if (!string.IsNullOrWhiteSpace(url))
+            query = query.Where(x => x.ApiUrl.Contains(url));
+
+        if (statusCodeMin.HasValue)
+            query = query.Where(x => x.StatusCode >= statusCodeMin.Value);
+
+        if (fromDate.HasValue)
+            query = query.Where(x => x.CreatedDate >= fromDate.Value);
+
+        if (toDate.HasValue)
+            query = query.Where(x => x.CreatedDate <= toDate.Value);
+
+        return await query
+            .OrderByDescending(x => x.CreatedDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<ApiLog?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _db.ApiLogs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
     private static string ToStr(AppLogLevel l) => l switch
     {
         AppLogLevel.INFO => "INFO",

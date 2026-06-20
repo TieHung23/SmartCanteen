@@ -8,26 +8,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
     {
-
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.SessionId).IsRequired();
-
-        builder.HasOne(x => x.Session)
-            .WithMany()
-            .HasForeignKey(x => x.SessionId);
-
         builder.HasIndex(x => x.SessionId);
 
         builder.Property(x => x.MealTemplateId);
-        builder.HasOne(x => x.MealTemplate)
-            .WithMany()
-            .HasForeignKey(x => x.MealTemplateId)
-            .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => x.MealTemplateId);
 
         builder.Property(x => x.WalletTransactionId);
@@ -37,29 +23,19 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.OwnsMany(x => x.OrderItems, orderItem =>
         {
+            orderItem.WithOwner().HasForeignKey("OrderId");
 
-            orderItem.WithOwner().HasForeignKey(x => x.OrderId);
+            orderItem.Property(x => x.Id).ValueGeneratedOnAdd();
+            orderItem.HasKey(x => x.Id);
 
-            orderItem.HasKey(x => new { x.OrderId, x.DishId });
-
-            orderItem.Property(x => x.DishId)
-                .IsRequired();
-
-            orderItem.Property(x => x.Quantity)
-                .IsRequired();
-
-            orderItem.HasOne(x => x.Dish)
-                .WithMany()
-                .HasForeignKey(x => x.DishId)
-                .OnDelete(DeleteBehavior.Restrict);
+            orderItem.Property(x => x.DishId).IsRequired();
+            orderItem.Property(x => x.Quantity).IsRequired();
+            orderItem.Property(x => x.ItemStatus).IsRequired().HasDefaultValue(SC.Domain.Domain.Order.Enum.OrderItemStatus.Pending);
 
             orderItem.OwnsOne(x => x.UnitPrice, price =>
             {
-                price.Property(x => x.Amount)
-                    .HasPrecision(18, 2);
-
-                price.Property(x => x.Currency)
-                    .HasMaxLength(10);
+                price.Property(x => x.Amount).HasPrecision(18, 2);
+                price.Property(x => x.Currency).HasMaxLength(10);
             });
         });
 

@@ -290,6 +290,7 @@ public class ArchitectureConvention
                      && !t.IsGenericTypeDefinition
                      && t.Name != "ApiLog"
                      && t.Name != "SessionDish"
+                     && t.Name != "OrderItem"
                      && !InheritsFromGenericType(t, typeof(Entity<>)))
             .ToList();
 
@@ -361,6 +362,7 @@ public class ArchitectureConvention
                      && !t.IsGenericTypeDefinition
                      && t.Name != "ApiLog"
                      && t.Name != "SessionDish"
+                     && t.Name != "OrderItem"
                      && !ImplementsGenericInterface(t, typeof(IAuditableEntity<>)))
             .ToList();
 

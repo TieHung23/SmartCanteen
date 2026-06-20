@@ -60,6 +60,7 @@ public class SmartCanteenDbContext : DbContext
     public DbSet<ShelfStock> ShelfStocks => Set<ShelfStock>();
     public DbSet<RobotEventLog> RobotEventLogs => Set<RobotEventLog>();
     public DbSet<AdminCommandAudit> AdminCommandAudits => Set<AdminCommandAudit>();
+    public DbSet<OrderItemChangeProposal> OrderItemChangeProposals => Set<OrderItemChangeProposal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

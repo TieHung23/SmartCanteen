@@ -24,6 +24,7 @@ public class PaymentService(
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IWalletDomainService walletService,
     IOptions<SePayOptions> sePayOptions,
     ILogger<PaymentService> logger) : IPaymentService
 {
@@ -208,9 +209,8 @@ public class PaymentService(
                     "SePay payment code is missing.");
             }
 
-            payment = await paymentRepository.GetQueryable(
-                x => x.GatewayOrderId == orderId)
-                .FirstOrDefaultAsync(cancellationToken);
+            payment = await paymentRepository.FindSingleAsync(
+                x => x.GatewayOrderId == orderId, cancellationToken);
 
             if (payment is null)
             {
@@ -260,14 +260,14 @@ public class PaymentService(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockUserAsync(payment.UserId, cancellationToken);
+            await walletService.LockUserAsync(payment.UserId, cancellationToken);
 
-            var balanceAfter = await unitOfWork.TryCreditUserBalanceAsync(
+            var balanceAfterResult = await walletService.TryCreditUserBalanceAsync(
                 payment.UserId,
                 payment.ConvertedPoints,
                 cancellationToken);
 
-            if (balanceAfter is null)
+            if (balanceAfterResult.IsFailure)
             {
                 await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<CompletePaymentResult>(
@@ -275,14 +275,15 @@ public class PaymentService(
                     "Payment user not found.");
             }
 
-            var balanceBefore = balanceAfter.Value - payment.ConvertedPoints;
+            var balanceAfter = balanceAfterResult.Value;
+            var balanceBefore = balanceAfter - payment.ConvertedPoints;
             payment.MarkAsCompleted(gatewayTransactionId, payment.UserId);
 
             var transaction = WalletTransaction.Create(
                 payment.UserId,
                 payment.ConvertedPoints,
                 balanceBefore,
-                balanceAfter.Value,
+                balanceAfter,
                 WalletTransactionType.TopUp,
                 payment.Id);
 
@@ -308,9 +309,7 @@ public class PaymentService(
             await unitOfWork.RollbackAsync(cancellationToken);
 
             var persistedPayment = await paymentRepository
-                .GetQueryable(x => x.Id == payment.Id)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.Id == payment.Id, cancellationToken);
 
             if (persistedPayment?.Status == PaymentStatus.Completed)
             {
@@ -357,9 +356,8 @@ public class PaymentService(
         string code,
         CancellationToken cancellationToken)
     {
-        var setting = await settingRepository.GetQueryable(
-            x => !x.IsDeleted && x.Code == code)
-            .FirstOrDefaultAsync(cancellationToken);
+        var setting = await settingRepository.FindSingleAsync(
+            x => !x.IsDeleted && x.Code == code, cancellationToken);
 
         if (setting is null)
         {

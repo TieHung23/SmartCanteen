@@ -10,10 +10,6 @@ public class SlotConfigurationConfiguration : IEntityTypeConfiguration<SlotConfi
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.SessionId).IsRequired();
         builder.Property(x => x.DishId).IsRequired();
         builder.Property(x => x.RobotArmId);

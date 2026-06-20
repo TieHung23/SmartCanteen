@@ -24,6 +24,8 @@ internal class CreateOrderCommandHandler(
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
+    IWalletDomainService walletDomainService,
+    ISessionDishReservationService sessionDishReservationService,
     ISender mediator,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
@@ -51,11 +53,10 @@ internal class CreateOrderCommandHandler(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockUserAsync(currentUserId, cancellationToken);
+            await walletDomainService.LockUserAsync(currentUserId, cancellationToken);
 
             var cart = await cartRepository
-                .GetQueryable(x => x.UserId == currentUserId)
-                .SingleOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.UserId == currentUserId, cancellationToken);
 
             if (cart is null)
             {
@@ -124,7 +125,7 @@ internal class CreateOrderCommandHandler(
                     "User not found.");
             }
 
-            var validatedCart = validationResult.Value!;
+            var validatedCart = validationResult.Value;
             var items = checkoutSession.Items!;
             var totalPrice = items.Sum(item =>
                 validatedCart.Dishes[item.DishId].Price.Amount * item.Quantity);
@@ -139,13 +140,13 @@ internal class CreateOrderCommandHandler(
 
             foreach (var item in items.OrderBy(x => x.DishId))
             {
-                var reserved = await unitOfWork.TryReserveSessionDishAsync(
+                var reserved = await sessionDishReservationService.TryReserveAsync(
                     checkoutSession.SessionId,
                     item.DishId,
                     item.Quantity,
                     cancellationToken);
 
-                if (!reserved)
+                if (reserved.IsFailure)
                 {
                     await unitOfWork.RollbackAsync(cancellationToken);
                     return Result.Failure<CreateOrderResponse>(
@@ -154,7 +155,7 @@ internal class CreateOrderCommandHandler(
                 }
             }
 
-            var balanceAfter = await unitOfWork.TryDebitUserBalanceAsync(
+            var balanceAfter = await walletDomainService.TryDebitUserBalanceAsync(
                 currentUserId,
                 totalPrice,
                 cancellationToken);

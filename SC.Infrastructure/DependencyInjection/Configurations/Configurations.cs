@@ -93,6 +93,7 @@ public static class Configurations
         }
 
         services.AddHostedService<DailyLogUploadBackgroundService>();
+        services.AddHostedService<SessionFinalizationJob>();
         
         services.AddScoped<SC.Infrastructure.Services.ApiLog.IApiLogService, SC.Infrastructure.Services.ApiLog.ApiLogService>();
 

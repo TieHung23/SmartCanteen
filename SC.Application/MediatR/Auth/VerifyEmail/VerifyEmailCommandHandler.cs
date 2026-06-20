@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Auth;
@@ -22,8 +21,7 @@ internal class VerifyEmailCommandHandler(
         {
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
             var user = await userRepository
-                .GetQueryable(u => u.Email == normalizedEmail)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(u => u.Email == normalizedEmail, cancellationToken);
 
             if (user is null)
             {
@@ -35,8 +33,7 @@ internal class VerifyEmailCommandHandler(
             var tokenHash = tokenGenerator.HashVerificationCode(request.Code);
 
             var token = await tokenRepository
-                .GetQueryable(t => t.UserId == user.Id && t.TokenHash == tokenHash)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(t => t.UserId == user.Id && t.TokenHash == tokenHash, cancellationToken);
 
             if (token is null || !token.IsValid)
             {

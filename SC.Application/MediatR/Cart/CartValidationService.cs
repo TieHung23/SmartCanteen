@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
@@ -70,12 +69,10 @@ public sealed class CartValidationService(
         }
 
         var sessionIds = data.Sessions.Select(x => x.SessionId).ToList();
-        var sessions = await sessionRepository
-            .GetQueryable(x => sessionIds.Contains(x.Id))
-            .Include(x => x.SessionDishes)
-            .Include(x => x.MealTemplates)
-                .ThenInclude(x => x.Settings)
-            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var sessionsList = await sessionRepository
+            .FindListAsync(x => sessionIds.Contains(x.Id), cancellationToken,
+                x => x.SessionDishes, x => x.MealTemplates);
+        var sessions = sessionsList.ToDictionary(x => x.Id);
 
         if (sessions.Count != sessionIds.Count)
         {
@@ -89,9 +86,9 @@ public sealed class CartValidationService(
             .Select(x => x.DishId)
             .Distinct()
             .ToList();
-        var dishes = await dishRepository
-            .GetQueryable(x => dishIds.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var dishesList = await dishRepository
+            .FindListAsync(x => dishIds.Contains(x.Id), cancellationToken);
+        var dishes = dishesList.ToDictionary(x => x.Id);
 
         if (dishes.Count != dishIds.Count)
         {
@@ -133,13 +130,6 @@ public sealed class CartValidationService(
                 return Result.Failure<ValidatedCart>(
                     Error.InvalidValue,
                     "One or more dishes do not belong to the selected session.");
-            }
-
-            if (items.Any(item => item.Quantity > sessionDishes[item.DishId].Quantity))
-            {
-                return Result.Failure<ValidatedCart>(
-                    Error.InsufficientDishStock,
-                    "One or more dishes do not have enough stock.");
             }
 
             var template = session.MealTemplates.SingleOrDefault(x =>

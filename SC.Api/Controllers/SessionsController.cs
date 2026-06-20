@@ -7,6 +7,7 @@ using SC.Application.MediatR.Session.DeleteSession;
 using SC.Application.MediatR.Session.GetAllSessions;
 using SC.Application.MediatR.Session.GetSessionById;
 using SC.Application.MediatR.Session.UpdateSession;
+using SC.Application.MediatR.Session.FinalizeSession;
 using SC.Contract.Shared;
 
 namespace SC.Api.Controllers;
@@ -109,6 +110,24 @@ public class SessionsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DeleteSession([FromRoute] Guid id)
     {
         var result = await mediator.Send(new DeleteSessionCommand(id));
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Finalize a session — manager confirms prepared quantities.
+    /// </summary>
+    [HttpPost("{id:guid}/finalize")]
+    [Authorize]
+    public async Task<IActionResult> FinalizeSession([FromRoute] Guid id, [FromBody] FinalizeSessionCommand command)
+    {
+        command.SessionId = id;
+        var result = await mediator.Send(command);
 
         if (result.IsFailure)
         {
