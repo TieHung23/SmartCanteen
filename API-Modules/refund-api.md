@@ -105,6 +105,9 @@ Auth: `[Authorize]`
         "fileName": "spoiled_item.jpg"
       }
     ],
+    "userName": "string",
+    "userEmail": "string",
+    "studentId": "string | null",
     "reviewedBy": "guid",
     "reviewedAtUtc": "...",
     "rejectionReason": null,
@@ -120,7 +123,7 @@ Auth: `[Authorize]`
 
 ## `GET /api/manager/refunds`
 Auth: `[Authorize(Roles = "Manager")]`  
-Same pagination/filtering as user endpoint. Response includes `userId` per item.
+Same pagination/filtering as user endpoint. Response includes `userId`, `userName`, `studentId` per item.
 
 ---
 

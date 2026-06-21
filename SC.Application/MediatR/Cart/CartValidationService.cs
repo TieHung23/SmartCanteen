@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
@@ -70,8 +71,11 @@ public sealed class CartValidationService(
 
         var sessionIds = data.Sessions.Select(x => x.SessionId).ToList();
         var sessionsList = await sessionRepository
-            .FindListAsync(x => sessionIds.Contains(x.Id), cancellationToken,
-                x => x.SessionDishes, x => x.MealTemplates);
+            .FindListAsync(x => sessionIds.Contains(x.Id),
+                q => q.Include(x => x.SessionDishes)
+                    .Include(x => x.MealTemplates)
+                    .ThenInclude(x => x.Settings),
+                cancellationToken);
         var sessions = sessionsList.ToDictionary(x => x.Id);
 
         if (sessions.Count != sessionIds.Count)
@@ -116,7 +120,7 @@ public sealed class CartValidationService(
                     "One or more sessions are not available.");
             }
 
-            if (DateTimeOffset.UtcNow > session.AvailableForOrder)
+            if (DateTimeOffset.UtcNow > session.AvailableFrom)
             {
                 return Result.Failure<ValidatedCart>(
                     Error.InvalidValue,

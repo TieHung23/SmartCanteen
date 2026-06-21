@@ -3,11 +3,13 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Domain.Refund.AggregateRoot;
+using UserAggregateRoot = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Refund.Manager.GetRefundRequestDetail;
 
 internal sealed class GetRefundRequestDetailQueryHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
+    IGenericRepository<UserAggregateRoot, Guid> userRepository,
     ILogger<GetRefundRequestDetailQueryHandler> logger)
     : IQueryHandler<GetRefundRequestDetailQuery, GetRefundRequestDetailResponse>
 {
@@ -31,11 +33,16 @@ internal sealed class GetRefundRequestDetailQueryHandler(
                     "Refund request not found.");
             }
 
+            var user = await userRepository.GetByIdAsync(refund.UserId, cancellationToken);
+
             var response = new GetRefundRequestDetailResponse
             {
                 Id = refund.Id,
                 OrderId = refund.OrderId,
                 UserId = refund.UserId,
+                UserName = user?.Name ?? string.Empty,
+                UserEmail = user?.Email ?? string.Empty,
+                StudentId = user?.StudentId,
                 PolicyCode = refund.PolicyCode,
                 PolicyName = refund.PolicyNameSnapshot,
                 RefundPercent = refund.RefundPercentSnapshot,

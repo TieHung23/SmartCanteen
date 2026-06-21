@@ -47,6 +47,8 @@ Paginated items (scoped to current user):
     "items": [
       {
         "dishId": "guid",
+        "dishName": "string",
+        "imgUrl": "string | null",
         "quantity": 1,
         "unitPrice": 0.0
       }
@@ -82,13 +84,14 @@ Reads the user's persisted cart, validates against the session/template, deducts
     "id": "guid",
     "transactionId": "guid",
     "totalPrice": 0.0,
-    "message": "string",
+    "message": "Order created successfully and wallet debited.",
     "userRemainingBalance": 0.0,
     "cartVersion": 2
   },
   "isSuccess": true
 }
 ```
+`message` doubles as the human-readable transaction description for the UI.
 
 ---
 

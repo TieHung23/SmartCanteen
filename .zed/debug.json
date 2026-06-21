@@ -1,0 +1,17 @@
+[
+  {
+    "label": "API",
+    "adapter": "coreclr",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/SC.Api/bin/Debug/net10.0/SC.Api.dll",
+    "cwd": "$ZED_WORKTREE_ROOT/SC.Api",
+    "env": {
+      "ASPNETCORE_ENVIRONMENT": "Development",
+      "ASPNETCORE_URLS": "http://localhost:5265"
+    },
+    "build": {
+      "command": "dotnet",
+      "args": ["build", "SC.Api/SC.Api.csproj"]
+    }
+  }
+]

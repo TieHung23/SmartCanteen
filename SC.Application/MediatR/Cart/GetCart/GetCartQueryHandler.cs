@@ -10,6 +10,7 @@ namespace SC.Application.MediatR.Cart.GetCart;
 internal sealed class GetCartQueryHandler(
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
     IGenericRepository<SC.Domain.Domain.Session.AggregateRoot.Session, Guid> sessionRepository,
+    IGenericRepository<SC.Domain.Domain.Dish.AggregateRoot.Dish, Guid> dishRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IWalletDomainService walletDomainService,
@@ -41,6 +42,8 @@ internal sealed class GetCartQueryHandler(
             var activeCartData = await RemoveExpiredSessionsAsync(
                 cartData,
                 cancellationToken);
+
+            await EnrichCartItemsAsync(activeCartData, cancellationToken);
 
             if (activeCartData.Sessions.Count != cartData.Sessions.Count)
             {
@@ -116,5 +119,38 @@ internal sealed class GetCartQueryHandler(
                 .Where(x => availableSessionIdSet.Contains(x.SessionId))
                 .ToList()
         };
+    }
+
+    private async Task EnrichCartItemsAsync(CartData cartData, CancellationToken cancellationToken)
+    {
+        var dishIds = cartData.Sessions
+            .Where(s => s.Items is { Count: > 0 })
+            .SelectMany(s => s.Items!)
+            .Select(i => i.DishId)
+            .Distinct()
+            .ToList();
+
+        if (dishIds.Count == 0)
+            return;
+
+        var dishes = await dishRepository
+            .FindListAsync(d => dishIds.Contains(d.Id), cancellationToken);
+
+        var dishMap = dishes.ToDictionary(d => d.Id);
+
+        foreach (var session in cartData.Sessions)
+        {
+            if (session.Items is null)
+                continue;
+
+            foreach (var item in session.Items)
+            {
+                if (dishMap.TryGetValue(item.DishId, out var dish))
+                {
+                    item.DishName = dish.Name;
+                    item.ImgUrl = dish.ImgUrl;
+                }
+            }
+        }
     }
 }
