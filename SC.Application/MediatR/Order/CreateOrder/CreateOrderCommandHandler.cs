@@ -25,7 +25,6 @@ internal class CreateOrderCommandHandler(
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
     IWalletDomainService walletDomainService,
-    ISessionDishReservationService sessionDishReservationService,
     ISender mediator,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
@@ -136,23 +135,6 @@ internal class CreateOrderCommandHandler(
                 return Result.Failure<CreateOrderResponse>(
                     Error.InvalidValue,
                     $"Insufficient balance. Required: {totalPrice}, Available: {user.Balance.Amount}");
-            }
-
-            foreach (var item in items.OrderBy(x => x.DishId))
-            {
-                var reserved = await sessionDishReservationService.TryReserveAsync(
-                    checkoutSession.SessionId,
-                    item.DishId,
-                    item.Quantity,
-                    cancellationToken);
-
-                if (reserved.IsFailure)
-                {
-                    await unitOfWork.RollbackAsync(cancellationToken);
-                    return Result.Failure<CreateOrderResponse>(
-                        Error.InsufficientDishStock,
-                        "One or more dishes ran out of stock. Reload the cart and try again.");
-                }
             }
 
             var balanceAfter = await walletDomainService.TryDebitUserBalanceAsync(

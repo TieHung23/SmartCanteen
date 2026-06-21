@@ -40,6 +40,7 @@ Paginated items include full dish details and meal template settings:
           "id": "guid",
           "mealTemplateId": "guid",
           "categoryId": "guid",
+          "categoryName": "string",
           "minQuantity": 1,
           "maxQuantity": 3,
           "isRequired": true
@@ -56,6 +57,7 @@ Paginated items include full dish details and meal template settings:
       "priceAmount": 25.0,
       "priceCurrency": "Point",
       "categoryId": "guid",
+      "categoryName": "string",
       "preparedQuantity": null
     }
   ]

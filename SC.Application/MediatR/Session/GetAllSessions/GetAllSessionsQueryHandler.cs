@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
+using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
@@ -11,6 +12,7 @@ namespace SC.Application.MediatR.Session.GetAllSessions;
 internal class GetAllSessionsQueryHandler(
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ILogger<GetAllSessionsQueryHandler> logger
 ) : IQueryHandler<GetAllSessionsQuery, PaginatedList<GetAllSessionsResponse>>
 {
@@ -61,6 +63,21 @@ internal class GetAllSessionsQueryHandler(
 
             var dishMap = dishes.ToDictionary(d => d.Id);
 
+            var allCategoryIds = paginatedSessions
+                .SelectMany(s => s.MealTemplates)
+                .SelectMany(t => t.Settings)
+                .Select(s => s.CategoryId)
+                .Concat(dishes.Select(d => d.CategoryId))
+                .Distinct()
+                .ToList();
+
+            var categories = allCategoryIds.Count > 0
+                ? await categoryRepository.FindListAsync(
+                    c => allCategoryIds.Contains(c.Id), cancellationToken)
+                : [];
+
+            var categoryMap = categories.ToDictionary(c => c.Id);
+
             var responses = paginatedSessions.Select(m => new GetAllSessionsResponse
             {
                 Id = m.Id,
@@ -90,6 +107,7 @@ internal class GetAllSessionsQueryHandler(
                                 Id = setting.Id,
                                 MealTemplateId = setting.MealTemplateId,
                                 CategoryId = setting.CategoryId,
+                                CategoryName = categoryMap.GetValueOrDefault(setting.CategoryId)?.Name ?? string.Empty,
                                 MinQuantity = setting.MinQuantity,
                                 MaxQuantity = setting.MaxQuantity,
                                 IsRequired = setting.IsRequired
@@ -108,6 +126,9 @@ internal class GetAllSessionsQueryHandler(
                             PriceAmount = dish?.Price.Amount ?? 0,
                             PriceCurrency = dish?.Price.Currency ?? string.Empty,
                             CategoryId = dish?.CategoryId ?? Guid.Empty,
+                            CategoryName = dish is not null
+                                ? categoryMap.GetValueOrDefault(dish.CategoryId)?.Name ?? string.Empty
+                                : string.Empty,
                             PreparedQuantity = dm.PreparedQuantity
                         };
                     })

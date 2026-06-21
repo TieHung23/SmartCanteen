@@ -15,7 +15,22 @@ Expired/inactive/deleted sessions are removed before response.
 {
   "value": {
     "id": "guid | null",
-    "data": { "sessions": [ { "sessionId": "guid", "mealTemplateId": "guid", "items": [ { "dishId": "guid", "quantity": 2 } ] } ] },
+    "data": {
+      "sessions": [
+        {
+          "sessionId": "guid",
+          "mealTemplateId": "guid",
+          "items": [
+            {
+              "dishId": "guid",
+              "dishName": "string",
+              "imgUrl": "string | null",
+              "quantity": 2
+            }
+          ]
+        }
+      ]
+    },
     "version": 0,
     "updatedAtUtc": null
   },

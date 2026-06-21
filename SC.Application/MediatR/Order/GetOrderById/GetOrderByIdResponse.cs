@@ -17,6 +17,8 @@ public class GetOrderByIdResponse
 public class OrderItemDto
 {
     public Guid DishId { get; set; }
+    public string DishName { get; set; } = string.Empty;
+    public string? ImgUrl { get; set; }
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
 }
