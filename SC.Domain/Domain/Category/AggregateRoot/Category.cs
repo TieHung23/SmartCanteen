@@ -8,7 +8,7 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeleta
     private Category() { }
 
     public string Name { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
+    public string? Description { get; private set; }
     public string? ImgUrl { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedAtUtc { get; private set; }
@@ -17,7 +17,7 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeleta
     public Guid CreatedBy { get; private set; }
     public Guid UpdatedBy { get; private set; }
 
-    public static Category Create(string name, string description, Guid createdBy, string? imgUrl = null)
+    public static Category Create(string name, string? description, Guid createdBy, string? imgUrl = null)
     {
         return new Category
         {
@@ -31,7 +31,7 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeleta
         };
     }
 
-    public void Update(string name, string description, Guid updatedBy, string? imgUrl = null)
+    public void Update(string name, string? description, Guid updatedBy, string? imgUrl = null)
     {
         Name = name;
         Description = description;
