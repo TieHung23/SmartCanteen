@@ -41,7 +41,7 @@ internal class GetAllCategoriesQueryHandler(
             {
                 Id = c.Id,
                 Name = c.Name,
-                Description = c.Description,
+                Description = c.Description ?? string.Empty,
                 ImgUrl = c.ImgUrl
             }).ToList();
 
