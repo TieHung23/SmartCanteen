@@ -10,6 +10,27 @@ PaymentType: `1=TopUp, 2=Subscription, 3=Refund, 4=OrderPayment`
 
 ---
 
+## `GET /api/payments/top-up-policy`
+Auth: `[Authorize]`
+
+Returns the current top-up conversion rate and amount limits for customer UI validation.
+
+```json
+{
+  "value": {
+    "vndPerPoint": 1000,
+    "minTopUpAmount": 10000,
+    "maxTopUpAmount": 500000,
+    "currency": "VND",
+    "pointName": "Point"
+  },
+  "isSuccess": true,
+  "message": "Top-up policy retrieved successfully."
+}
+```
+
+---
+
 ## `GET /api/payments/{id}`
 Auth: `[Authorize]`  
 `404` if not found.
