@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -33,6 +34,7 @@ public class PaymentService(
     private const string MaxTopUpAmountSettingCode = "MAX_TOPUP_AMOUNT";
     private const string TopUpCurrency = "VND";
     private const string PointName = "Point";
+    private const int PaymentCodeLength = 30;
     private readonly SePayOptions _sePayOptions = sePayOptions.Value;
 
     public async Task<Result<TopUpWalletResult>> TopUpWalletAsync(
@@ -447,7 +449,7 @@ public class PaymentService(
     {
         var paymentCodePrefix = _sePayOptions.PaymentCodePrefix.Trim();
         var code = GetValue(data, "code");
-        if (code.StartsWith(paymentCodePrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsPaymentCodeCandidate(code, paymentCodePrefix))
         {
             return code;
         }
@@ -458,11 +460,20 @@ public class PaymentService(
             return string.Empty;
         }
 
-        return content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(part => part.StartsWith(
-                paymentCodePrefix,
-                StringComparison.OrdinalIgnoreCase))
-            ?? string.Empty;
+        var pattern = $"{Regex.Escape(paymentCodePrefix)}[a-fA-F0-9]{{{PaymentCodeLength - paymentCodePrefix.Length}}}";
+        return Regex.Match(content, pattern, RegexOptions.IgnoreCase).Value;
+    }
+
+    private static bool IsPaymentCodeCandidate(string value, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || value.Length != PaymentCodeLength
+            || !value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return value[prefix.Length..].All(Uri.IsHexDigit);
     }
 
     private string? ValidateSePayConfiguration()
