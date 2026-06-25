@@ -23,6 +23,13 @@ public record CompletePaymentResult(
     decimal ConvertedPoints,
     bool WasAlreadyCompleted);
 
+public record TopUpPolicyResult(
+    decimal VndPerPoint,
+    decimal MinTopUpAmount,
+    decimal MaxTopUpAmount,
+    string Currency,
+    string PointName);
+
 public record SePayWebhookVerificationResult(
     bool IsValid,
     string Message);
@@ -40,6 +47,9 @@ public interface IPaymentService
     Task<Result<TopUpWalletResult>> TopUpWalletAsync(
         decimal amountVnd,
         int method,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<TopUpPolicyResult>> GetTopUpPolicyAsync(
         CancellationToken cancellationToken = default);
 
     Task<Result<CompletePaymentResult>> HandleSepayIpnAsync(

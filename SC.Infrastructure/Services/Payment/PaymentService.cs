@@ -31,6 +31,8 @@ public class PaymentService(
     private const string VndPerPointSettingCode = "VND_PER_POINT";
     private const string MinTopUpAmountSettingCode = "MIN_TOPUP_AMOUNT";
     private const string MaxTopUpAmountSettingCode = "MAX_TOPUP_AMOUNT";
+    private const string TopUpCurrency = "VND";
+    private const string PointName = "Point";
     private readonly SePayOptions _sePayOptions = sePayOptions.Value;
 
     public async Task<Result<TopUpWalletResult>> TopUpWalletAsync(
@@ -182,6 +184,66 @@ public class PaymentService(
             return Result.Failure<TopUpWalletResult>(
                 Error.ServerError,
                 "An error occurred while topping up wallet.");
+        }
+    }
+
+    public async Task<Result<TopUpPolicyResult>> GetTopUpPolicyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var vndPerPointResult = await GetRequiredDecimalSettingAsync(
+                VndPerPointSettingCode,
+                cancellationToken);
+            if (vndPerPointResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    vndPerPointResult.Error ?? Error.ServerError,
+                    vndPerPointResult.Message);
+            }
+
+            var minTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MinTopUpAmountSettingCode,
+                cancellationToken);
+            if (minTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    minTopUpAmountResult.Error ?? Error.ServerError,
+                    minTopUpAmountResult.Message);
+            }
+
+            var maxTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MaxTopUpAmountSettingCode,
+                cancellationToken);
+            if (maxTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    maxTopUpAmountResult.Error ?? Error.ServerError,
+                    maxTopUpAmountResult.Message);
+            }
+
+            if (minTopUpAmountResult.Value > maxTopUpAmountResult.Value)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    Error.InvalidValue,
+                    "Payment top-up min amount cannot be greater than max amount.");
+            }
+
+            return Result.Success(
+                new TopUpPolicyResult(
+                    vndPerPointResult.Value,
+                    minTopUpAmountResult.Value,
+                    maxTopUpAmountResult.Value,
+                    TopUpCurrency,
+                    PointName),
+                "Top-up policy retrieved successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving top-up policy");
+            return Result.Failure<TopUpPolicyResult>(
+                Error.ServerError,
+                "An error occurred while retrieving top-up policy.");
         }
     }
 
