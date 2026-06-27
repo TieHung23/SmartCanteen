@@ -8,10 +8,10 @@ using SC.Contract.Shared;
 using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
-using SC.Domain.Domain.WalletTransaction.Entity;
 using SC.Domain.Domain.WalletTransaction.Enum;
 using CartAggregateRoot = SC.Domain.Domain.Cart.AggregateRoot.Cart;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
+using WalletTransactionEntity = SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction;
 
 namespace SC.Application.MediatR.Order.CreateOrder;
 
@@ -19,13 +19,12 @@ internal class CreateOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IUserRepository userRepository,
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
-    IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
+    IGenericRepository<WalletTransactionEntity, Guid> walletTransactionRepository,
     ICartValidationService cartValidationService,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
     IWalletDomainService walletDomainService,
-    ISessionDishReservationService sessionDishReservationService,
     ISender mediator,
     ILogger<CreateOrderCommandHandler> logger
 ) : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
@@ -138,23 +137,6 @@ internal class CreateOrderCommandHandler(
                     $"Insufficient balance. Required: {totalPrice}, Available: {user.Balance.Amount}");
             }
 
-            foreach (var item in items.OrderBy(x => x.DishId))
-            {
-                var reserved = await sessionDishReservationService.TryReserveAsync(
-                    checkoutSession.SessionId,
-                    item.DishId,
-                    item.Quantity,
-                    cancellationToken);
-
-                if (reserved.IsFailure)
-                {
-                    await unitOfWork.RollbackAsync(cancellationToken);
-                    return Result.Failure<CreateOrderResponse>(
-                        Error.InsufficientDishStock,
-                        "One or more dishes ran out of stock. Reload the cart and try again.");
-                }
-            }
-
             var balanceAfter = await walletDomainService.TryDebitUserBalanceAsync(
                 currentUserId,
                 totalPrice,
@@ -181,7 +163,7 @@ internal class CreateOrderCommandHandler(
 
             var balanceBefore = balanceAfter.Value + totalPrice;
 
-            var transaction = WalletTransaction.Create(
+            var transaction = WalletTransactionEntity.Create(
                 currentUserId,
                 -totalPrice,
                 balanceBefore,

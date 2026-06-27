@@ -1,58 +1,16 @@
 ﻿# SmartCanteen Dish API
 
-> Generated from `API-Document.md`. Run `.\tools\generate-api-modules.ps1` after updating the main document.
-
-# SmartCanteen API Documentation
-
-Base URL: `/api`  
+Base URL: `/api/dishes`  
+Auth: `[Authorize]` (any authenticated user)  
 API Version: `1.0`  
-All timestamps: `DateTimeOffset` (ISO 8601)  
-Currency: **Point** (no currency field exposed)
-
-Module documentation: [`API-Modules/README.md`](API-Modules/README.md)
-
-Every response is wrapped in a standard envelope:
-
-```json
-{
-  "value": { },
-  "isSuccess": true,
-  "isFailure": false,
-  "message": "string",
-  "error": null
-}
-```
-
-On failure `value` is null, `isSuccess` false, `error` is a string code.
-
-Pagination query param defaults: `pageNumber=1`, `pageSize=10` (max 100).  
-Paginated response shape:
-
-```json
-{
-  "value": {
-    "items": [ ],
-    "pageNumber": 1,
-    "pageSize": 10,
-    "totalCount": 42,
-    "totalPages": 5,
-    "hasPreviousPage": false,
-    "hasNextPage": true
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
+Currency: **Point**
 
 ---
 
-## Dishes
-
-### `GET /api/dishes`
-**Auth:** Authorize  
+## `GET /api/dishes`
 **Query:** `?name=string&categoryId=guid&isActive=bool&pageNumber=1&pageSize=10`
 
-**Paginated response items:**
+Paginated items:
 ```json
 {
   "id": "guid",
@@ -65,10 +23,8 @@ Paginated response shape:
 }
 ```
 
-### `GET /api/dishes/{id}`
-**Auth:** Authorize  
-
-**Response:**
+## `GET /api/dishes/{id}`
+**200 Response:**
 ```json
 {
   "value": {
@@ -80,13 +36,12 @@ Paginated response shape:
     "categoryId": "guid",
     "imgUrl": "string | null"
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
+`404` if not found.
 
-### `POST /api/dishes`
-**Auth:** Authorize  
+## `POST /api/dishes`
 **Content-Type:** `multipart/form-data`
 
 **Fields:**
@@ -94,68 +49,18 @@ Paginated response shape:
 - `description` (string)
 - `price` (decimal)
 - `categoryId` (guid)
-- `image` (file, optional) — uploaded to Cloudinary, URL saved as `imgUrl`
+- `image` (file, optional) — uploaded to Cloudinary
 
-**201 Response:**
+**201 Response:** Returns `Location` header to `GET /api/dishes/{id}`.
 ```json
 {
-  "value": {
-    "id": "guid",
-    "name": "string",
-    "description": "string",
-    "price": 0.0,
-    "isActive": true,
-    "categoryId": "guid",
-    "imgUrl": "string | null"
-  },
-  "isSuccess": true,
-  "message": "string"
+  "value": { "id": "guid", "name": "string", "description": "string", "price": 0.0, "isActive": true, "categoryId": "guid", "imgUrl": "string | null" },
+  "isSuccess": true
 }
 ```
 
-### `PUT /api/dishes/{id}`
-**Auth:** Authorize  
-**Content-Type:** `multipart/form-data`
+## `PUT /api/dishes/{id}`
+Same `multipart/form-data` fields plus `isActive` (bool). Omitting `image` preserves existing `imgUrl`.
 
-**Fields:**
-- `name` (string)
-- `description` (string)
-- `price` (decimal)
-- `isActive` (bool)
-- `categoryId` (guid)
-- `image` (file, optional) — uploaded to Cloudinary, URL saved as `imgUrl`; if omitted, existing `imgUrl` is preserved
-
-**Response:**
-```json
-{
-  "value": {
-    "id": "guid",
-    "name": "string",
-    "description": "string",
-    "price": 0.0,
-    "isActive": true,
-    "categoryId": "guid",
-    "imgUrl": "string | null"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
-### `DELETE /api/dishes/{id}`
-**Auth:** Authorize  
-
-**Response:**
-```json
-{
-  "value": {
-    "id": "guid",
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
----
-
+## `DELETE /api/dishes/{id}`
+`404` if not found.

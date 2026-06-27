@@ -1,0 +1,967 @@
+@startuml
+title Register Account
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPOST /api/auth/register" as API
+participant "RegisterUserCommandHandler" as Handler
+participant "Email Service" as Email
+database "Database" as DB
+
+User -> FE: Submit registration form
+FE -> API: POST /api/auth/register\n{name,email,password,...}
+API -> Handler: Validate request
+Handler -> DB: Check duplicate email/studentId
+alt Invalid or duplicate
+    Handler --> API: Result failure
+    API --> FE: 400 error
+else Valid
+    Handler -> DB: Create User\nstatus=PendingEmailVerification
+    Handler -> DB: Create EmailVerificationToken
+    Handler -> Email: Send verification code
+    alt Email send failed
+        Handler --> API: 201 user persisted\nwith warning/log
+    else Email sent
+        Handler --> API: 201 registered
+    end
+    API --> FE: Result<RegisterUserResponse>
+end
+FE --> User: Show next step
+@enduml
+
+@startuml
+title Verify Email
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPOST /api/auth/verify-email" as API
+participant "VerifyEmailCommandHandler" as Handler
+database "Database" as DB
+
+User -> FE: Enter verification code
+FE -> API: POST /api/auth/verify-email\n{email, code}
+API -> Handler: Validate request
+Handler -> DB: Find active email verification token
+alt Token invalid or expired
+    Handler --> API: Result failure
+    API --> FE: 400 invalid/expired code
+else Token valid
+    Handler -> DB: Mark token consumed
+    Handler -> DB: Update user status\nPendingIdentityVerification
+    API <-- Handler: Result success
+    API --> FE: 200 verified
+end
+FE --> User: Show identity verification step
+@enduml
+
+@startuml
+title Login / Logout / Refresh Token
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API" as API
+participant "Auth Command Handler" as Auth
+database "Database" as DB
+
+User -> FE: Login
+FE -> API: POST /api/auth/login\n{email,password}
+API -> Auth: Validate credentials
+Auth -> DB: Load user + refresh tokens
+alt Invalid credentials or banned/suspended
+    Auth --> API: Result failure
+    API --> FE: 400/401
+else Valid
+    Auth -> DB: Create refresh token
+    Auth --> API: accessToken, refreshToken,\nisFullyVerified
+    API --> FE: 200 tokens
+end
+
+FE -> API: POST /api/auth/refresh\n{refreshToken}
+API -> Auth: Validate refresh token
+alt Refresh token invalid
+    API --> FE: 400/401
+else Refresh token valid
+    Auth -> DB: Rotate refresh token
+    API --> FE: 200 new tokens
+end
+
+FE -> API: POST /api/auth/logout\nAuthorization: Bearer JWT
+API -> Auth: Revoke refresh token/session
+Auth -> DB: Mark token revoked
+API --> FE: 200 logged out
+@enduml
+
+@startuml
+title Forgot Password / Reset Password
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API" as API
+participant "Auth Command Handler" as Auth
+participant "Email Service" as Email
+database "Database" as DB
+
+User -> FE: Request password reset
+FE -> API: POST /api/auth/forgot-password\n{email}
+API -> Auth: Validate email
+Auth -> DB: Find user
+alt User not found
+    Auth --> API: Generic success response
+else User found
+    Auth -> DB: Create PasswordResetToken
+    Auth -> Email: Send reset code/link
+    Auth --> API: Success
+end
+API --> FE: 200
+
+User -> FE: Submit reset code and new password
+FE -> API: POST /api/auth/reset-password\n{email,token,newPassword}
+API -> Auth: Validate password rules and token
+Auth -> DB: Load active reset token
+alt Token invalid or expired
+    API --> FE: 400 invalid token
+else Valid
+    Auth -> DB: Update password hash
+    Auth -> DB: Consume reset token
+    API --> FE: 200 password reset
+end
+@enduml
+
+@startuml
+title Submit Identity Verification Request
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPOST /api/verification/submit" as API
+participant "JWT Auth" as Auth
+participant "SubmitVerificationCommandHandler" as Handler
+participant "File Validator" as FileValidator
+participant "Cloudinary Storage" as Storage
+participant "Notification Service" as Noti
+database "Database" as DB
+
+User -> FE: Upload identity documents
+FE -> API: POST /api/verification/submit\nAuthorization: Bearer JWT\nmultipart files + documentTypes
+API -> Auth: Validate JWT
+Auth --> API: userId
+API -> Handler: SubmitVerificationCommand
+Handler -> DB: Load user and pending requests
+alt Account not PendingIdentityVerification\nor pending request exists
+    Handler --> API: Result failure
+    API --> FE: 400
+else Eligible
+    loop Each file
+        Handler -> FileValidator: Validate name, size, MIME
+        alt Invalid file
+            Handler --> API: Result failure
+            API --> FE: 400
+        else Valid
+            Handler -> Storage: Upload file
+            Storage --> Handler: cloudinaryUrl
+        end
+    end
+    Handler -> DB: Save VerificationRequest + documents
+    Handler -> Noti: Notify managers
+    API <-- Handler: 201 requestId
+    API --> FE: 201 submitted
+end
+@enduml
+
+@startuml
+title Manager Review Identity Verification
+
+actor Manager
+participant "Web App" as FE
+participant "Backend API\n/api/admin/verifications" as API
+participant "JWT Auth + RBAC" as Auth
+participant "Verification Admin Handler" as Handler
+participant "Notification Service" as Noti
+database "Database" as DB
+
+Manager -> FE: Open verification queue
+FE -> API: GET /api/admin/verifications\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Manager
+alt Unauthorized or forbidden
+    API --> FE: 401/403
+else Authorized
+    API -> Handler: ListPendingVerificationsQuery
+    Handler -> DB: Query pending requests
+    API --> FE: 200 paginated items
+end
+
+Manager -> FE: Approve or reject
+FE -> API: POST /api/admin/verifications/{id}/approve\nor /reject {reason}
+API -> Auth: Validate JWT + Role=Manager
+API -> Handler: Approve/Reject command
+Handler -> DB: Load verification + user
+alt Not found or not pending
+    API --> FE: 400/404
+else Approve
+    Handler -> DB: Mark verification Approved
+    Handler -> DB: Activate user account
+    Handler -> Noti: Notify user approved
+    API --> FE: 200 approved
+else Reject
+    Handler -> DB: Mark verification Rejected\nwith reason
+    Handler -> Noti: Notify user rejected
+    API --> FE: 200 rejected
+end
+@enduml
+
+@startuml
+title View Sessions
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nGET /api/sessions" as API
+participant "GetAllSessionsQueryHandler" as Handler
+database "Database" as DB
+
+User -> FE: Open sessions/menu page
+FE -> API: GET /api/sessions?isActive=true&pageNumber=1&pageSize=10
+API -> Handler: GetAllSessionsQuery
+Handler -> DB: Query sessions, meal templates, dishes
+alt No matching sessions
+    API --> FE: 200 empty page
+else Found
+    API --> FE: 200 paginated sessions
+end
+FE --> User: Display active sessions and dishes
+@enduml
+
+@startuml
+title Manager Create / Update / Finalize Session
+
+actor Manager
+participant "Web App" as FE
+participant "Backend API\n/api/sessions" as API
+participant "JWT Auth" as Auth
+participant "Session Command Handler" as Handler
+participant "Notification Service" as Noti
+database "Database" as DB
+
+Manager -> FE: Submit session form
+FE -> API: POST /api/sessions\nAuthorization: Bearer JWT\n{session, templates, dishes}
+API -> Auth: Validate JWT
+note right of API
+Current controller uses [Authorize].
+Business flow expects Manager.
+end note
+API -> Handler: CreateSessionCommand
+Handler -> DB: Validate referenced dishes/categories
+alt Invalid request
+    API --> FE: 400
+else Valid
+    Handler -> DB: Save Session + MealTemplates + Settings + SessionDishes
+    API --> FE: 201 created
+end
+
+Manager -> FE: Update session
+FE -> API: PUT /api/sessions/{id}\nAuthorization: Bearer JWT
+API -> Handler: UpdateSessionCommand
+alt Route id != body id or invalid
+    API --> FE: 400
+else Valid
+    Handler -> DB: Update session aggregate
+    API --> FE: 200 updated
+end
+
+Manager -> FE: Finalize prepared quantities
+FE -> API: POST /api/sessions/{id}/finalize\n{preparedDishes}
+API -> Handler: FinalizeSessionCommand
+Handler -> DB: Begin transaction
+Handler -> DB: Compare ordered quantities vs prepared quantities
+alt Under-supplied items
+    Handler -> DB: Create change proposals\nmark affected items ChangePending
+    Handler -> Noti: Notify users
+    Handler -> DB: Commit
+    API --> FE: 200 finalized with proposals
+else Enough stock
+    Handler -> DB: Mark session finalized
+    Handler -> DB: Commit
+    API --> FE: 200 finalized
+else Error
+    Handler -> DB: Rollback
+    API --> FE: 500
+end
+@enduml
+
+@startuml
+title Manage Category and Dish
+
+actor Manager
+participant "Web App" as FE
+participant "Backend API\n/api/categories /api/dishes" as API
+participant "JWT Auth" as Auth
+participant "Category/Dish Handler" as Handler
+participant "Cloudinary Storage" as Storage
+database "Database" as DB
+
+Manager -> FE: Create or update category/dish
+FE -> API: POST/PUT /api/categories or /api/dishes\nAuthorization: Bearer JWT\nmultipart/form-data
+API -> Auth: Validate JWT
+note right of API
+Current controllers use [Authorize].
+Business flow expects Manager.
+end note
+API -> Handler: Create/Update command
+alt Invalid form or missing reference
+    API --> FE: 400/404
+else Has image
+    Handler -> Storage: Upload image
+    Storage --> Handler: image URL
+    Handler -> DB: Save category/dish
+    API --> FE: 200/201
+else No image
+    Handler -> DB: Save category/dish
+    API --> FE: 200/201
+end
+
+Manager -> FE: Delete item
+FE -> API: DELETE /api/categories/{id}\nor /api/dishes/{id}
+API -> Handler: Delete command
+alt Not found
+    API --> FE: 404
+else Found
+    Handler -> DB: Soft delete
+    API --> FE: 200
+end
+@enduml
+
+@startuml
+title User View Menu by Session
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nGET /api/sessions/{id}" as API
+participant "GetSessionByIdQueryHandler" as Handler
+database "Database" as DB
+
+User -> FE: Select active session
+FE -> API: GET /api/sessions/{id}
+API -> Handler: GetSessionByIdQuery
+Handler -> DB: Load session, templates, settings, dishes
+alt Session not found
+    API --> FE: 404
+else Session found
+    API --> FE: 200 session detail
+end
+FE --> User: Show menu and template rules
+@enduml
+
+@startuml
+title User Update Cart
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPUT /api/cart" as API
+participant "JWT Auth" as Auth
+participant "UpdateCartCommandHandler" as Handler
+participant "CartValidationService" as CartValidation
+database "Database" as DB
+
+User -> FE: Add/update dish quantity
+FE -> API: PUT /api/cart\nAuthorization: Bearer JWT\n{data, expectedVersion}
+API -> Auth: Validate JWT
+API -> Handler: UpdateCartCommand
+Handler -> CartValidation: Validate session/template/dishes\nand order deadline
+alt Validation failed
+    API --> FE: 400 validation error
+else Valid
+    Handler -> DB: Begin transaction
+    Handler -> DB: Lock user/cart row
+    Handler -> DB: Load current cart
+    alt expectedVersion mismatch
+        Handler -> DB: Rollback
+        API --> FE: 409 CartVersionConflict
+    else Version matches
+        Handler -> DB: Create/update cart JSON\nincrement version
+        Handler -> DB: Commit
+        API --> FE: 200 {version, updatedAtUtc}
+    else Error
+        Handler -> DB: Rollback
+        API --> FE: 500
+    end
+end
+@enduml
+
+@startuml
+title User Place Order using Wallet
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPOST /api/orders" as API
+participant "JWT Auth" as Auth
+participant "CreateOrderCommandHandler" as Handler
+participant "CartValidationService" as CartValidation
+participant "WalletDomainService" as Wallet
+participant "Notification Service" as Noti
+participant "Robot Serving Handler" as Robot
+database "Database" as DB
+
+User -> FE: Checkout selected session
+FE -> API: POST /api/orders\nAuthorization: Bearer JWT\n{sessionId, cartVersion}
+API -> Auth: Validate JWT
+API -> Handler: CreateOrderCommand
+Handler -> DB: Begin transaction
+Handler -> Wallet: Lock user balance
+Handler -> DB: Load cart
+alt Cart missing or version conflict
+    Handler -> DB: Rollback
+    API --> FE: 400/409
+else Cart exists
+    Handler -> CartValidation: Validate active session, deadline,\ntemplate rules, dish stock
+    alt Validation failed
+        Handler -> DB: Rollback
+        API --> FE: 400
+    else Valid
+        Handler -> DB: Load user balance
+        alt Insufficient balance
+            Handler -> DB: Rollback
+            API --> FE: 400 insufficient balance
+        else Enough balance
+            Handler -> Wallet: Debit user balance
+            Handler -> DB: Create WalletTransaction\nType=OrderPayment, amount negative
+            Handler -> DB: Create Order + OrderItems\nattach transactionId
+            Handler -> DB: Remove checked-out session from cart
+            Handler -> DB: Commit
+            Handler -> Noti: Notify order created
+            Handler -> Robot: CreateServingJobCommand\nbest effort
+            API --> FE: 201 order created and wallet debited
+        else Error
+            Handler -> DB: Rollback
+            API --> FE: 500
+        end
+    end
+end
+@enduml
+
+@startuml
+title Wallet Top-up using SePay
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPOST /api/payments/top-up" as API
+participant "JWT Auth" as Auth
+participant "TopUpWalletCommandHandler" as Handler
+participant "PaymentService" as Payment
+database "Database" as DB
+participant "SePay Gateway" as SePay
+
+User -> FE: Enter top-up amount
+FE -> API: POST /api/payments/top-up\nAuthorization: Bearer JWT\n{amountVnd, method=4}
+API -> Auth: Validate JWT
+API -> Handler: TopUpWalletCommand
+Handler -> Payment: TopUpWalletAsync
+Payment -> DB: Create Payment\nType=TopUp, Method=SePay, Status=Pending
+Payment -> SePay: Build payment content/QR data
+alt Invalid amount or method
+    API --> FE: 400
+else Created
+    API --> FE: 200 paymentId, gatewayOrderId,\npaymentContent, qrCodeUrl/bank info
+end
+FE --> User: Display SePay QR/bank transfer info
+@enduml
+
+@startuml
+title SePay IPN Webhook Confirmation
+
+participant "SePay Gateway" as SePay
+participant "Backend API\nPOST /api/payments/sepay/ipn" as API
+participant "SePay Webhook Verifier" as Verifier
+participant "HandleSepayIpnCommandHandler" as Handler
+participant "PaymentService" as Payment
+participant "Notification Service" as Noti
+database "Database" as DB
+
+SePay -> API: POST /api/payments/sepay/ipn\nX-SePay-Timestamp\nX-SePay-Signature\nraw JSON
+API -> Verifier: Verify HMAC signature\nsha256={timestamp}.{raw_body}
+alt Invalid signature or stale timestamp
+    API --> SePay: 401
+else Valid signature
+    API -> Handler: HandleSepayIpnCommand
+    Handler -> Payment: HandleSepayIpnAsync
+    Payment -> DB: Begin transaction
+    Payment -> DB: Find Payment by gatewayOrderId/content
+    alt Payment not found or invalid payload
+        Payment -> DB: Rollback
+        API --> SePay: 400
+    else Already completed
+        Payment -> DB: Commit/no-op
+        API --> SePay: {success:true}
+    else Pending payment matched
+        Payment -> DB: Mark Payment Completed
+        Payment -> DB: Credit user wallet
+        Payment -> DB: Create WalletTransaction\nType=TopUp, amount positive
+        Payment -> DB: Commit
+        Handler -> Noti: Notify payment completed
+        API --> SePay: {success:true}
+    else Error
+        Payment -> DB: Rollback
+        API --> SePay: 400
+    end
+end
+@enduml
+
+@startuml
+title Wallet Transaction History
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nGET /api/wallet-transactions" as API
+participant "JWT Auth" as Auth
+participant "GetMyWalletTransactionsQueryHandler" as Handler
+database "Database" as DB
+
+User -> FE: Open wallet history
+FE -> API: GET /api/wallet-transactions?transactionType=&pageNumber=1&pageSize=10\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT
+API -> Handler: GetMyWalletTransactionsQuery
+Handler -> DB: Query transactions scoped to current user
+alt No transactions
+    API --> FE: 200 empty page
+else Found
+    API --> FE: 200 paginated wallet transactions
+end
+@enduml
+
+@startuml
+title Create Robot Serving Job
+
+actor Staff
+participant "Web App / Backend Internal Flow" as FE
+participant "Backend API\nPOST /api/robot/serving-jobs" as API
+participant "JWT Auth" as Auth
+participant "CreateServingJobCommandHandler" as Handler
+participant "SignalR ServingJobNotifier" as SignalR
+participant "Robot Service" as RobotService
+database "Database" as DB
+
+Staff -> FE: Create serving job for paid order
+FE -> API: POST /api/robot/serving-jobs\nAuthorization: Bearer JWT\n{orderId,trayId?}
+API -> Auth: Validate JWT
+API -> Handler: CreateServingJobCommand
+Handler -> DB: Load order with items
+alt Order not found
+    API --> FE: 404/400
+else Existing active job
+    Handler -> DB: Return existing job
+    API --> FE: 200 existing serving job
+else New job
+    Handler -> DB: Select available tray or specified tray
+    Handler -> DB: Create ServingJob status=Pushed
+    Handler -> DB: Reserve tray
+    Handler -> DB: Update order status=Preparing\nadd status history
+    Handler -> DB: Save changes
+    Handler -> SignalR: Push ServingJobMessage
+    SignalR -> RobotService: jobId, orderId, tray, items
+    alt SignalR push failed
+        Handler --> API: 200 job saved\npush failure logged
+    else Push succeeded
+        Handler --> API: 200 job created and pushed
+    end
+end
+@enduml
+
+@startuml
+title Robot Report Serving Status
+
+participant "Robot Service" as RobotService
+participant "Backend API\nRobotServingController" as API
+participant "JWT Auth" as Auth
+participant "ReportServingStatusCommandHandler" as Handler
+participant "SignalR RobotHub" as SignalR
+participant "Notification Service" as Noti
+database "Database" as DB
+
+RobotService -> API: Report serving status\nAuthorization: Bearer JWT\n{jobId,status,event}
+API -> Auth: Validate JWT
+API -> Handler: ReportServingStatusCommand
+Handler -> DB: Load serving job/order/tray
+alt Job not found or invalid transition
+    API --> RobotService: 400/404
+else Status update valid
+    Handler -> DB: Update ServingJob status\nAssembling/OnShelf/Failed/Collected
+    Handler -> DB: Add RobotEventLog
+    alt Robot failed
+        Handler -> Noti: Notify Staff
+        Handler -> SignalR: Publish robot error
+        API --> RobotService: 200 failure recorded
+    else On shelf
+        Handler -> DB: Update order status=ReadyForPickup/InHoldingArea
+        Handler -> SignalR: Publish job update
+        Handler -> Noti: Notify user ready
+        API --> RobotService: 200 status recorded
+    else Other status
+        Handler -> SignalR: Publish job update
+        API --> RobotService: 200 status recorded
+    end
+end
+@enduml
+
+@startuml
+title Staff or Sensor Assign Pickup Slot
+
+actor Staff
+participant "Pickup Sensor / Web App" as FE
+participant "Backend API\nPOST /api/pickup/assign" as API
+participant "JWT Auth" as Auth
+participant "AssignPickupSlotCommandHandler" as Handler
+database "Database" as DB
+
+Staff -> FE: Confirm tray reached pickup slot
+FE -> API: POST /api/pickup/assign\nAuthorization: Bearer JWT\n{slotCode,orderId,trayCode}
+API -> Auth: Validate JWT
+API -> Handler: AssignPickupSlotCommand
+Handler -> DB: Load order, tray, pickup slot
+alt Invalid order/tray/slot
+    API --> FE: 400/404
+else Valid
+    Handler -> DB: Assign order and tray to slot
+    Handler -> DB: Mark slot WaitingCollect
+    Handler -> DB: Save changes
+    API --> FE: 200 {slotId,slotCode,orderId,trayId}
+end
+@enduml
+
+@startuml
+title User Scan QR and Collect Order
+
+actor User
+participant "Mobile App / Pickup Scanner" as FE
+participant "Backend API\nPOST /api/pickup/collect" as API
+participant "JWT Auth" as Auth
+participant "CollectOrderCommandHandler" as Handler
+database "Database" as DB
+
+User -> FE: Scan pickup QR
+note right of FE
+Current implementation uses QR payload orderId.
+No separate generate-QR endpoint exists.
+end note
+FE -> API: POST /api/pickup/collect\nAuthorization: Bearer JWT\n{orderId}
+API -> Auth: Validate JWT
+API -> Handler: CollectOrderCommand
+Handler -> DB: Load pickup slot by orderId
+alt Slot/order not found or not collectable
+    API --> FE: 400/404
+else Valid
+    Handler -> DB: Release pickup slot
+    Handler -> DB: Mark tray available
+    Handler -> DB: Mark serving job Collected
+    Handler -> DB: Mark order Completed
+    Handler -> DB: Save changes
+    API --> FE: 200 {orderId,slotCode}
+end
+@enduml
+
+@startuml
+title Submit Refund Request
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\nPOST /api/refunds" as API
+participant "JWT Auth" as Auth
+participant "SubmitRefundRequestCommandHandler" as Handler
+participant "Cloudinary Storage" as Storage
+database "Database" as DB
+
+User -> FE: Submit refund reason/evidence
+FE -> API: POST /api/refunds\nAuthorization: Bearer JWT\nmultipart {orderId,policyCode,description,images}
+API -> Auth: Validate JWT
+API -> Handler: SubmitRefundRequestCommand
+Handler -> DB: Load order and active refund policy
+alt Invalid order/policy or duplicate request
+    API --> FE: 400/404
+else Policy requires images and images missing/invalid
+    API --> FE: 400
+else Valid
+    loop Images
+        Handler -> Storage: Upload refund evidence
+        Storage --> Handler: imageUrl
+    end
+    Handler -> DB: Save RefundRequest + images\nstatus=Pending
+    API --> FE: 201 refund request submitted
+end
+@enduml
+
+@startuml
+title Manager Review Refund Request
+
+actor Manager
+participant "Web App" as FE
+participant "Backend API\n/api/manager/refunds" as API
+participant "JWT Auth + RBAC" as Auth
+participant "Refund Manager Handler" as Handler
+participant "WalletDomainService" as Wallet
+participant "Notification Service" as Noti
+database "Database" as DB
+
+Manager -> FE: Open refund queue
+FE -> API: GET /api/manager/refunds\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Manager
+alt Forbidden
+    API --> FE: 401/403
+else Authorized
+    API -> Handler: GetRefundRequestsQuery
+    Handler -> DB: Query refund requests
+    API --> FE: 200 paginated refunds
+end
+
+Manager -> FE: Approve or reject
+FE -> API: POST /api/manager/refunds/{id}/approve\nor /reject {reason}
+API -> Auth: Validate JWT + Role=Manager
+API -> Handler: Approve/Reject command
+alt Reject
+    Handler -> DB: Validate request pending
+    Handler -> DB: Mark Rejected with reason
+    Handler -> Noti: Notify user
+    API --> FE: 200 rejected
+else Approve
+    Handler -> DB: Begin transaction
+    Handler -> DB: Validate request pending and policy snapshot
+    Handler -> Wallet: Credit user wallet
+    Handler -> DB: Create WalletTransaction\nType=Refund, amount positive
+    Handler -> DB: Mark refund Approved\nattach walletTransactionId
+    Handler -> DB: Commit
+    Handler -> Noti: Notify user
+    API --> FE: 200 approved and wallet credited
+else Error
+    Handler -> DB: Rollback
+    API --> FE: 500
+end
+@enduml
+
+@startuml
+title Wallet Refund Transaction
+
+actor Manager
+participant "Backend API\nPOST /api/manager/refunds/{id}/approve" as API
+participant "ApproveRefundRequestCommandHandler" as Handler
+participant "WalletDomainService" as Wallet
+database "Database" as DB
+
+Manager -> API: Approve refund\nAuthorization: Bearer JWT Role=Manager
+API -> Handler: ApproveRefundRequestCommand
+Handler -> DB: Begin transaction
+Handler -> DB: Load pending RefundRequest
+alt Refund not pending
+    Handler -> DB: Rollback
+    API --> Manager: 400
+else Pending
+    Handler -> Wallet: Lock and credit user balance
+    Wallet -> DB: Update user balance
+    Handler -> DB: Create WalletTransaction\ntransactionType=Refund\nbalanceBefore/balanceAfter
+    Handler -> DB: Update RefundRequest Approved\nwalletTransactionId
+    Handler -> DB: Commit
+    API --> Manager: 200 refundAmount,balanceAfter
+else Error
+    Handler -> DB: Rollback
+    API --> Manager: 500
+end
+@enduml
+
+@startuml
+title Notification Flow
+
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API\n/api/device-tokens /api/notifications" as API
+participant "JWT Auth" as Auth
+participant "Notification Service" as Noti
+participant "FCM Push Publisher" as FCM
+participant "SignalR NotificationHub" as SignalR
+database "Database" as DB
+
+User -> FE: Register device token
+FE -> API: POST /api/device-tokens\nAuthorization: Bearer JWT\n{token,platform}
+API -> Auth: Validate JWT
+API -> Noti: RegisterDeviceTokenCommand
+Noti -> DB: Upsert UserDeviceToken
+API --> FE: 200 registered
+
+participant "Business Handler" as Business
+Business -> Noti: NotifyAsync(templateKey,userId,referenceId,payload)
+Noti -> DB: Create Notification
+Noti -> FCM: Send push notification
+Noti -> SignalR: Publish realtime event
+alt Push/realtime failure
+    Noti -> DB: Keep notification persisted\nlog delivery failure
+else Delivered
+    Noti -> DB: Save delivery state if configured
+end
+
+FE -> API: GET /api/notifications\nAuthorization: Bearer JWT
+API -> Noti: GetNotificationsQuery
+Noti -> DB: Query current user's notifications
+API --> FE: 200 notifications
+@enduml
+
+@startuml
+title Manager Manage Settings
+
+actor Manager
+participant "Web App" as FE
+participant "Backend API\n/api/settings" as API
+participant "JWT Auth + RBAC" as Auth
+participant "Setting Command/Query Handler" as Handler
+database "Database" as DB
+
+Manager -> FE: Open settings
+FE -> API: GET /api/settings\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Manager
+alt Forbidden
+    API --> FE: 401/403
+else Authorized
+    Handler -> DB: Query settings
+    API --> FE: 200 paginated settings
+end
+
+Manager -> FE: Create/update/delete setting
+FE -> API: POST/PUT/DELETE /api/settings\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Manager
+API -> Handler: Setting command
+alt Invalid payload or not found
+    API --> FE: 400/404
+else Valid
+    Handler -> DB: Save setting changes
+    API --> FE: 200/201
+end
+@enduml
+
+@startuml
+title Manager Manage Refund Policies
+
+actor Manager
+participant "Web App" as FE
+participant "Backend API\n/api/manager/refund-policies" as API
+participant "JWT Auth + RBAC" as Auth
+participant "RefundPolicy Manager Handler" as Handler
+database "Database" as DB
+
+Manager -> FE: Manage refund policies
+FE -> API: GET /api/manager/refund-policies\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Manager
+alt Forbidden
+    API --> FE: 401/403
+else Authorized
+    Handler -> DB: Query policies
+    API --> FE: 200 policies
+end
+
+FE -> API: POST/PUT/DELETE /api/manager/refund-policies\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Manager
+API -> Handler: Create/Update/Delete policy
+alt Invalid policy code/value
+    API --> FE: 400
+else Valid
+    Handler -> DB: Save policy changes
+    API --> FE: 200/201
+end
+@enduml
+
+@startuml
+title Admin View Logs
+
+actor Admin
+participant "Web App" as FE
+participant "Backend API\n/api/admin/logs" as API
+participant "JWT Auth + RBAC" as Auth
+participant "Logging Admin Query Handler" as Handler
+database "Database" as DB
+
+Admin -> FE: Open API logs
+FE -> API: GET /api/admin/logs\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Admin
+alt Unauthorized or forbidden
+    API --> FE: 401/403
+else Authorized
+    API -> Handler: ListApiLogsQuery
+    Handler -> DB: Query ApiLogs with filters/pagination
+    API --> FE: 200 paginated logs
+end
+
+Admin -> FE: View log detail
+FE -> API: GET /api/admin/logs/{id}\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT + Role=Admin
+API -> Handler: GetApiLogDetailQuery
+alt Log not found
+    API --> FE: 404
+else Found
+    Handler -> DB: Load ApiLog detail
+    API --> FE: 200 log detail
+end
+@enduml
+
+@startuml
+title Change Proposal after Session Finalization
+
+actor Manager
+actor User
+participant "Mobile App / Web App" as FE
+participant "Backend API" as API
+participant "JWT Auth" as Auth
+participant "FinalizeSessionCommandHandler" as Finalize
+participant "ChangeProposal Handler" as Proposal
+participant "Notification Service" as Noti
+database "Database" as DB
+
+Manager -> API: POST /api/sessions/{id}/finalize\nAuthorization: Bearer JWT\n{preparedDishes}
+API -> Auth: Validate JWT
+API -> Finalize: FinalizeSessionCommand
+Finalize -> DB: Begin transaction
+Finalize -> DB: Compare paid order items\nwith prepared quantities
+alt All items available
+    Finalize -> DB: Mark session finalized
+    Finalize -> DB: Commit
+    API --> Manager: 200 finalized
+else Some items unavailable
+    Finalize -> DB: Mark affected order items ChangePending
+    Finalize -> DB: Create OrderItemChangeProposal
+    Finalize -> DB: Commit
+    Finalize -> Noti: Notify affected users
+    API --> Manager: 200 finalized with proposals
+end
+
+User -> FE: Accept replacement proposal
+FE -> API: POST /api/changeproposals/{id}/accept\nAuthorization: Bearer JWT
+API -> Auth: Validate JWT
+API -> Proposal: AcceptChangeProposalCommand
+alt Proposal invalid/expired
+    API --> FE: 400/404
+else Accepted
+    Proposal -> DB: Update order item to replacement dish
+    Proposal -> DB: Mark proposal Accepted
+    API --> FE: 200 accepted
+end
+
+User -> FE: Request refund from proposal
+FE -> API: POST /api/changeproposals/{id}/request-refund\nAuthorization: Bearer JWT
+API -> Proposal: RequestRefundFromProposalCommand
+alt Proposal invalid
+    API --> FE: 400/404
+else Refund requested
+    Proposal -> DB: Create RefundRequest from proposal
+    Proposal -> DB: Mark proposal refund requested
+    API --> FE: 200 refund request created
+end
+@enduml
+
+@startuml
+title Planned Flows Not Implemented as API
+
+participant "SmartCanteen Backend" as API
+
+note over API
+The following requested flows do not currently have clear API endpoints
+in the existing controllers/API-Modules:
+
+- Admin Manage Users and Roles
+- Manager View Reports
+- Generate QR Pickup Code as a separate endpoint
+- Order unpaid payment flow and order payment timeout
+- QR expiration handling as a dedicated endpoint/job
+
+Do not invent endpoints for these flows unless they are added to the API.
+end note
+@enduml

@@ -5,6 +5,6 @@ namespace SC.Application.MediatR.Category.CreateCategory;
 public class CreateCategoryCommand : ICommand<CreateCategoryResponse>
 {
     public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public string? ImgUrl { get; set; }
 }

@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -31,6 +32,9 @@ public class PaymentService(
     private const string VndPerPointSettingCode = "VND_PER_POINT";
     private const string MinTopUpAmountSettingCode = "MIN_TOPUP_AMOUNT";
     private const string MaxTopUpAmountSettingCode = "MAX_TOPUP_AMOUNT";
+    private const string TopUpCurrency = "VND";
+    private const string PointName = "Point";
+    private const int PaymentCodeLength = 30;
     private readonly SePayOptions _sePayOptions = sePayOptions.Value;
 
     public async Task<Result<TopUpWalletResult>> TopUpWalletAsync(
@@ -182,6 +186,66 @@ public class PaymentService(
             return Result.Failure<TopUpWalletResult>(
                 Error.ServerError,
                 "An error occurred while topping up wallet.");
+        }
+    }
+
+    public async Task<Result<TopUpPolicyResult>> GetTopUpPolicyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var vndPerPointResult = await GetRequiredDecimalSettingAsync(
+                VndPerPointSettingCode,
+                cancellationToken);
+            if (vndPerPointResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    vndPerPointResult.Error ?? Error.ServerError,
+                    vndPerPointResult.Message);
+            }
+
+            var minTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MinTopUpAmountSettingCode,
+                cancellationToken);
+            if (minTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    minTopUpAmountResult.Error ?? Error.ServerError,
+                    minTopUpAmountResult.Message);
+            }
+
+            var maxTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MaxTopUpAmountSettingCode,
+                cancellationToken);
+            if (maxTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    maxTopUpAmountResult.Error ?? Error.ServerError,
+                    maxTopUpAmountResult.Message);
+            }
+
+            if (minTopUpAmountResult.Value > maxTopUpAmountResult.Value)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    Error.InvalidValue,
+                    "Payment top-up min amount cannot be greater than max amount.");
+            }
+
+            return Result.Success(
+                new TopUpPolicyResult(
+                    vndPerPointResult.Value,
+                    minTopUpAmountResult.Value,
+                    maxTopUpAmountResult.Value,
+                    TopUpCurrency,
+                    PointName),
+                "Top-up policy retrieved successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving top-up policy");
+            return Result.Failure<TopUpPolicyResult>(
+                Error.ServerError,
+                "An error occurred while retrieving top-up policy.");
         }
     }
 
@@ -385,7 +449,7 @@ public class PaymentService(
     {
         var paymentCodePrefix = _sePayOptions.PaymentCodePrefix.Trim();
         var code = GetValue(data, "code");
-        if (code.StartsWith(paymentCodePrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsPaymentCodeCandidate(code, paymentCodePrefix))
         {
             return code;
         }
@@ -396,11 +460,20 @@ public class PaymentService(
             return string.Empty;
         }
 
-        return content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(part => part.StartsWith(
-                paymentCodePrefix,
-                StringComparison.OrdinalIgnoreCase))
-            ?? string.Empty;
+        var pattern = $"{Regex.Escape(paymentCodePrefix)}[a-fA-F0-9]{{{PaymentCodeLength - paymentCodePrefix.Length}}}";
+        return Regex.Match(content, pattern, RegexOptions.IgnoreCase).Value;
+    }
+
+    private static bool IsPaymentCodeCandidate(string value, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || value.Length != PaymentCodeLength
+            || !value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return value[prefix.Length..].All(Uri.IsHexDigit);
     }
 
     private string? ValidateSePayConfiguration()

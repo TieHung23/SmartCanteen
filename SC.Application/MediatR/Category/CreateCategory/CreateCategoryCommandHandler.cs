@@ -22,7 +22,7 @@ internal class CreateCategoryCommandHandler(
         {
             var category = CategoryAggregateRoot.Create(
                 request.Name.Trim(),
-                request.Description.Trim(),
+                string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 currentUserService.UserId,
                 request.ImgUrl);
 
@@ -35,7 +35,7 @@ internal class CreateCategoryCommandHandler(
             {
                 Id = category.Id,
                 Name = category.Name,
-                Description = category.Description,
+                Description = category.Description ?? string.Empty,
                 ImgUrl = category.ImgUrl
             };
 

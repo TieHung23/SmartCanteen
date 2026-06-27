@@ -6,17 +6,16 @@ using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
-using SC.Domain.Domain.WalletTransaction.Entity;
 using SC.Domain.Domain.WalletTransaction.Enum;
-using SC.Domain.SharedKernel.ValueObjects;
 using UserAggregate = SC.Domain.Domain.User.User;
+using WalletTransactionEntity = SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction;
 
 namespace SC.Application.MediatR.Refund.Manager.ApproveRefundRequest;
 
 internal sealed class ApproveRefundRequestCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     IGenericRepository<UserAggregate, Guid> userRepository,
-    IGenericRepository<WalletTransaction, Guid> walletTransactionRepository,
+    IGenericRepository<WalletTransactionEntity, Guid> walletTransactionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IRefundLockService refundLockService,
@@ -68,10 +67,22 @@ internal sealed class ApproveRefundRequestCommandHandler(
             }
 
             var balanceBefore = user.Balance.Amount;
-            var balanceAfter = balanceBefore + refund.RefundAmount;
-            user.UpdateBalance(Money.Create(balanceAfter, user.Balance.Currency));
+            var creditResult = await walletDomainService.TryCreditUserBalanceAsync(
+                user.Id,
+                refund.RefundAmount,
+                cancellationToken);
 
-            var walletTransaction = WalletTransaction.Create(
+            if (creditResult.IsFailure)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result.Failure<ApproveRefundRequestResponse>(
+                    creditResult.Error ?? Error.ServerError,
+                    creditResult.Message);
+            }
+
+            var balanceAfter = creditResult.Value;
+
+            var walletTransaction = WalletTransactionEntity.Create(
                 user.Id,
                 refund.RefundAmount,
                 balanceBefore,
@@ -84,7 +95,6 @@ internal sealed class ApproveRefundRequestCommandHandler(
                 walletTransaction,
                 cancellationToken);
             refundRepository.Update(refund);
-            userRepository.Update(user);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);

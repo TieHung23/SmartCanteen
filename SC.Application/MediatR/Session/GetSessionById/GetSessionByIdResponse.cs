@@ -32,6 +32,7 @@ public class MealSettingDto
     public Guid Id { get; set; }
     public Guid MealTemplateId { get; set; }
     public Guid CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
     public int MinQuantity { get; set; }
     public int MaxQuantity { get; set; }
     public bool IsRequired { get; set; }
@@ -46,5 +47,6 @@ public class SessionDishDto
     public decimal PriceAmount { get; set; }
     public string PriceCurrency { get; set; } = string.Empty;
     public Guid CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
     public int? PreparedQuantity { get; set; }
 }

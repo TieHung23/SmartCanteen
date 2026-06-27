@@ -1,58 +1,15 @@
 ﻿# SmartCanteen Category API
 
-> Generated from `API-Document.md`. Run `.\tools\generate-api-modules.ps1` after updating the main document.
-
-# SmartCanteen API Documentation
-
-Base URL: `/api`  
-API Version: `1.0`  
-All timestamps: `DateTimeOffset` (ISO 8601)  
-Currency: **Point** (no currency field exposed)
-
-Module documentation: [`API-Modules/README.md`](API-Modules/README.md)
-
-Every response is wrapped in a standard envelope:
-
-```json
-{
-  "value": { },
-  "isSuccess": true,
-  "isFailure": false,
-  "message": "string",
-  "error": null
-}
-```
-
-On failure `value` is null, `isSuccess` false, `error` is a string code.
-
-Pagination query param defaults: `pageNumber=1`, `pageSize=10` (max 100).  
-Paginated response shape:
-
-```json
-{
-  "value": {
-    "items": [ ],
-    "pageNumber": 1,
-    "pageSize": 10,
-    "totalCount": 42,
-    "totalPages": 5,
-    "hasPreviousPage": false,
-    "hasNextPage": true
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
+Base URL: `/api/categories`  
+Auth: `[Authorize]` (any authenticated user)  
+API Version: `1.0`
 
 ---
 
-## Categories
-
-### `GET /api/categories`
-**Auth:** Authorize  
+## `GET /api/categories`
 **Query:** `?name=string&pageNumber=1&pageSize=10`
 
-**Paginated response items:**
+Paginated items:
 ```json
 {
   "id": "guid",
@@ -62,10 +19,8 @@ Paginated response shape:
 }
 ```
 
-### `GET /api/categories/{id}`
-**Auth:** Authorize  
-
-**Response:**
+## `GET /api/categories/{id}`
+**200 Response:**
 ```json
 {
   "value": {
@@ -73,76 +28,34 @@ Paginated response shape:
     "name": "string",
     "description": "string",
     "imgUrl": "string | null",
-    "createdAtUtc": "2024-01-01T00:00:00Z",
-    "updatedAtUtc": "2024-01-01T00:00:00Z | null",
+    "createdAtUtc": "...",
+    "updatedAtUtc": "... | null",
     "createdBy": "guid",
     "updatedBy": "guid"
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
+`404` if not found.
 
-### `POST /api/categories`
-**Auth:** Authorize  
+## `POST /api/categories`
 **Content-Type:** `multipart/form-data`
 
 **Fields:**
 - `name` (string)
 - `description` (string)
-- `image` (file, optional) — uploaded to Cloudinary, URL saved as `imgUrl`
+- `image` (file, optional) — uploaded to Cloudinary
 
-**201 Response:**
+**201 Response:** Returns `Location` header to `GET /api/categories/{id}`.
 ```json
 {
-  "value": {
-    "id": "guid",
-    "name": "string",
-    "description": "string",
-    "imgUrl": "string | null"
-  },
-  "isSuccess": true,
-  "message": "string"
+  "value": { "id": "guid", "name": "string", "description": "string", "imgUrl": "string | null" },
+  "isSuccess": true
 }
 ```
 
-### `PUT /api/categories/{id}`
-**Auth:** Authorize  
-**Content-Type:** `multipart/form-data`
+## `PUT /api/categories/{id}`
+Same `multipart/form-data` fields as create. Omitting `image` preserves existing `imgUrl`.
 
-**Fields:**
-- `name` (string)
-- `description` (string)
-- `image` (file, optional) — uploaded to Cloudinary, URL saved as `imgUrl`; if omitted, existing `imgUrl` is preserved
-
-**Response:**
-```json
-{
-  "value": {
-    "id": "guid",
-    "name": "string",
-    "description": "string",
-    "imgUrl": "string | null"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
-### `DELETE /api/categories/{id}` (soft delete)
-**Auth:** Authorize  
-
-**Response:**
-```json
-{
-  "value": {
-    "id": "guid",
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
----
-
+## `DELETE /api/categories/{id}`
+Soft-delete. `404` if not found.

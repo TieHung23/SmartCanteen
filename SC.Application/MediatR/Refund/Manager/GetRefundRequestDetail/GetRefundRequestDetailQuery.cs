@@ -10,6 +10,9 @@ public sealed class GetRefundRequestDetailResponse
     public Guid Id { get; set; }
     public Guid OrderId { get; set; }
     public Guid UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public string UserEmail { get; set; } = string.Empty;
+    public string? StudentId { get; set; }
     public string PolicyCode { get; set; } = string.Empty;
     public string PolicyName { get; set; } = string.Empty;
     public decimal RefundPercent { get; set; }
