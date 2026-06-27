@@ -120,7 +120,7 @@ public sealed class CartValidationService(
                     "One or more sessions are not available.");
             }
 
-            if (DateTimeOffset.UtcNow > session.AvailableFrom)
+            if (DateTimeOffset.UtcNow > session.AvailableTo)
             {
                 return Result.Failure<ValidatedCart>(
                     Error.InvalidValue,
