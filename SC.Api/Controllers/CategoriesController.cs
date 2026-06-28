@@ -48,7 +48,7 @@ public class CategoriesController(IMediator mediator, ICloundinaryUpload cloudin
     [HttpPost]
     public async Task<IActionResult> CreateCategory(
         [FromForm] string name,
-        [FromForm] string description,
+        [FromForm] string? description,
         IFormFile? image)
     {
         string? imgUrl = null;
@@ -80,7 +80,7 @@ public class CategoriesController(IMediator mediator, ICloundinaryUpload cloudin
     public async Task<IActionResult> UpdateCategory(
         [FromRoute] Guid id,
         [FromForm] string name,
-        [FromForm] string description,
+        [FromForm] string? description,
         IFormFile? image)
     {
         string? imgUrl = null;

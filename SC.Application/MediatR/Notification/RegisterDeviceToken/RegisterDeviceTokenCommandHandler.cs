@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Notification;
@@ -32,19 +31,18 @@ internal sealed class RegisterDeviceTokenCommandHandler(
 
             var tokenHash = UserDeviceToken.ComputeTokenHash(request.Token);
             var deviceToken = await deviceTokenRepository
-                .GetQueryable(token => token.TokenHash == tokenHash)
-                .SingleOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(token => token.TokenHash == tokenHash, cancellationToken);
 
             if (deviceToken is null
                 && !string.IsNullOrWhiteSpace(request.DeviceId))
             {
                 var deviceId = request.DeviceId.Trim();
-                deviceToken = await deviceTokenRepository
-                    .GetQueryable(token =>
+                var deviceTokens = await deviceTokenRepository
+                    .FindListAsync(token =>
                         token.UserId == userId
-                        && token.DeviceId == deviceId)
-                    .OrderByDescending(token => token.LastUsedAtUtc)
-                    .FirstOrDefaultAsync(cancellationToken);
+                        && token.DeviceId == deviceId,
+                        cancellationToken);
+                deviceToken = deviceTokens.OrderByDescending(token => token.LastUsedAtUtc).FirstOrDefault();
             }
 
             if (deviceToken is null)

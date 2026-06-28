@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -18,32 +17,35 @@ internal class GetAllDishesQueryHandler(
     {
         try
         {
-            IQueryable<DishAggregateRoot> query = dishRepository.GetQueryable(x => !x.IsDeleted);
+            var allDishes = await dishRepository
+                .FindListAsync(x => !x.IsDeleted, cancellationToken);
+            var filtered = allDishes.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
                 var normalizedName = request.Name.ToLower();
-                query = query.Where(x => x.Name.ToLower().Contains(normalizedName));
+                filtered = filtered.Where(x => x.Name.ToLower().Contains(normalizedName));
             }
 
             if (request.CategoryId.HasValue)
             {
-                query = query.Where(x => x.CategoryId == request.CategoryId.Value);
+                filtered = filtered.Where(x => x.CategoryId == request.CategoryId.Value);
             }
 
             if (request.IsActive.HasValue)
             {
-                query = query.Where(x => x.IsActive == request.IsActive.Value);
+                filtered = filtered.Where(x => x.IsActive == request.IsActive.Value);
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
 
             var skipCount = request.GetSkipCount();
-            var paginatedDishes = await query
+            var paginatedDishes = filteredList
                 .OrderBy(x => x.Name)
                 .Skip(skipCount)
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var responses = paginatedDishes.Select(d => new GetAllDishesResponse
             {

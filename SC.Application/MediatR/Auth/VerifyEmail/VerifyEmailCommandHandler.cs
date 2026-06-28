@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Auth;
@@ -20,25 +19,27 @@ internal class VerifyEmailCommandHandler(
     {
         try
         {
-            var tokenHash = tokenGenerator.HashOpaqueToken(request.Token);
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await userRepository
+                .FindSingleAsync(u => u.Email == normalizedEmail, cancellationToken);
+
+            if (user is null)
+            {
+                return Result.Failure<VerifyEmailResponse>(
+                    Error.InvalidOrExpiredToken,
+                    "The verification code is invalid or expired.");
+            }
+
+            var tokenHash = tokenGenerator.HashVerificationCode(request.Code);
 
             var token = await tokenRepository
-                .GetQueryable(t => t.TokenHash == tokenHash)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(t => t.UserId == user.Id && t.TokenHash == tokenHash, cancellationToken);
 
             if (token is null || !token.IsValid)
             {
                 return Result.Failure<VerifyEmailResponse>(
                     Error.InvalidOrExpiredToken,
                     "The verification token is invalid or expired.");
-            }
-
-            var user = await userRepository.GetByIdAsync(token.UserId, cancellationToken);
-            if (user is null)
-            {
-                return Result.Failure<VerifyEmailResponse>(
-                    Error.InvalidOrExpiredToken,
-                    "Associated account no longer exists.");
             }
 
             user.ConfirmEmail();

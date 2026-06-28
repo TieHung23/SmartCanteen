@@ -3,21 +3,21 @@ using SC.Domain.Abstraction.Entities;
 
 namespace SC.Domain.Domain.Category.AggregateRoot;
 
-public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private Category()
-    {
-    }
+    private Category() { }
 
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string? ImgUrl { get; set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string Name { get; private set; } = string.Empty;
+    public string? Description { get; private set; }
+    public string? ImgUrl { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
-    public static Category Create(string name, string description, Guid createdBy, string? imgUrl = null)
+    public static Category Create(string name, string? description, Guid createdBy, string? imgUrl = null)
     {
         return new Category
         {
@@ -26,28 +26,27 @@ public class Category : AggregateRoot<Guid>, IAuditableEntity<Guid>
             Description = description,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
+            UpdatedBy = createdBy,
             ImgUrl = imgUrl
         };
     }
 
-    /// <summary>
-    /// Updates the category information
-    /// </summary>
-    public void Update(string name, string description, Guid updatedBy, string? imgUrl = null)
+    public void Update(string name, string? description, Guid updatedBy, string? imgUrl = null)
     {
         Name = name;
         Description = description;
         ImgUrl = imgUrl;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
+        Touch(updatedBy);
     }
 
-    /// <summary>
-    /// Soft deletes the category
-    /// </summary>
-    public void SoftDelete(Guid updatedBy)
+    public void SoftDelete()
     {
         IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
+    }
+
+    private void Touch(Guid updatedBy)
+    {
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }

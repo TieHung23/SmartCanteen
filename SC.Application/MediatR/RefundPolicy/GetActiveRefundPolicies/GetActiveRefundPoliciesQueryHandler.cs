@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -19,11 +18,10 @@ internal sealed class GetActiveRefundPoliciesQueryHandler(
         try
         {
             var settings = await settingRepository
-                .GetQueryable(setting =>
+                .FindListAsync(setting =>
                     !setting.IsDeleted
-                    && setting.Group.ToUpper() == RefundPolicyConstants.Group)
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
+                    && setting.Group.ToUpper() == RefundPolicyConstants.Group,
+                    cancellationToken);
 
             var policies = new List<GetActiveRefundPoliciesResponse>();
 

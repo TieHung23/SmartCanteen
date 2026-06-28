@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -11,8 +10,10 @@ namespace SC.Application.MediatR.Cart.GetCart;
 internal sealed class GetCartQueryHandler(
     IGenericRepository<CartAggregateRoot, Guid> cartRepository,
     IGenericRepository<SC.Domain.Domain.Session.AggregateRoot.Session, Guid> sessionRepository,
+    IGenericRepository<SC.Domain.Domain.Dish.AggregateRoot.Dish, Guid> dishRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IWalletDomainService walletDomainService,
     ILogger<GetCartQueryHandler> logger)
     : IQueryHandler<GetCartQuery, CartResponse>
 {
@@ -24,8 +25,7 @@ internal sealed class GetCartQueryHandler(
         {
             var userId = currentUserService.UserId;
             var cart = await cartRepository
-                .GetQueryable(x => x.UserId == userId)
-                .SingleOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.UserId == userId, cancellationToken);
 
             if (cart is null)
             {
@@ -43,14 +43,15 @@ internal sealed class GetCartQueryHandler(
                 cartData,
                 cancellationToken);
 
+            await EnrichCartItemsAsync(activeCartData, cancellationToken);
+
             if (activeCartData.Sessions.Count != cartData.Sessions.Count)
             {
                 await unitOfWork.BeginTransactionAsync(cancellationToken);
-                await unitOfWork.LockUserAsync(userId, cancellationToken);
+                await walletDomainService.LockUserAsync(userId, cancellationToken);
 
                 var currentCart = await cartRepository
-                    .GetQueryable(x => x.UserId == userId)
-                    .SingleOrDefaultAsync(cancellationToken);
+                    .FindSingleAsync(x => x.UserId == userId, cancellationToken);
 
                 if (currentCart is not null && currentCart.Version == cart.Version)
                 {
@@ -102,14 +103,14 @@ internal sealed class GetCartQueryHandler(
 
         var now = DateTimeOffset.UtcNow;
         var sessionIds = cartData.Sessions.Select(x => x.SessionId).Distinct().ToList();
-        var availableSessionIds = await sessionRepository
-            .GetQueryable(x =>
+        var availableSessions = await sessionRepository
+            .FindListAsync(x =>
                 sessionIds.Contains(x.Id)
                 && !x.IsDeleted
                 && x.IsActive
-                && x.AvailableForOrder >= now)
-            .Select(x => x.Id)
-            .ToListAsync(cancellationToken);
+                && x.AvailableForOrder >= now,
+                cancellationToken);
+        var availableSessionIds = availableSessions.Select(x => x.Id).ToList();
 
         var availableSessionIdSet = availableSessionIds.ToHashSet();
         return new CartData
@@ -118,5 +119,38 @@ internal sealed class GetCartQueryHandler(
                 .Where(x => availableSessionIdSet.Contains(x.SessionId))
                 .ToList()
         };
+    }
+
+    private async Task EnrichCartItemsAsync(CartData cartData, CancellationToken cancellationToken)
+    {
+        var dishIds = cartData.Sessions
+            .Where(s => s.Items is { Count: > 0 })
+            .SelectMany(s => s.Items!)
+            .Select(i => i.DishId)
+            .Distinct()
+            .ToList();
+
+        if (dishIds.Count == 0)
+            return;
+
+        var dishes = await dishRepository
+            .FindListAsync(d => dishIds.Contains(d.Id), cancellationToken);
+
+        var dishMap = dishes.ToDictionary(d => d.Id);
+
+        foreach (var session in cartData.Sessions)
+        {
+            if (session.Items is null)
+                continue;
+
+            foreach (var item in session.Items)
+            {
+                if (dishMap.TryGetValue(item.DishId, out var dish))
+                {
+                    item.DishName = dish.Name;
+                    item.ImgUrl = dish.ImgUrl;
+                }
+            }
+        }
     }
 }

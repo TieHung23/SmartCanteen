@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Application.MediatR.Auth.Shared;
@@ -49,8 +48,7 @@ internal class GoogleLoginCommandHandler(
             }
 
             var user = await userRepository
-                .GetQueryable(u => u.Email == email)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(u => u.Email == email, cancellationToken);
 
             var isNewUser = user is null;
 
@@ -124,8 +122,7 @@ internal class GoogleLoginCommandHandler(
         if (studentId is not null)
         {
             var studentIdTaken = await userRepository
-                .GetQueryable(u => u.StudentId == studentId)
-                .AnyAsync(cancellationToken);
+                .ExistsAsync(u => u.StudentId == studentId, cancellationToken);
 
             if (studentIdTaken)
             {

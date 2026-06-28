@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Auth;
@@ -21,8 +20,7 @@ internal class LogoutCommandHandler(
             var hash = tokenGenerator.HashOpaqueToken(request.RefreshToken);
 
             var token = await refreshTokenRepository
-                .GetQueryable(t => t.TokenHash == hash)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(t => t.TokenHash == hash, cancellationToken);
 
             if (token is null)
             {

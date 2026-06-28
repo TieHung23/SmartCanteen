@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -24,12 +25,16 @@ public class PaymentService(
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IWalletDomainService walletService,
     IOptions<SePayOptions> sePayOptions,
     ILogger<PaymentService> logger) : IPaymentService
 {
     private const string VndPerPointSettingCode = "VND_PER_POINT";
     private const string MinTopUpAmountSettingCode = "MIN_TOPUP_AMOUNT";
     private const string MaxTopUpAmountSettingCode = "MAX_TOPUP_AMOUNT";
+    private const string TopUpCurrency = "VND";
+    private const string PointName = "Point";
+    private const int PaymentCodeLength = 30;
     private readonly SePayOptions _sePayOptions = sePayOptions.Value;
 
     public async Task<Result<TopUpWalletResult>> TopUpWalletAsync(
@@ -184,6 +189,66 @@ public class PaymentService(
         }
     }
 
+    public async Task<Result<TopUpPolicyResult>> GetTopUpPolicyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var vndPerPointResult = await GetRequiredDecimalSettingAsync(
+                VndPerPointSettingCode,
+                cancellationToken);
+            if (vndPerPointResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    vndPerPointResult.Error ?? Error.ServerError,
+                    vndPerPointResult.Message);
+            }
+
+            var minTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MinTopUpAmountSettingCode,
+                cancellationToken);
+            if (minTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    minTopUpAmountResult.Error ?? Error.ServerError,
+                    minTopUpAmountResult.Message);
+            }
+
+            var maxTopUpAmountResult = await GetRequiredDecimalSettingAsync(
+                MaxTopUpAmountSettingCode,
+                cancellationToken);
+            if (maxTopUpAmountResult.IsFailure)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    maxTopUpAmountResult.Error ?? Error.ServerError,
+                    maxTopUpAmountResult.Message);
+            }
+
+            if (minTopUpAmountResult.Value > maxTopUpAmountResult.Value)
+            {
+                return Result.Failure<TopUpPolicyResult>(
+                    Error.InvalidValue,
+                    "Payment top-up min amount cannot be greater than max amount.");
+            }
+
+            return Result.Success(
+                new TopUpPolicyResult(
+                    vndPerPointResult.Value,
+                    minTopUpAmountResult.Value,
+                    maxTopUpAmountResult.Value,
+                    TopUpCurrency,
+                    PointName),
+                "Top-up policy retrieved successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving top-up policy");
+            return Result.Failure<TopUpPolicyResult>(
+                Error.ServerError,
+                "An error occurred while retrieving top-up policy.");
+        }
+    }
+
     public async Task<Result<CompletePaymentResult>> HandleSepayIpnAsync(
         IReadOnlyDictionary<string, string> data,
         CancellationToken cancellationToken = default)
@@ -208,9 +273,8 @@ public class PaymentService(
                     "SePay payment code is missing.");
             }
 
-            payment = await paymentRepository.GetQueryable(
-                x => x.GatewayOrderId == orderId)
-                .FirstOrDefaultAsync(cancellationToken);
+            payment = await paymentRepository.FindSingleAsync(
+                x => x.GatewayOrderId == orderId, cancellationToken);
 
             if (payment is null)
             {
@@ -260,14 +324,14 @@ public class PaymentService(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            await unitOfWork.LockUserAsync(payment.UserId, cancellationToken);
+            await walletService.LockUserAsync(payment.UserId, cancellationToken);
 
-            var balanceAfter = await unitOfWork.TryCreditUserBalanceAsync(
+            var balanceAfterResult = await walletService.TryCreditUserBalanceAsync(
                 payment.UserId,
                 payment.ConvertedPoints,
                 cancellationToken);
 
-            if (balanceAfter is null)
+            if (balanceAfterResult.IsFailure)
             {
                 await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<CompletePaymentResult>(
@@ -275,14 +339,15 @@ public class PaymentService(
                     "Payment user not found.");
             }
 
-            var balanceBefore = balanceAfter.Value - payment.ConvertedPoints;
+            var balanceAfter = balanceAfterResult.Value;
+            var balanceBefore = balanceAfter - payment.ConvertedPoints;
             payment.MarkAsCompleted(gatewayTransactionId, payment.UserId);
 
             var transaction = WalletTransaction.Create(
                 payment.UserId,
                 payment.ConvertedPoints,
                 balanceBefore,
-                balanceAfter.Value,
+                balanceAfter,
                 WalletTransactionType.TopUp,
                 payment.Id);
 
@@ -308,9 +373,7 @@ public class PaymentService(
             await unitOfWork.RollbackAsync(cancellationToken);
 
             var persistedPayment = await paymentRepository
-                .GetQueryable(x => x.Id == payment.Id)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.Id == payment.Id, cancellationToken);
 
             if (persistedPayment?.Status == PaymentStatus.Completed)
             {
@@ -357,9 +420,8 @@ public class PaymentService(
         string code,
         CancellationToken cancellationToken)
     {
-        var setting = await settingRepository.GetQueryable(
-            x => !x.IsDeleted && x.Code == code)
-            .FirstOrDefaultAsync(cancellationToken);
+        var setting = await settingRepository.FindSingleAsync(
+            x => !x.IsDeleted && x.Code == code, cancellationToken);
 
         if (setting is null)
         {
@@ -387,7 +449,7 @@ public class PaymentService(
     {
         var paymentCodePrefix = _sePayOptions.PaymentCodePrefix.Trim();
         var code = GetValue(data, "code");
-        if (code.StartsWith(paymentCodePrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsPaymentCodeCandidate(code, paymentCodePrefix))
         {
             return code;
         }
@@ -398,11 +460,20 @@ public class PaymentService(
             return string.Empty;
         }
 
-        return content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(part => part.StartsWith(
-                paymentCodePrefix,
-                StringComparison.OrdinalIgnoreCase))
-            ?? string.Empty;
+        var pattern = $"{Regex.Escape(paymentCodePrefix)}[a-fA-F0-9]{{{PaymentCodeLength - paymentCodePrefix.Length}}}";
+        return Regex.Match(content, pattern, RegexOptions.IgnoreCase).Value;
+    }
+
+    private static bool IsPaymentCodeCandidate(string value, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || value.Length != PaymentCodeLength
+            || !value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return value[prefix.Length..].All(Uri.IsHexDigit);
     }
 
     private string? ValidateSePayConfiguration()

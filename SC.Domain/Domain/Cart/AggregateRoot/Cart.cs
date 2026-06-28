@@ -5,18 +5,15 @@ namespace SC.Domain.Domain.Cart.AggregateRoot;
 
 public class Cart : AggregateRoot<Guid>, IAuditableEntity<Guid>
 {
-    private Cart()
-    {
-    }
+    private Cart() { }
 
     public Guid UserId { get; private set; }
     public string DataJson { get; private set; } = "{}";
     public long Version { get; private set; }
-
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static Cart Create(Guid userId, string dataJson)
     {
@@ -27,7 +24,8 @@ public class Cart : AggregateRoot<Guid>, IAuditableEntity<Guid>
             DataJson = dataJson,
             Version = 1,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = userId
+            CreatedBy = userId,
+            UpdatedBy = userId
         };
     }
 

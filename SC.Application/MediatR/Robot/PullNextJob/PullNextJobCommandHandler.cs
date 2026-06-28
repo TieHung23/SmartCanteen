@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Robot;
@@ -31,20 +30,18 @@ internal sealed class PullNextJobCommandHandler(
         try
         {
             // 1) Job Queued cũ nhất (FIFO theo giờ tạo). Chưa có việc -> Job = null (204).
-            var job = await servingJobRepository
-                .GetQueryable(x => x.Status == ServingJobStatus.Queued)
-                .OrderBy(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+            var queuedJobs = await servingJobRepository
+                .FindListAsync(x => x.Status == ServingJobStatus.Queued, cancellationToken);
+            var job = queuedJobs.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
             if (job is null)
             {
                 return Result.Success(new PullNextJobResponse(null), "No queued job.");
             }
 
             // 2) Gán khay TRỐNG (lazy). Hết khay -> để job ở Queued, trả null (đơn nằm chờ).
-            var tray = await trayRepository
-                .GetQueryable(x => x.Status == TrayStatus.Available)
-                .OrderBy(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+            var availableTrays = await trayRepository
+                .FindListAsync(x => x.Status == TrayStatus.Available, cancellationToken);
+            var tray = availableTrays.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
             if (tray is null)
             {
                 return Result.Success(new PullNextJobResponse(null), "No free tray.");

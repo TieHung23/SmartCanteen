@@ -1,23 +1,35 @@
 # SmartCanteen Cart API
 
 Base URL: `/api/cart`  
-Authentication: required
+Auth: `[Authorize]`  
+API Version: `1.0`  
+Each user has at most one cart. `UserId` is resolved from the access token.  
+Optimistic concurrency via `expectedVersion` — returns `409` on stale version.
 
-Each authenticated user has at most one persisted cart. `UserId` is resolved from
-the access token and is never accepted from the request body.
+---
 
 ## `GET /api/cart`
-
-Returns the current user's cart. A user without a cart receives an empty cart with
-version `0`. Expired, inactive, or deleted sessions are removed from the persisted cart
-before the response is returned.
+Expired/inactive/deleted sessions are removed before response.
 
 ```json
 {
   "value": {
-    "id": null,
+    "id": "guid | null",
     "data": {
-      "sessions": []
+      "sessions": [
+        {
+          "sessionId": "guid",
+          "mealTemplateId": "guid",
+          "items": [
+            {
+              "dishId": "guid",
+              "dishName": "string",
+              "imgUrl": "string | null",
+              "quantity": 2
+            }
+          ]
+        }
+      ]
     },
     "version": 0,
     "updatedAtUtc": null
@@ -25,11 +37,10 @@ before the response is returned.
   "isSuccess": true
 }
 ```
+A new user receives version `0` with empty sessions.
 
 ## `PUT /api/cart`
-
-Creates or replaces the complete cart JSON. Use `expectedVersion: 0` when creating
-the first cart. Later requests must use the latest version returned by the API.
+Send `expectedVersion: 0` for a new cart.
 
 ```json
 {
@@ -38,12 +49,7 @@ the first cart. Later requests must use the latest version returned by the API.
       {
         "sessionId": "guid",
         "mealTemplateId": "guid",
-        "items": [
-          {
-            "dishId": "guid",
-            "quantity": 2
-          }
-        ]
+        "items": [ { "dishId": "guid", "quantity": 2 } ]
       }
     ]
   },
@@ -51,50 +57,20 @@ the first cart. Later requests must use the latest version returned by the API.
 }
 ```
 
-Validation when saving cart:
+**Validation on save:**
+- `sessionId`, `mealTemplateId`, each `dishId` required
+- Each `sessionId` once only
+- Template belongs to session; session/dish exist, active, not deleted
+- Ordering deadline not passed
+- Dish belongs to session; category allowed by template; quantity within template max
+- Quantity > 0, no duplicate dishes, at least one dish
 
-- `sessionId`, `mealTemplateId`, and every `dishId` are required.
-- A cart can contain multiple sessions, but each `sessionId` can appear only once.
-- The template must belong to the selected session.
-- The session and dishes must exist, be active, and not be deleted.
-- The ordering deadline must not have passed.
-- Every dish must belong to the selected session.
-- Selected dish categories must be allowed by the template.
-- Selected category quantities cannot exceed template maximums.
-- Requested quantity cannot exceed the dish stock configured for the session.
-- The cart must contain at least one dish.
-- Quantity must be greater than zero and cannot exceed current stock.
-- Duplicate dishes are rejected.
+Template minimums and required categories are enforced at checkout (`POST /api/orders`).
 
-Saving a cart allows partial selections, so required categories and template minimums
-are enforced during checkout instead of during `PUT /api/cart`.
-
-The persisted `Carts.DataJson` value is stored as the session list itself:
-`[{"sessionId":"guid","mealTemplateId":"guid","items":[...]}]`.
-
-A stale version returns HTTP `409` with error code `CartVersionConflict`.
+**Response:**
+```json
+{ "value": { "version": 1, "updatedAtUtc": "..." }, "isSuccess": true }
+```
 
 ## `DELETE /api/cart?expectedVersion={version}`
-
-Clears the cart and increments its version. A stale version returns HTTP `409`.
-
-## Checkout
-
-Checkout uses the persisted cart:
-
-```http
-POST /api/orders
-```
-
-```json
-{
-  "sessionId": "guid",
-  "cartVersion": 1
-}
-```
-
-The server validates the selected session in the cart again with complete template rules,
-including required categories and category minimum quantities. It then atomically reserves
-dish stock and uses current database prices. Stock reservation, wallet debit, wallet
-transaction creation, order creation, and removing that session from the cart occur in one
-database transaction. If any step fails, all changes are rolled back.
+Clears cart and increments version. `409` on stale version.

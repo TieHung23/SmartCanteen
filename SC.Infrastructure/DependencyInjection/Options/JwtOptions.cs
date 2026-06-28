@@ -14,7 +14,7 @@ public sealed class JwtOptions
 
     public int RefreshTokenDays { get; set; } = 7;
 
-    public int EmailVerificationHours { get; set; } = 24;
+    public int EmailVerificationCodeMinutes { get; set; } = 5;
 
     public int PasswordResetMinutes { get; set; } = 60;
 

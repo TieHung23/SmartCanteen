@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -36,12 +35,12 @@ internal class CreateSettingCommandHandler(
                     "Refund policy settings must be managed through the refund policy API.");
             }
 
-            var existing = await settingRepository.GetQueryable(
+            var existing = await settingRepository.FindSingleAsync(
                 x => !x.IsDeleted
                     && x.Group.ToLower() == normalizedGroup.ToLower()
                     && x.Scope.ToLower() == normalizedScope.ToLower()
-                    && x.Code.ToLower() == normalizedCode.ToLower())
-                .FirstOrDefaultAsync(cancellationToken);
+                    && x.Code.ToLower() == normalizedCode.ToLower(),
+                cancellationToken);
 
             if (existing is not null)
             {

@@ -28,7 +28,7 @@ internal class UpdateCategoryCommandHandler(
 
             category.Update(
                 request.Name.Trim(),
-                request.Description.Trim(),
+                string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 currentUserService.UserId,
                 request.ImgUrl ?? category.ImgUrl);
 
@@ -41,7 +41,7 @@ internal class UpdateCategoryCommandHandler(
             {
                 Id = category.Id,
                 Name = category.Name,
-                Description = category.Description,
+                Description = category.Description ?? string.Empty,
                 ImgUrl = category.ImgUrl
             };
 

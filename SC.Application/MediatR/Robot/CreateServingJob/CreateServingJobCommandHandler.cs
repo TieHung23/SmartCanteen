@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Robot;
@@ -41,12 +40,12 @@ internal sealed class CreateServingJobCommandHandler(
             }
 
             // Idempotent: order đã có job đang hoạt động -> trả lại
-            var existing = await servingJobRepository
-                .GetQueryable(x => x.OrderId == request.OrderId
+            var existingJobs = await servingJobRepository
+                .FindListAsync(x => x.OrderId == request.OrderId
                                    && x.Status != ServingJobStatus.Cancelled
-                                   && x.Status != ServingJobStatus.Collected)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                                   && x.Status != ServingJobStatus.Collected,
+                    cancellationToken);
+            var existing = existingJobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
 
             if (existing is not null)
             {

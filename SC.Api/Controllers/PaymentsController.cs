@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Payment.HandleSepayIpn;
 using SC.Application.MediatR.Payment.GetPaymentById;
+using SC.Application.MediatR.Payment.GetTopUpPolicy;
 using SC.Application.MediatR.Payment.TopUpWallet;
 using SC.Contract.Services.Payment;
 
@@ -21,6 +22,19 @@ public class PaymentsController(
     ISePayWebhookVerifier webhookVerifier,
     IHostEnvironment environment) : ControllerBase
 {
+    [HttpGet("top-up-policy")]
+    public async Task<IActionResult> GetTopUpPolicy()
+    {
+        var result = await mediator.Send(new GetTopUpPolicyQuery());
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetPaymentById([FromRoute] Guid id)
     {

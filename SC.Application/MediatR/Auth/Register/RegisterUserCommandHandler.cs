@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
@@ -30,8 +29,7 @@ internal class RegisterUserCommandHandler(
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
             var emailTaken = await userRepository
-                .GetQueryable(u => u.Email == normalizedEmail)
-                .AnyAsync(cancellationToken);
+                .ExistsAsync(u => u.Email == normalizedEmail, cancellationToken);
 
             if (emailTaken)
             {
@@ -43,8 +41,7 @@ internal class RegisterUserCommandHandler(
             if (!string.IsNullOrWhiteSpace(request.StudentId))
             {
                 var studentIdTaken = await userRepository
-                    .GetQueryable(u => u.StudentId == request.StudentId)
-                    .AnyAsync(cancellationToken);
+                    .ExistsAsync(u => u.StudentId == request.StudentId, cancellationToken);
 
                 if (studentIdTaken)
                 {
@@ -70,9 +67,9 @@ internal class RegisterUserCommandHandler(
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await userRepository.AddAsync(user, cancellationToken);
 
-            var opaque = tokenGenerator.GenerateOpaqueToken();
-            var ttl = TimeSpan.FromHours(configuration.GetValue("Jwt:EmailVerificationHours", 24));
-            var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, opaque.TokenHash, ttl);
+            var verificationCode = tokenGenerator.GenerateEmailVerificationCode();
+            var ttl = TimeSpan.FromMinutes(configuration.GetValue("Jwt:EmailVerificationCodeMinutes", 5));
+            var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, verificationCode.CodeHash, ttl);
 
             await tokenRepository.AddAsync(verificationToken, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -80,7 +77,7 @@ internal class RegisterUserCommandHandler(
 
             try
             {
-                await emailSender.SendVerificationLinkAsync(user.Email, opaque.RawToken, cancellationToken);
+                await emailSender.SendVerificationCodeAsync(user.Email, verificationCode.Code, cancellationToken);
             }
             catch (Exception ex)
             {

@@ -10,10 +10,6 @@ public class RefundRequestImageConfiguration : IEntityTypeConfiguration<RefundRe
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.RefundRequestId)
             .IsRequired();
 

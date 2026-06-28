@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -18,31 +17,31 @@ internal class GetAllCategoriesQueryHandler(
     {
         try
         {
-            IQueryable<CategoryAggregateRoot> query = categoryRepository.GetQueryable();
-
-            // Filter out deleted categories
-            query = query.Where(x => !x.IsDeleted);
+            var allCategories = await categoryRepository
+                .FindListAsync(x => !x.IsDeleted, cancellationToken);
+            var filtered = allCategories.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                query = query.Where(x =>
+                filtered = filtered.Where(x =>
                     x.Name.Contains(request.Name, StringComparison.OrdinalIgnoreCase));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
 
             var skipCount = request.GetSkipCount();
-            var paginatedCategories = await query
+            var paginatedCategories = filteredList
                 .OrderBy(x => x.Name)
                 .Skip(skipCount)
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var responses = paginatedCategories.Select(c => new GetAllCategoriesResponse
             {
                 Id = c.Id,
                 Name = c.Name,
-                Description = c.Description,
+                Description = c.Description ?? string.Empty,
                 ImgUrl = c.ImgUrl
             }).ToList();
 

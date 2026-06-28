@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -23,11 +22,11 @@ internal sealed class MarkAllNotificationsReadCommandHandler(
         {
             var userId = currentUserService.UserId;
             var notifications = await notificationRepository
-                .GetQueryable(notification =>
+                .FindListAsync(notification =>
                     notification.RecipientId == userId
                     && !notification.IsRead
-                    && !notification.IsDeleted)
-                .ToListAsync(cancellationToken);
+                    && !notification.IsDeleted,
+                    cancellationToken);
 
             foreach (var notification in notifications)
             {

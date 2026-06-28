@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -21,21 +20,20 @@ internal class ListPendingVerificationsQueryHandler(
     {
         try
         {
-            var query = verificationRepository
-                .GetQueryable(v => v.Status == VerificationStatus.Pending);
+            var allPending = await verificationRepository
+                .FindListAsync(v => v.Status == VerificationStatus.Pending, cancellationToken);
 
-            var total = await query.CountAsync(cancellationToken);
-
-            var page = await query
-                .OrderBy(v => v!.SubmittedAt)
+            var total = allPending.Count;
+            var page = allPending
+                .OrderBy(v => v.SubmittedAt)
                 .Skip(request.GetSkipCount())
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var userIds = page.Select(v => v!.UserId).Distinct().ToList();
-            var users = await userRepository
-                .GetQueryable(u => userIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u, cancellationToken);
+            var usersList = await userRepository
+                .FindListAsync(u => userIds.Contains(u.Id), cancellationToken);
+            var users = usersList.ToDictionary(u => u.Id, u => u);
 
             var items = page.Select(v => new PendingVerificationItem(
                 v!.Id,

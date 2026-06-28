@@ -1,0 +1,593 @@
+Project SmartCanteen {
+  database_type: "PostgreSQL"
+  Note: "DBML generated from EF Core model snapshot and current domain relationships."
+}
+
+Table Users {
+  Id uuid [pk]
+  Name varchar(200) [not null]
+  Email varchar(256) [not null, unique]
+  PasswordHash text
+  GoogleSubjectId varchar(64) [unique]
+  ImgUrl varchar(500)
+  Role int [not null, note: "Admin=1, Manager=2, User=3, Staff=4"]
+  Status int [not null, note: "Active=1, PendingEmailVerification=2, PendingIdentityVerification=3, Suspended=4, Banned=5"]
+  EmailVerified boolean [not null]
+  StudentId varchar(50) [unique]
+  DateOfBirth date
+  MajorOrClass varchar(200)
+  PhoneNumber varchar(20)
+  Address varchar(500)
+  Gender int [note: "Male=1, Female=2, Other=3"]
+  LastLoginAt timestamptz
+  Balance_Amount decimal(18,2) [not null]
+  Balance_Currency varchar(10) [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table Carts {
+  Id uuid [pk]
+  UserId uuid [not null, unique]
+  DataJson jsonb [not null]
+  Version bigint [not null, note: "Concurrency token"]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+}
+
+Table Categories {
+  Id uuid [pk]
+  Name varchar(200) [not null]
+  Description varchar(500)
+  ImgUrl varchar(2048)
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table Dishes {
+  Id uuid [pk]
+  CategoryId uuid [not null]
+  Name varchar(200) [not null]
+  Description varchar(500) [not null]
+  Price_Amount decimal(18,2) [not null]
+  Price_Currency varchar(10) [not null]
+  IsActive boolean [not null]
+  ImgUrl varchar(2048)
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table SessionDish {
+  Id uuid [pk]
+  SessionId uuid [not null]
+  DishId uuid [not null]
+  PreparedQuantity int
+
+  Indexes {
+    (SessionId, DishId) [unique]
+  }
+}
+
+Table Sessions {
+  Id uuid [pk]
+  Name varchar(200) [not null]
+  Description varchar(500) [not null]
+  IsActive boolean [not null]
+  AvailableFrom timestamptz [not null]
+  AvailableTo timestamptz [not null]
+  AvailableForOrder timestamptz [not null]
+  FinalizationDeadline timestamptz
+  AutoFinalizePolicy int [not null, default: 0, note: "AutoReject=0, AutoConfirmAll=1"]
+  IsFinalized boolean [not null, default: false]
+  FinalizedAtUtc timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table MealTemplate {
+  Id uuid [pk]
+  SessionId uuid [not null]
+  Name varchar(200) [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table MealSettings {
+  Id uuid [pk]
+  MealTemplateId uuid [not null]
+  CategoryId uuid [not null]
+  MinQuantity int [not null]
+  MaxQuantity int [not null]
+  IsRequired boolean [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table Orders {
+  Id uuid [pk]
+  SessionId uuid [not null]
+  MealTemplateId uuid
+  WalletTransactionId uuid
+  Status int [not null, note: "Pending=0, ReadyForPickup=1, Completed=2, Cancelled=3, Preparing=4, Serving=5, InHoldingArea=6, Expired=7, Disposed=8"]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table OrderItem {
+  Id int [pk, increment]
+  OrderId uuid [not null]
+  DishId uuid [not null]
+  Quantity int [not null]
+  UnitPrice_Amount decimal(18,2) [not null]
+  UnitPrice_Currency varchar(10) [not null]
+  ItemStatus int [not null, default: 0, note: "Pending=0, Confirmed=1, ChangePending=2, Swapped=3, Refunded=4"]
+}
+
+Table OrderItemChangeProposals {
+  Id uuid [pk]
+  OrderId uuid [not null]
+  UserId uuid [not null]
+  CurrentDishId uuid [not null]
+  SuggestedDishId uuid
+  ProposalStatus int [not null, default: 0, note: "WaitingResponse=0, Accepted=1, RefundRequested=2"]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+}
+
+Table Payments {
+  Id uuid [pk]
+  UserId uuid [not null]
+  GatewayOrderId varchar(100) [not null, unique]
+  GatewayTransactionId varchar(200) [unique]
+  AmountVnd decimal(18,2) [not null]
+  ConvertedPoints decimal(18,2) [not null]
+  Status int [not null, note: "Pending=1, Completed=2, Failed=3"]
+  Method int [not null, note: "Momo=1, ZaloPay=2, VnPay=3, SePay=4, Wallet=5"]
+  Type int [not null, note: "TopUp=1, Subscription=2, Refund=3, OrderPayment=4"]
+  FailureReason varchar(500)
+  CompletedAtUtc timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table WalletTransaction {
+  Id uuid [pk]
+  UserId uuid [not null]
+  Amount decimal(18,2) [not null]
+  BalanceBefore decimal(18,2) [not null]
+  BalanceAfter decimal(18,2) [not null]
+  TransactionType int [not null, note: "TopUp=1, OrderPayment=2, Refund=3"]
+  PaymentId uuid [unique]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table RefundRequests {
+  Id uuid [pk]
+  OrderId uuid [not null]
+  UserId uuid [not null]
+  PolicyCode varchar(255) [not null]
+  PolicyNameSnapshot varchar(255) [not null]
+  RefundPercentSnapshot decimal(5,2) [not null]
+  OrderAmountSnapshot decimal(18,2) [not null]
+  RefundAmount decimal(18,2) [not null]
+  Description varchar(1000) [not null]
+  Status int [not null, note: "Pending=1, Approved=2, Rejected=3"]
+  ReviewedBy uuid
+  ReviewedAtUtc timestamptz
+  RejectionReason varchar(500)
+  WalletTransactionId uuid [unique]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table RefundRequestImages {
+  Id uuid [pk]
+  RefundRequestId uuid [not null]
+  ImageUrl varchar(1000) [not null]
+  FileName varchar(255) [not null]
+  UploadedAtUtc timestamptz [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table VerificationRequests {
+  Id uuid [pk]
+  UserId uuid [not null]
+  Status int [not null, note: "Pending=1, Approved=2, Rejected=3, Expired=4"]
+  SubmittedAt timestamptz [not null]
+  ReviewedAt timestamptz
+  ReviewedBy uuid
+  RejectionReason varchar(500)
+  ExpiresAt timestamptz [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+}
+
+Table VerificationDocuments {
+  VerificationRequestId uuid [not null]
+  Id uuid [not null]
+  DocumentType int [not null, note: "StudentCard=1, NationalId=2, Other=3"]
+  CloudinaryUrl varchar(1000) [not null]
+  FileName varchar(255) [not null]
+  FileSize bigint [not null]
+  MimeType varchar(100) [not null]
+  UploadedAt timestamptz [not null]
+
+  Indexes {
+    (VerificationRequestId, Id) [pk]
+  }
+}
+
+Table EmailVerificationTokens {
+  Id uuid [pk]
+  UserId uuid [not null]
+  TokenHash varchar(128) [not null, unique]
+  ExpiresAt timestamptz [not null]
+  ConsumedAt timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+}
+
+Table PasswordResetTokens {
+  Id uuid [pk]
+  UserId uuid [not null]
+  TokenHash varchar(128) [not null, unique]
+  ExpiresAt timestamptz [not null]
+  ConsumedAt timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+}
+
+Table RefreshTokens {
+  Id uuid [pk]
+  UserId uuid [not null]
+  TokenHash varchar(128) [not null, unique]
+  ExpiresAt timestamptz [not null]
+  RevokedAt timestamptz
+  ReplacedByTokenId uuid
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+}
+
+Table Settings {
+  Id uuid [pk]
+  Code varchar(255) [not null]
+  Name varchar(255) [not null]
+  Description varchar(500) [not null]
+  Group varchar(100) [not null]
+  Scope varchar(100) [not null]
+  Type varchar(50) [not null]
+  Value text [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+
+  Indexes {
+    (Group, Scope, Code) [unique]
+  }
+}
+
+Table Notifications {
+  Id uuid [pk]
+  RecipientId uuid [not null]
+  Type varchar(100) [not null]
+  Title varchar(200) [not null]
+  Message varchar(2000) [not null]
+  ReferenceType varchar(100)
+  ReferenceId uuid
+  ActionUrl varchar(1000)
+  DataJson varchar(8000)
+  IsRead boolean [not null, default: false]
+  ReadAtUtc timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table UserDeviceTokens {
+  Id uuid [pk]
+  UserId uuid [not null]
+  Token varchar(4096) [not null]
+  TokenHash varchar(64) [not null, unique]
+  Platform varchar(20) [not null]
+  DeviceId varchar(256)
+  AppVersion varchar(64)
+  IsActive boolean [not null, default: true]
+  LastUsedAtUtc timestamptz [not null]
+  RevokedAtUtc timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table ApiLogs {
+  Id uuid [pk]
+  LoginId text
+  LogLevel text [not null]
+  ApiUrl text [not null]
+  ApiMethod text [not null]
+  Message text
+  ErrorTrace text
+  ApiBody text
+  ApiResponse text
+  LocalIpAddress text
+  LocalHostPC text
+  LogApp text
+  LogVersion text
+  Memo text
+  RequestId text
+  ApiDesc text
+  ApiVer text
+  StatusCode int [not null]
+  CreatedDate timestamptz [not null]
+  EndDate timestamptz
+}
+
+Table RobotArms {
+  Id uuid [pk]
+  Code varchar(50) [not null, unique]
+  Name varchar(100)
+  IpAddress varchar(45) [not null]
+  StationIndex int [not null]
+  Status int [not null, note: "RobotArmStatus enum"]
+  LastHeartbeatUtc timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table SlotConfigurations {
+  Id uuid [pk]
+  SessionId uuid [not null]
+  DishId uuid [not null]
+  RobotArmId uuid
+  LaneCode varchar(50) [not null]
+  Capacity int [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+
+  Indexes {
+    (SessionId, LaneCode) [unique]
+  }
+}
+
+Table ShelfStocks {
+  Id uuid [pk]
+  SessionId uuid [not null]
+  DishId uuid [not null]
+  SlotConfigurationId uuid
+  Quantity int [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+
+  Indexes {
+    (SessionId, DishId) [unique]
+  }
+}
+
+Table ServingJobs {
+  Id uuid [pk]
+  OrderId uuid [not null]
+  TrayId uuid
+  RobotArmId uuid
+  PickupSlotId uuid
+  Status int [not null, note: "ServingJobStatus enum"]
+  FailureReason varchar(1000)
+  AcknowledgedAtUtc timestamptz
+  PushedAtUtc timestamptz
+  CompletedAtUtc timestamptz
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table Trays {
+  Id uuid [pk]
+  Code varchar(64) [not null, unique]
+  Status int [not null, note: "TrayStatus enum"]
+  CurrentOrderId uuid
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table PickupSlots {
+  Id uuid [pk]
+  Code varchar(64) [not null, unique]
+  Status int [not null, note: "PickupSlotStatus enum"]
+  OrderId uuid
+  TrayId uuid
+  SensorOccupied boolean
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table OrderStatusHistories {
+  Id uuid [pk]
+  OrderId uuid [not null]
+  FromStatus int
+  ToStatus int [not null]
+  ReasonCode varchar(100)
+  Note varchar(1000)
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table RobotEventLogs {
+  Id uuid [pk]
+  RobotArmId uuid
+  ServingJobId uuid
+  OrderId uuid
+  EventType int [not null, note: "RobotEventType enum"]
+  Message varchar(1000)
+  PayloadJson text
+  OccurredAtUtc timestamptz [not null]
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Table AdminCommandAudits {
+  Id uuid [pk]
+  CommandType int [not null, note: "AdminCommandType enum"]
+  RobotArmId uuid
+  ParametersJson text
+  Result varchar(1000)
+  CreatedAtUtc timestamptz [not null]
+  CreatedBy uuid [not null]
+  UpdatedAtUtc timestamptz
+  UpdatedBy uuid [not null]
+  IsDeleted boolean [not null]
+  DeletedAtUtc timestamptz
+}
+
+Ref: Users.Id - Carts.UserId
+Ref: Users.Id < EmailVerificationTokens.UserId
+Ref: Users.Id < PasswordResetTokens.UserId
+Ref: Users.Id < RefreshTokens.UserId
+Ref: RefreshTokens.Id < RefreshTokens.ReplacedByTokenId
+Ref: Users.Id < VerificationRequests.UserId
+Ref: Users.Id < Payments.UserId
+Ref: Users.Id < WalletTransaction.UserId
+Ref: Users.Id < RefundRequests.UserId
+Ref: Users.Id < Notifications.RecipientId
+Ref: Users.Id < UserDeviceTokens.UserId
+Ref: Users.Id < OrderItemChangeProposals.UserId
+
+Ref: Categories.Id < Dishes.CategoryId
+Ref: Categories.Id < MealSettings.CategoryId
+
+Ref: Sessions.Id < SessionDish.SessionId
+Ref: Dishes.Id < SessionDish.DishId
+Ref: Sessions.Id < MealTemplate.SessionId
+Ref: MealTemplate.Id < MealSettings.MealTemplateId
+Ref: Sessions.Id < Orders.SessionId
+Ref: MealTemplate.Id < Orders.MealTemplateId
+
+Ref: Orders.Id < OrderItem.OrderId
+Ref: Dishes.Id < OrderItem.DishId
+Ref: Orders.Id < OrderItemChangeProposals.OrderId
+Ref: Dishes.Id < OrderItemChangeProposals.CurrentDishId
+Ref: Dishes.Id < OrderItemChangeProposals.SuggestedDishId
+
+Ref: Payments.Id - WalletTransaction.PaymentId
+Ref: WalletTransaction.Id < Orders.WalletTransactionId
+Ref: Orders.Id < RefundRequests.OrderId
+Ref: WalletTransaction.Id - RefundRequests.WalletTransactionId
+Ref: RefundRequests.Id < RefundRequestImages.RefundRequestId
+
+Ref: VerificationRequests.Id < VerificationDocuments.VerificationRequestId
+
+Ref: Sessions.Id < SlotConfigurations.SessionId
+Ref: Dishes.Id < SlotConfigurations.DishId
+Ref: RobotArms.Id < SlotConfigurations.RobotArmId
+Ref: Sessions.Id < ShelfStocks.SessionId
+Ref: Dishes.Id < ShelfStocks.DishId
+Ref: SlotConfigurations.Id < ShelfStocks.SlotConfigurationId
+
+Ref: Orders.Id < ServingJobs.OrderId
+Ref: Trays.Id < ServingJobs.TrayId
+Ref: RobotArms.Id < ServingJobs.RobotArmId
+Ref: PickupSlots.Id < ServingJobs.PickupSlotId
+Ref: Orders.Id < Trays.CurrentOrderId
+Ref: Orders.Id < PickupSlots.OrderId
+Ref: Trays.Id < PickupSlots.TrayId
+Ref: Orders.Id < OrderStatusHistories.OrderId
+Ref: RobotArms.Id < RobotEventLogs.RobotArmId
+Ref: ServingJobs.Id < RobotEventLogs.ServingJobId
+Ref: Orders.Id < RobotEventLogs.OrderId
+Ref: RobotArms.Id < AdminCommandAudits.RobotArmId

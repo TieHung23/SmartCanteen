@@ -10,10 +10,6 @@ public class TrayConfiguration : IEntityTypeConfiguration<Tray>
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(x => x.Code)
             .IsRequired()
             .HasMaxLength(64);

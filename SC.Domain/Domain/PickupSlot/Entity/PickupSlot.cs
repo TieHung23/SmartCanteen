@@ -3,63 +3,29 @@ using SC.Domain.Domain.PickupSlot.Enum;
 
 namespace SC.Domain.Domain.PickupSlot.Entity;
 
-/// <summary>
-/// Ô kệ pickup (HS quét QR tới lấy). KHÁC SlotConfiguration (lane robot gắp).
-/// Khi HS lấy: dò ngược OrderId -&gt; Slot rồi set Empty; sensor ô là dự phòng.
-/// </summary>
-public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>
+public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
-    private PickupSlot()
-    {
-    }
+    private PickupSlot() { }
 
-    public required string Code { get; set; }
-    public PickupSlotStatus Status { get; set; } = PickupSlotStatus.Empty;
-    public Guid? OrderId { get; set; }
-    public Guid? TrayId { get; set; }
-
-    /// <summary>Cảm biến ô báo có khay hay không (dự phòng khi dò ngược lỗi).</summary>
-    public bool? SensorOccupied { get; set; }
-
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string Code { get; private set; } = string.Empty;
+    public PickupSlotStatus Status { get; private set; } = PickupSlotStatus.Empty;
+    public Guid? OrderId { get; private set; }
+    public Guid? TrayId { get; private set; }
+    public bool? SensorOccupied { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static PickupSlot Create(string code, Guid createdBy)
     {
-        return new PickupSlot
-        {
-            Id = Guid.NewGuid(),
-            Code = code,
-            Status = PickupSlotStatus.Empty,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            CreatedBy = createdBy,
-            UpdatedBy = createdBy
-        };
+        return new PickupSlot { Id = Guid.NewGuid(), Code = code, Status = PickupSlotStatus.Empty, CreatedAtUtc = DateTimeOffset.UtcNow, CreatedBy = createdBy, UpdatedBy = createdBy };
     }
 
-    public void Assign(Guid orderId, Guid trayId, Guid updatedBy)
-    {
-        OrderId = orderId;
-        TrayId = trayId;
-        Status = PickupSlotStatus.Occupied;
-        SensorOccupied = true;
-        Touch(updatedBy);
-    }
-
-    public void Clear(Guid updatedBy)
-    {
-        OrderId = null;
-        TrayId = null;
-        Status = PickupSlotStatus.Empty;
-        SensorOccupied = false;
-        Touch(updatedBy);
-    }
-
-    private void Touch(Guid updatedBy)
-    {
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
-        UpdatedBy = updatedBy;
-    }
+    public void Assign(Guid orderId, Guid trayId, Guid updatedBy) { OrderId = orderId; TrayId = trayId; Status = PickupSlotStatus.Occupied; SensorOccupied = true; Touch(updatedBy); }
+    public void Clear(Guid updatedBy) { OrderId = null; TrayId = null; Status = PickupSlotStatus.Empty; SensorOccupied = false; Touch(updatedBy); }
+    public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
+    private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }
 }

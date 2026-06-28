@@ -14,11 +14,6 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(notification => notification.RecipientId)
             .IsRequired();
 
-        builder.HasOne<SC.Domain.Domain.User.User>()
-            .WithMany()
-            .HasForeignKey(notification => notification.RecipientId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.Property(notification => notification.Type)
             .IsRequired()
             .HasMaxLength(NotificationConstraints.TypeMaxLength);
@@ -44,10 +39,6 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .IsRequired()
             .HasDefaultValue(false);
 
-        builder.Property(notification => notification.IsDeleted)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         builder.Property(notification => notification.CreatedAtUtc)
             .IsRequired();
 
@@ -57,15 +48,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.HasIndex(notification => new
         {
             notification.RecipientId,
-            notification.IsDeleted,
             notification.CreatedAtUtc
-        });
-
-        builder.HasIndex(notification => new
-        {
-            notification.RecipientId,
-            notification.IsRead,
-            notification.IsDeleted
         });
 
         builder.Ignore(notification => notification.DomainEvents);

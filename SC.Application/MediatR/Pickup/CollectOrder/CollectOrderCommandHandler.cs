@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -36,16 +35,16 @@ internal sealed class CollectOrderCommandHandler(
         {
             // Dò ngược OrderId -> ô kệ đang giữ khay của order
             var slot = await pickupSlotRepository
-                .GetQueryable(x => x.OrderId == request.OrderId
-                                   && x.Status != PickupSlotStatus.Empty)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.OrderId == request.OrderId
+                                   && x.Status != PickupSlotStatus.Empty,
+                    cancellationToken);
 
-            var job = await servingJobRepository
-                .GetQueryable(x => x.OrderId == request.OrderId
+            var jobs = await servingJobRepository
+                .FindListAsync(x => x.OrderId == request.OrderId
                                    && x.Status != ServingJobStatus.Cancelled
-                                   && x.Status != ServingJobStatus.Collected)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                                   && x.Status != ServingJobStatus.Collected,
+                    cancellationToken);
+            var job = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
             if (job is null)
                 return Result.Failure<CollectOrderResponse>(Error.ServingJobNotFound, "No active serving job for this order.");
 

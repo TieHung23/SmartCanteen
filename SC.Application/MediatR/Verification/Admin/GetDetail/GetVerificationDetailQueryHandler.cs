@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -21,8 +20,7 @@ internal class GetVerificationDetailQueryHandler(
         try
         {
             var verification = await verificationRepository
-                .GetQueryable(v => v.Id == request.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(v => v.Id == request.Id, cancellationToken);
 
             if (verification is null)
                 return Result.Failure<VerificationDetailResponse>(Error.VerificationNotFound, "Verification request not found.");

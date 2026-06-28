@@ -32,5 +32,4 @@ public class MealSettingUpdate
 public class SessionDishUpdate
 {
     public Guid DishId { get; set; }
-    public int Quantity { get; set; } = 1;
 }

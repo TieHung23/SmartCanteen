@@ -7,44 +7,37 @@ using SC.Domain.SharedKernel.ValueObjects;
 
 namespace SC.Domain.Domain.User;
 
-public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
+public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 {
     private static readonly string[] FptEmailDomains = { "@fpt.edu.vn", "@fe.edu.vn" };
     private const string LecturerEmailDomain = "@fe.edu.vn";
-
-    // FPT student emails embed the student code (2 letters + 6 digits) before '@',
-    // e.g. minhthtse183449@fpt.edu.vn -> SE183449.
     private static readonly Regex StudentIdPattern =
         new(@"[A-Za-z]{2}\d{6}$", RegexOptions.Compiled);
 
-    private User()
-    {
-    }
+    private User() { }
 
-    public required string Name { get; set; }
-    public required string Email { get; set; }
-    // Null for accounts created via an external provider (e.g. Google) that have no password.
-    public string? PasswordHash { get; set; }
-
-    // Google "sub" claim — the stable account identifier set when the user links Google sign-in.
-    public string? GoogleSubjectId { get; set; }
-    public string? ImgUrl { get; set; }
-    public required Role Role { get; set; } = Role.User;
-    public required AccountStatus Status { get; set; } = AccountStatus.PendingEmailVerification;
-    public bool EmailVerified { get; set; }
-    public string? StudentId { get; set; }
-    public DateOnly? DateOfBirth { get; set; }
-    public string? MajorOrClass { get; set; }
-    public string? PhoneNumber { get; set; }
-    public string? Address { get; set; }
-    public Gender? Gender { get; set; }
-    public DateTimeOffset? LastLoginAt { get; set; }
-
-    public Money Balance { get; set; } = Money.Create(0);
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? UpdatedAtUtc { get; set; }
-    public Guid CreatedBy { get; set; }
-    public Guid UpdatedBy { get; set; }
+    public string Name { get; private set; } = string.Empty;
+    public string Email { get; private set; } = string.Empty;
+    public string? PasswordHash { get; private set; }
+    public string? GoogleSubjectId { get; private set; }
+    public string? ImgUrl { get; private set; }
+    public Role Role { get; private set; } = Role.User;
+    public AccountStatus Status { get; private set; } = AccountStatus.PendingEmailVerification;
+    public bool EmailVerified { get; private set; }
+    public string? StudentId { get; private set; }
+    public DateOnly? DateOfBirth { get; private set; }
+    public string? MajorOrClass { get; private set; }
+    public string? PhoneNumber { get; private set; }
+    public string? Address { get; private set; }
+    public Gender? Gender { get; private set; }
+    public DateTimeOffset? LastLoginAt { get; private set; }
+    public Money Balance { get; private set; } = Money.Create(0);
+    public bool IsDeleted { get; private set; }
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public Guid CreatedBy { get; private set; }
+    public Guid UpdatedBy { get; private set; }
 
     public static User Register(
         string name,
@@ -57,6 +50,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         string? address = null,
         Gender? gender = null)
     {
+        var now = DateTimeOffset.UtcNow;
         return new User
         {
             Id = Guid.NewGuid(),
@@ -71,7 +65,8 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
             PhoneNumber = phoneNumber,
             Address = address,
             Gender = gender,
-            CreatedAtUtc = DateTimeOffset.UtcNow
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
         };
     }
 
@@ -85,11 +80,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public void ActivateAfterIdentityApproved()
     {
         if (Status != AccountStatus.PendingIdentityVerification)
-        {
-            throw new InvalidOperationException(
-                "Cannot activate: account is not awaiting identity verification approval.");
-        }
-
+            throw new InvalidOperationException("Cannot activate: account is not awaiting identity verification approval.");
         Status = AccountStatus.Active;
     }
 
@@ -107,7 +98,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
     {
         if (string.IsNullOrWhiteSpace(passwordHash))
             throw new ArgumentException("Password hash is required.", nameof(passwordHash));
-
         PasswordHash = passwordHash;
     }
 
@@ -131,10 +121,6 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
 
     public bool IsFptEmail() => IsFptEmail(Email);
 
-    /// <summary>
-    /// True when the email belongs to a trusted FPT University domain. Static overload so
-    /// callers can check an email before a <see cref="User"/> instance exists.
-    /// </summary>
     public static bool IsFptEmail(string email)
     {
         return !string.IsNullOrWhiteSpace(email)
@@ -143,22 +129,10 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
 
     public static bool IsValidEmail(string email)
     {
-        try
-        {
-            var addr = new MailAddress(email);
-            return addr.Address == email;
-        }
-        catch
-        {
-            return false;
-        }
+        try { var addr = new MailAddress(email); return addr.Address == email; }
+        catch { return false; }
     }
 
-    /// <summary>
-    /// Creates an account from a verified Google (FPT) sign-in. The Google identity already
-    /// proves email ownership and the FPT domain is trusted, so the account is active immediately
-    /// with no password and no email-verification step.
-    /// </summary>
     public static User RegisterWithGoogle(
         string name,
         string email,
@@ -182,37 +156,22 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
         };
     }
 
-    /// <summary>
-    /// Links a Google identity to an existing account (e.g. one originally registered with a
-    /// password). No-op when the account is already linked.
-    /// </summary>
     public void LinkGoogle(string googleSubjectId)
     {
         if (string.IsNullOrWhiteSpace(googleSubjectId))
             throw new ArgumentException("Google subject id is required.", nameof(googleSubjectId));
-
         GoogleSubjectId ??= googleSubjectId;
     }
 
-    /// <summary>
-    /// Extracts the FPT student code embedded in an institutional email address.
-    /// Returns false for non-student emails (lecturers/staff have no embedded code).
-    /// </summary>
     public static bool TryExtractStudentId(string email, out string? studentId)
     {
         studentId = null;
-        if (string.IsNullOrWhiteSpace(email))
-            return false;
-
+        if (string.IsNullOrWhiteSpace(email)) return false;
         var atIndex = email.IndexOf('@');
-        if (atIndex <= 0)
-            return false;
-
+        if (atIndex <= 0) return false;
         var localPart = email[..atIndex];
         var match = StudentIdPattern.Match(localPart);
-        if (!match.Success)
-            return false;
-
+        if (!match.Success) return false;
         studentId = match.Value.ToUpperInvariant();
         return true;
     }
@@ -220,5 +179,11 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>
     public void UpdateBalance(Money amount)
     {
         Balance = Balance.Add(amount);
+    }
+
+    public void SoftDelete()
+    {
+        IsDeleted = true;
+        DeletedAtUtc = DateTimeOffset.UtcNow;
     }
 }

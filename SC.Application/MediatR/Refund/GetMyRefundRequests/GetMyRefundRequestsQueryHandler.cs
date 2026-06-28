@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -22,11 +21,13 @@ internal sealed class GetMyRefundRequestsQueryHandler(
         try
         {
             var userId = currentUserService.UserId;
-            var query = refundRepository
-                .GetQueryable(refund =>
+            var allRequests = await refundRepository
+                .FindListAsync(refund =>
                     !refund.IsDeleted
-                    && refund.UserId == userId)
-                .AsNoTracking();
+                    && refund.UserId == userId,
+                    cancellationToken,
+                    refund => refund.Images);
+            var filtered = allRequests.AsEnumerable();
 
             if (request.Status.HasValue)
             {
@@ -37,17 +38,17 @@ internal sealed class GetMyRefundRequestsQueryHandler(
                         "Refund request status is invalid.");
                 }
 
-                query = query.Where(
+                filtered = filtered.Where(
                     refund => (int)refund.Status == request.Status.Value);
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
-            var requests = await query
-                .Include(refund => refund.Images)
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
+            var requests = filteredList
                 .OrderByDescending(refund => refund.CreatedAtUtc)
                 .Skip(request.GetSkipCount())
                 .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             var responses = requests.Select(refund => new GetMyRefundRequestsResponse
             {

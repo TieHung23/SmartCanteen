@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Robot;
@@ -37,25 +36,23 @@ internal sealed class AssignPickupSlotCommandHandler(
         try
         {
             var slot = await pickupSlotRepository
-                .GetQueryable(x => x.Code == request.SlotCode)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.Code == request.SlotCode, cancellationToken);
             if (slot is null)
                 return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotFound, "Pickup slot was not found.");
             if (slot.Status != PickupSlotStatus.Empty)
                 return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotAvailable, "Pickup slot is not empty.");
 
             var tray = await trayRepository
-                .GetQueryable(x => x.Code == request.TrayCode)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FindSingleAsync(x => x.Code == request.TrayCode, cancellationToken);
             if (tray is null)
                 return Result.Failure<AssignPickupSlotResponse>(Error.TrayNotFound, "Tray was not found.");
 
-            var job = await servingJobRepository
-                .GetQueryable(x => x.OrderId == request.OrderId
+            var jobs = await servingJobRepository
+                .FindListAsync(x => x.OrderId == request.OrderId
                                    && x.Status != ServingJobStatus.Cancelled
-                                   && x.Status != ServingJobStatus.Collected)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                                   && x.Status != ServingJobStatus.Collected,
+                    cancellationToken);
+            var job = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
             if (job is null)
                 return Result.Failure<AssignPickupSlotResponse>(Error.ServingJobNotFound, "No active serving job for this order.");
 

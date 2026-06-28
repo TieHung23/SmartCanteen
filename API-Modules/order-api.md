@@ -1,62 +1,20 @@
 # SmartCanteen Order API
 
-> Generated from `API-Document.md`. Run `.\tools\generate-api-modules.ps1` after updating the main document.
-
-# SmartCanteen API Documentation
-
-Base URL: `/api`  
+Base URL: `/api/orders`  
+Auth: `[Authorize]`  
 API Version: `1.0`  
-All timestamps: `DateTimeOffset` (ISO 8601)  
-Currency: **Point** (no currency field exposed)
+Currency: **Point**
 
-Module documentation: [`API-Modules/README.md`](API-Modules/README.md)
+Orders are scoped to the authenticated user. Manager endpoints not yet exposed.
 
-Every response is wrapped in a standard envelope:
-
-```json
-{
-  "value": { },
-  "isSuccess": true,
-  "isFailure": false,
-  "message": "string",
-  "error": null
-}
-```
-
-On failure `value` is null, `isSuccess` false, `error` is a string code.
-
-Pagination query param defaults: `pageNumber=1`, `pageSize=10` (max 100).  
-Paginated response shape:
-
-```json
-{
-  "value": {
-    "items": [ ],
-    "pageNumber": 1,
-    "pageSize": 10,
-    "totalCount": 42,
-    "totalPages": 5,
-    "hasPreviousPage": false,
-    "hasNextPage": true
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
+OrderStatus: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled, 4=Preparing, 5=Serving, 6=InHoldingArea, 7=Expired, 8=Disposed`
 
 ---
 
-## Orders
+## `GET /api/orders`
+**Query:** `?sessionId=guid&status=int&pageNumber=1&pageSize=10`
 
-Each Order references a `WalletTransaction` via `transactionId` (see WalletTransaction section). When an order is created, a WalletTransaction (type `OrderPayment`) is automatically generated to record the wallet debit.
-
-### `GET /api/orders`
-**Auth:** Authorize  
-**Query:** `?userId=guid&sessionId=guid&status=int&pageNumber=1&pageSize=10`  
-`sessionId` filters orders by the selected session.
-Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
-
-**Paginated response items:**
+Paginated items (scoped to current user):
 ```json
 {
   "id": "guid",
@@ -67,105 +25,90 @@ Status: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled`
   "status": 0,
   "totalPrice": 0.0,
   "itemCount": 0,
-  "createdAtUtc": "2024-01-01T00:00:00Z"
+  "createdAtUtc": "..."
 }
 ```
+`totalPrice` is computed server-side from line items.
 
-### `GET /api/orders/{id}`
-**Auth:** Authorize  
+---
 
-**Response:**
+## `GET /api/orders/{id}`
+**200:**
 ```json
 {
   "value": {
     "id": "guid",
-  "sessionId": "guid",
-  "mealTemplateId": "guid | null",
-  "transactionId": "guid | null",
-  "userId": "guid",
+    "sessionId": "guid",
+    "mealTemplateId": "guid | null",
+    "transactionId": "guid | null",
+    "userId": "guid",
     "status": 0,
     "totalPrice": 0.0,
     "items": [
-      { "dishId": "guid", "quantity": 1, "unitPrice": 0.0 }
+      {
+        "dishId": "guid",
+        "dishName": "string",
+        "imgUrl": "string | null",
+        "quantity": 1,
+        "unitPrice": 0.0
+      }
     ],
-    "createdAtUtc": "2024-01-01T00:00:00Z",
-    "updatedAtUtc": "2024-01-01T00:00:00Z | null"
+    "createdAtUtc": "...",
+    "updatedAtUtc": "... | null"
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
+`404` if not found or not owned by current user.
 
-### `POST /api/orders`
-**Auth:** Authorize  
+---
 
-**Request body:**
+## `POST /api/orders`
+Reads the user's persisted cart, validates against the session/template, deducts wallet, creates order and wallet transaction atomically.
+
 ```json
-{
-  "sessionId": "guid",
-  "cartVersion": 1
-}
+{ "sessionId": "guid", "cartVersion": 1 }
 ```
 
-The server reads the authenticated user's cart, finds the selected session, validates the
-current session, template, dishes and stock, uses current database prices, atomically
-reserves stock, debits the wallet, creates the order and wallet transaction, then removes
-that session from the cart in one database transaction. A stale cart version or insufficient
-stock returns `409`.
+**Validation:**
+- Cart version must match server (else `409`)
+- Session must exist, be active, not expired
+- Template rules (required categories, min/max quantities) enforced
+- Sufficient dish stock validated
+- Wallet balance must cover total price
 
-**201 Response:**
+**201:**
 ```json
 {
   "value": {
     "id": "guid",
-  "transactionId": "guid",
-  "totalPrice": 0.0,
-  "message": "string",
-  "userRemainingBalance": 0.0,
-  "cartVersion": 2
+    "transactionId": "guid",
+    "totalPrice": 0.0,
+    "message": "Order created successfully and wallet debited.",
+    "userRemainingBalance": 0.0,
+    "cartVersion": 2
   },
-  "isSuccess": true,
-  "message": "string"
+  "isSuccess": true
 }
 ```
+`message` doubles as the human-readable transaction description for the UI.
 
-### `PUT /api/orders/{id}`
-**Auth:** Authorize  
+---
 
-**Request body:**
+## `PUT /api/orders/{id}`
 ```json
-{
-  "status": 0
-}
+{ "status": 0 }
 ```
 
-**Response:**
+**200:**
 ```json
-{
-  "value": {
-    "id": "guid",
-    "status": 0,
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
-```
-
-### `DELETE /api/orders/{id}`
-**Auth:** Authorize  
-
-**Response:**
-```json
-{
-  "value": {
-    "id": "guid",
-    "message": "string"
-  },
-  "isSuccess": true,
-  "message": "string"
-}
+{ "value": { "id": "guid", "status": 0, "message": "string" }, "isSuccess": true }
 ```
 
 ---
 
+## `DELETE /api/orders/{id}`
+**200:**
+```json
+{ "value": { "id": "guid", "message": "string" }, "isSuccess": true }
+```
