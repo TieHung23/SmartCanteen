@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Robot;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -23,6 +24,7 @@ internal sealed class AssignPickupSlotCommandHandler(
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IServingJobNotifier servingJobNotifier,
     ILogger<AssignPickupSlotCommandHandler> logger
 ) : ICommandHandler<AssignPickupSlotCommand, AssignPickupSlotResponse>
 {
@@ -60,7 +62,8 @@ internal sealed class AssignPickupSlotCommandHandler(
             slot.Assign(request.OrderId, tray.Id, actorId);
             pickupSlotRepository.Update(slot);
 
-            tray.MarkAtSlot(actorId);
+            // Kraft bowls: staff bê đồ lên ô kệ -> KHAY RỖNG, trả về pool NGAY (không nằm trên ô).
+            tray.Release(actorId);
             trayRepository.Update(tray);
 
             job.MarkOnShelf(slot.Id, actorId);
@@ -78,6 +81,16 @@ internal sealed class AssignPickupSlotCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Khay vừa Release về pool -> ping đánh thức robot phục vụ đơn đang chờ khay (best-effort).
+            try
+            {
+                await servingJobNotifier.PingNewJobAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to ping robots after freeing tray (slot {SlotCode})", request.SlotCode);
+            }
 
             return Result.Success(
                 new AssignPickupSlotResponse(slot.Id, slot.Code, request.OrderId, tray.Id),

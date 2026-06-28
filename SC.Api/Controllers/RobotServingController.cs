@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Robot.CreateServingJob;
+using SC.Application.MediatR.Robot.PullNextJob;
 
 namespace SC.Api.Controllers;
 
@@ -25,5 +26,18 @@ public sealed class RobotServingController(IMediator mediator) : ControllerBase
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
             : Ok(result);
+    }
+
+    /// <summary>
+    /// Robot service KÉO job kế tiếp (hybrid pull). BE gán khay trống (lazy) + claim job.
+    /// 200 + job nếu có việc; 204 nếu chưa có việc hoặc hết khay.
+    /// </summary>
+    [HttpPost("next")]
+    public async Task<IActionResult> PullNext(CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new PullNextJobCommand(), cancellationToken);
+        if (result.IsFailure)
+            return StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result);
+        return result.Value!.Job is null ? NoContent() : Ok(result);
     }
 }

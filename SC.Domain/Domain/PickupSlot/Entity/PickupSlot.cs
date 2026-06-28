@@ -48,12 +48,6 @@ public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>
         Touch(updatedBy);
     }
 
-    public void MarkWaitingCollect(Guid updatedBy)
-    {
-        Status = PickupSlotStatus.WaitingCollect;
-        Touch(updatedBy);
-    }
-
     public void Clear(Guid updatedBy)
     {
         OrderId = null;

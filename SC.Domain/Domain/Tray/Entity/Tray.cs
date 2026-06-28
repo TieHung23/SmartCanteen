@@ -47,12 +47,6 @@ public class Tray : Entity<Guid>, IAuditableEntity<Guid>
         Touch(updatedBy);
     }
 
-    public void MarkAtSlot(Guid updatedBy)
-    {
-        Status = TrayStatus.AtSlot;
-        Touch(updatedBy);
-    }
-
     public void Release(Guid updatedBy)
     {
         CurrentOrderId = null;

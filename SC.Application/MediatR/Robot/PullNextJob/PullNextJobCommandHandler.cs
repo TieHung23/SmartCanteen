@@ -1,0 +1,94 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Robot;
+using SC.Contract.Shared;
+using SC.Domain.Abstraction.Repositories;
+using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.ServingJob.Enum;
+using SC.Domain.Domain.Tray.Enum;
+using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
+using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
+using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
+
+namespace SC.Application.MediatR.Robot.PullNextJob;
+
+internal sealed class PullNextJobCommandHandler(
+    IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<TrayEntity, Guid> trayRepository,
+    IUnitOfWork unitOfWork,
+    ICurrentUserService currentUserService,
+    ILogger<PullNextJobCommandHandler> logger
+) : ICommandHandler<PullNextJobCommand, PullNextJobResponse>
+{
+    public async Task<Result<PullNextJobResponse>> Handle(
+        PullNextJobCommand request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = currentUserService.UserId;
+
+        try
+        {
+            // 1) Job Queued cũ nhất (FIFO theo giờ tạo). Chưa có việc -> Job = null (204).
+            var job = await servingJobRepository
+                .GetQueryable(x => x.Status == ServingJobStatus.Queued)
+                .OrderBy(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (job is null)
+            {
+                return Result.Success(new PullNextJobResponse(null), "No queued job.");
+            }
+
+            // 2) Gán khay TRỐNG (lazy). Hết khay -> để job ở Queued, trả null (đơn nằm chờ).
+            var tray = await trayRepository
+                .GetQueryable(x => x.Status == TrayStatus.Available)
+                .OrderBy(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (tray is null)
+            {
+                return Result.Success(new PullNextJobResponse(null), "No free tray.");
+            }
+
+            // 3) Lấy order + items
+            var order = await orderRepository.GetByIdAsync(
+                job.OrderId, cancellationToken, o => o.OrderItems);
+            if (order is null)
+            {
+                job.Cancel(actorId);                      // order biến mất -> huỷ job, bỏ qua
+                servingJobRepository.Update(job);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                return Result.Success(new PullNextJobResponse(null), "Order missing; job cancelled.");
+            }
+
+            // 4) Gán khay (Available->Reserved) + claim job (Queued->Pushed). 1 SaveChanges = atomic.
+            //     Nhiều robot: cần optimistic-concurrency / SELECT FOR UPDATE để không claim trùng.
+            //       Hiện 1 service nên an toàn; nâng khi chạy nhiều tay.
+            tray.Reserve(order.Id, actorId);
+            trayRepository.Update(tray);
+            job.AssignTray(tray.Id, actorId);
+            job.MarkPushed(null, actorId);
+            servingJobRepository.Update(job);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var message = new ServingJobMessage
+            {
+                JobId = job.Id,
+                OrderId = order.Id,
+                TrayId = tray.Id,
+                TrayCode = tray.Code,
+                Items = order.OrderItems
+                    .Select(i => new ServingJobItemMessage { DishId = i.DishId, Quantity = i.Quantity })
+                    .ToList()
+            };
+
+            return Result.Success(new PullNextJobResponse(message), "Job dispatched.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error pulling next serving job");
+            return Result.Failure<PullNextJobResponse>(
+                Error.ServerError, "An error occurred while pulling the next job.");
+        }
+    }
+}
