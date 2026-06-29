@@ -32,7 +32,6 @@ public class Tray : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 
     public void Reserve(Guid orderId, Guid updatedBy) { CurrentOrderId = orderId; Status = TrayStatus.Reserved; Touch(updatedBy); }
     public void MarkInUse(Guid updatedBy) { Status = TrayStatus.InUse; Touch(updatedBy); }
-    public void MarkAtSlot(Guid updatedBy) { Status = TrayStatus.AtSlot; Touch(updatedBy); }
     public void Release(Guid updatedBy) { CurrentOrderId = null; Status = TrayStatus.Available; Touch(updatedBy); }
     public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
     private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }

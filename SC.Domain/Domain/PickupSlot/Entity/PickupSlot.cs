@@ -25,7 +25,6 @@ public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     }
 
     public void Assign(Guid orderId, Guid trayId, Guid updatedBy) { OrderId = orderId; TrayId = trayId; Status = PickupSlotStatus.Occupied; SensorOccupied = true; Touch(updatedBy); }
-    public void MarkWaitingCollect(Guid updatedBy) { Status = PickupSlotStatus.WaitingCollect; Touch(updatedBy); }
     public void Clear(Guid updatedBy) { OrderId = null; TrayId = null; Status = PickupSlotStatus.Empty; SensorOccupied = false; Touch(updatedBy); }
     public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
     private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }

@@ -5,7 +5,7 @@ namespace SC.Domain.Domain.PickupSlot.Enum;
 /// </summary>
 public enum PickupSlotStatus
 {
-    Empty = 0,           // trống, sẵn sàng nhận khay
-    Occupied = 1,        // có khay (order) đang chờ
-    WaitingCollect = 2   // HS đã xác thực QR, đang chờ rút khay ra
+    Empty = 0,      // trống, sẵn sàng nhận đồ
+    Occupied = 1    // có đồ (order) đang chờ HS -> HS quét QR = Empty (không sensor)
+    // (đã bỏ WaitingCollect=2: không có sensor nên không biết lúc lấy xong; quét = xong luôn)
 }

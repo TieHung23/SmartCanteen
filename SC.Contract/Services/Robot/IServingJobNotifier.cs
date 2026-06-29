@@ -6,4 +6,7 @@ namespace SC.Contract.Services.Robot;
 public interface IServingJobNotifier
 {
     Task PushJobAsync(ServingJobMessage job, CancellationToken cancellationToken = default);
+
+    /// <summary>Hybrid: chỉ ĐÁNH THỨC robot (event "JobAvailable", KHÔNG kèm data) → robot tự pull next-job.</summary>
+    Task PingNewJobAsync(CancellationToken cancellationToken = default);
 }
