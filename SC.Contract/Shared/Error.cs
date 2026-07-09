@@ -64,6 +64,18 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
         "PickupSlotNotFound", "Pickup slot was not found.", 404);
     public static readonly Error PickupSlotNotAvailable = new(
         "PickupSlotNotAvailable", "Pickup slot is not empty.", 409);
+    public static readonly Error RobotArmNotFound = new(
+        "RobotArmNotFound", "Robot arm was not found.", 404);
+    public static readonly Error SessionNotFound = new(
+        "SessionNotFound", "Session was not found.", 404);
+    public static readonly Error DishNotFound = new(
+        "DishNotFound", "Dish was not found.", 404);
+    public static readonly Error SlotConfigurationNotFound = new(
+        "SlotConfigurationNotFound", "Slot configuration was not found.", 404);
+    public static readonly Error CodeAlreadyExists = new(
+        "CodeAlreadyExists", "Code already exists.", 409);
+    public static readonly Error ResourceBusy = new(
+        "ResourceBusy", "Resource is currently in use and cannot be modified.", 409);
 
     [JsonIgnore] public string Code { get; } = code;
 

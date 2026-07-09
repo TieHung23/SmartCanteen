@@ -55,6 +55,14 @@ public class RobotArm : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
         Touch(updatedBy);
     }
 
+    public void Update(string? name, string ipAddress, int stationIndex, Guid updatedBy)
+    {
+        Name = name;
+        IpAddress = ipAddress;
+        StationIndex = stationIndex;
+        Touch(updatedBy);
+    }
+
     public void SoftDelete()
     {
         IsDeleted = true;
