@@ -14,7 +14,6 @@ public class ServingJobConfiguration : IEntityTypeConfiguration<ServingJob>
         builder.HasIndex(x => x.OrderId);
 
         builder.Property(x => x.TrayId);
-        builder.Property(x => x.RobotArmId);
         builder.Property(x => x.PickupSlotId);
 
         builder.Property(x => x.Status)

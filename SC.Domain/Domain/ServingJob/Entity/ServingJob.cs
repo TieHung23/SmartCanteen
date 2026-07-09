@@ -9,7 +9,6 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 
     public Guid OrderId { get; private set; }
     public Guid? TrayId { get; private set; }
-    public Guid? RobotArmId { get; private set; }
     public Guid? PickupSlotId { get; private set; }
     public ServingJobStatus Status { get; private set; } = ServingJobStatus.Queued;
     public DateTimeOffset? PushedAtUtc { get; private set; }
@@ -43,9 +42,10 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
         Touch(updatedBy);
     }
 
-    public void MarkPushed(Guid? robotArmId, Guid updatedBy)
+    // Mô hình dây chuyền: 1 job nhiều tay cùng làm -> job KHÔNG giữ RobotArmId.
+    // "Tay nào gắp món nào" ghi ở RobotEventLog (mức món, resolve từ station robot báo).
+    public void MarkPushed(Guid updatedBy)
     {
-        RobotArmId = robotArmId;
         Status = ServingJobStatus.Pushed;
         PushedAtUtc = DateTimeOffset.UtcNow;
         Touch(updatedBy);

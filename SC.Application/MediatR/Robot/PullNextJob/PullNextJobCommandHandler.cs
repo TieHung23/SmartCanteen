@@ -64,7 +64,7 @@ internal sealed class PullNextJobCommandHandler(
             tray.Reserve(order.Id, actorId);
             trayRepository.Update(tray);
             job.AssignTray(tray.Id, actorId);
-            job.MarkPushed(null, actorId);
+            job.MarkPushed(actorId);
             servingJobRepository.Update(job);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
