@@ -5,7 +5,7 @@ Auth: `[Authorize]`
 API Version: `1.0`  
 Currency: **Point**
 
-Orders are scoped to the authenticated user. Manager endpoints not yet exposed.
+User endpoints are scoped to the authenticated user. Manager endpoints are scoped by manager role.
 
 OrderStatus: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled, 4=Preparing, 5=Serving, 6=InHoldingArea, 7=Expired, 8=Disposed`
 
@@ -29,6 +29,28 @@ Paginated items (scoped to current user):
 }
 ```
 `totalPrice` is computed server-side from line items.
+
+---
+
+## `GET /api/manager/orders/session/{sessionId}`
+Auth: `Manager` or `Staff`
+
+**Query:** `?status=int&pageNumber=1&pageSize=10`
+
+Returns all orders in the session, not scoped to the current user:
+```json
+{
+  "id": "guid",
+  "sessionId": "guid",
+  "mealTemplateId": "guid | null",
+  "transactionId": "guid | null",
+  "userId": "guid",
+  "status": 0,
+  "totalPrice": 0.0,
+  "itemCount": 0,
+  "createdAtUtc": "..."
+}
+```
 
 ---
 
