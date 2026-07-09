@@ -22,6 +22,7 @@ public class FinalizeSessionService(
     {
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == sessionId && !s.IsDeleted,
+            q => q.Include(s => s.SessionDishes),
             cancellationToken);
 
         if (session is null)
@@ -91,6 +92,7 @@ public class FinalizeSessionService(
                  && !s.IsFinalized
                  && s.FinalizationDeadline.HasValue
                  && s.FinalizationDeadline <= DateTimeOffset.UtcNow,
+            q => q.Include(s => s.SessionDishes),
             cancellationToken);
 
         foreach (var session in overdueSessions)
