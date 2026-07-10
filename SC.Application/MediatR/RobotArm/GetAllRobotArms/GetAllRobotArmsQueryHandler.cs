@@ -27,7 +27,7 @@ internal sealed class GetAllRobotArmsQueryHandler(
                     x.Status.ToString(), x.LastHeartbeatUtc))
                 .ToList();
 
-            return Result.Success(new GetAllRobotArmsResponse(dtos), "OK");
+            return Result.Success(new GetAllRobotArmsResponse(dtos), "Robot arms retrieved successfully.");
         }
         catch (Exception ex)
         {

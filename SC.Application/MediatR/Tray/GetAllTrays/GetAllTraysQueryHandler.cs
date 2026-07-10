@@ -29,7 +29,7 @@ internal sealed class GetAllTraysQueryHandler(
                 trays.Count(x => x.Status == TrayStatus.Available),
                 trays.Count(x => x.Status == TrayStatus.Reserved),
                 trays.Count(x => x.Status == TrayStatus.InUse),
-                dtos), "OK");
+                dtos), "Trays retrieved successfully.");
         }
         catch (Exception ex)
         {

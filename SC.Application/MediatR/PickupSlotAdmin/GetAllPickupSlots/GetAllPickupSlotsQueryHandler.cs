@@ -29,7 +29,7 @@ internal sealed class GetAllPickupSlotsQueryHandler(
             return Result.Success(new GetAllPickupSlotsResponse(
                 slots.Count(x => x.Status == PickupSlotStatus.Empty),
                 slots.Count(x => x.Status == PickupSlotStatus.Occupied),
-                dtos), "OK");
+                dtos), "Pickup slots retrieved successfully.");
         }
         catch (Exception ex)
         {

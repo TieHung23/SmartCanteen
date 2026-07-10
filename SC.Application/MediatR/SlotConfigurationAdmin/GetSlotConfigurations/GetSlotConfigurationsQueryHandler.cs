@@ -26,7 +26,7 @@ internal sealed class GetSlotConfigurationsQueryHandler(
                     x.Id, x.SessionId, x.DishId, x.LaneCode, x.Capacity, x.RobotArmId))
                 .ToList();
 
-            return Result.Success(new GetSlotConfigurationsResponse(dtos), "OK");
+            return Result.Success(new GetSlotConfigurationsResponse(dtos), "Slot configurations retrieved successfully.");
         }
         catch (Exception ex)
         {
