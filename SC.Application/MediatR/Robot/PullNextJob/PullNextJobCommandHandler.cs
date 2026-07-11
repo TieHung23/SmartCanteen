@@ -38,13 +38,24 @@ internal sealed class PullNextJobCommandHandler(
                 return Result.Success(new PullNextJobResponse(null), "No queued job.");
             }
 
-            // 2) Gán khay TRỐNG (lazy). Hết khay -> để job ở Queued, trả null (đơn nằm chờ).
-            var availableTrays = await trayRepository
-                .FindListAsync(x => x.Status == TrayStatus.Available, cancellationToken);
-            var tray = availableTrays.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
+            // 2) Khay: job REQUEUE còn giữ khay cũ (món đã gắp nằm trên đó) -> TÁI DÙNG.
+            //    Job mới -> gán khay TRỐNG (lazy). Hết khay -> giữ Queued, trả null.
+            TrayEntity? tray = null;
+            if (job.TrayId is Guid heldTrayId)
+            {
+                var held = await trayRepository.GetByIdAsync(heldTrayId, cancellationToken);
+                if (held is not null && held.CurrentOrderId == job.OrderId)
+                    tray = held;                       // khay vẫn thuộc đơn này -> dùng tiếp
+            }
             if (tray is null)
             {
-                return Result.Success(new PullNextJobResponse(null), "No free tray.");
+                var availableTrays = await trayRepository
+                    .FindListAsync(x => x.Status == TrayStatus.Available, cancellationToken);
+                tray = availableTrays.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
+                if (tray is null)
+                {
+                    return Result.Success(new PullNextJobResponse(null), "No free tray.");
+                }
             }
 
             // 3) Lấy order + items

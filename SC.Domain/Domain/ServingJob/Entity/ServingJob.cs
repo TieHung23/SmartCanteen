@@ -79,6 +79,31 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
         Touch(updatedBy);
     }
 
+    // Staff cho chạy lại job Failed: về hàng đợi, GIỮ TrayId (món đã gắp còn trên khay)
+    // -> pull kế tiếp tái dùng khay, robot gắp tiếp phần thiếu (resume, không replay).
+    public void Requeue(Guid updatedBy)
+    {
+        Status = ServingJobStatus.Queued;
+        FailureReason = null;
+        Touch(updatedBy);
+    }
+
+    // Staff tự đặt tay phần món còn thiếu -> khay coi như ráp xong, đủ điều kiện lên kệ.
+    public void MarkAssembledManually(Guid updatedBy)
+    {
+        Status = ServingJobStatus.Assembling;
+        FailureReason = null;
+        AcknowledgedAtUtc ??= DateTimeOffset.UtcNow;
+        Touch(updatedBy);
+    }
+
+    // Gỡ khay khỏi job (khi manager force-release khay của job Failed đã dọn đồ).
+    public void ClearTray(Guid updatedBy)
+    {
+        TrayId = null;
+        Touch(updatedBy);
+    }
+
     public void Cancel(Guid updatedBy)
     {
         Status = ServingJobStatus.Cancelled;

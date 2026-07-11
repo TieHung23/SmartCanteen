@@ -80,6 +80,8 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
         "ServingJobNotReady", "Serving job is not ready for this step.", 409);
     public static readonly Error TrayMismatch = new(
         "TrayMismatch", "Scanned tray does not match the tray assigned to this order.", 409);
+    public static readonly Error ShelfStockNotFound = new(
+        "ShelfStockNotFound", "Shelf stock record was not found.", 404);
 
     [JsonIgnore] public string Code { get; } = code;
 

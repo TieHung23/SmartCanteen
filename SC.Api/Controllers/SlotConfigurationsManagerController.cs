@@ -13,7 +13,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/manager/slot-configurations")]
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = "Manager,Staff")]
 public class SlotConfigurationsManagerController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -26,6 +26,7 @@ public class SlotConfigurationsManagerController(IMediator mediator) : Controlle
     }
 
     [HttpPost]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Create(
         [FromBody] CreateSlotConfigurationCommand command, CancellationToken ct)
     {
@@ -36,6 +37,7 @@ public class SlotConfigurationsManagerController(IMediator mediator) : Controlle
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id, [FromBody] UpdateSlotConfigurationCommand command, CancellationToken ct)
     {
@@ -46,6 +48,7 @@ public class SlotConfigurationsManagerController(IMediator mediator) : Controlle
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct)
     {
         var result = await mediator.Send(new DeleteSlotConfigurationCommand(id), ct);

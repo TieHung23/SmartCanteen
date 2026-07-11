@@ -14,7 +14,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/manager/robot-arms")]
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = "Manager,Staff")]
 public class RobotArmsManagerController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -27,6 +27,7 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Create([FromBody] CreateRobotArmCommand command, CancellationToken ct)
     {
         var result = await mediator.Send(command, ct);
@@ -36,6 +37,7 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id, [FromBody] UpdateRobotArmCommand command, CancellationToken ct)
     {
@@ -46,6 +48,7 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/maintenance")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> SetMaintenance(
         [FromRoute] Guid id, [FromQuery] bool inMaintenance, CancellationToken ct)
     {
@@ -56,6 +59,7 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct)
     {
         var result = await mediator.Send(new DeleteRobotArmCommand(id), ct);

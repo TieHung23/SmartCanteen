@@ -13,7 +13,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/manager/trays")]
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = "Manager,Staff")]
 public class TraysManagerController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -26,6 +26,7 @@ public class TraysManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Create([FromBody] CreateTraysCommand command, CancellationToken ct)
     {
         var result = await mediator.Send(command, ct);
@@ -35,6 +36,7 @@ public class TraysManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/force-release")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> ForceRelease([FromRoute] Guid id, CancellationToken ct)
     {
         var result = await mediator.Send(new ForceReleaseTrayCommand(id), ct);
@@ -44,6 +46,7 @@ public class TraysManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/retire")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Retire([FromRoute] Guid id, CancellationToken ct)
     {
         var result = await mediator.Send(new RetireTrayCommand(id), ct);

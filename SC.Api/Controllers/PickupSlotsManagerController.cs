@@ -13,7 +13,7 @@ namespace SC.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/manager/pickup-slots")]
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = "Manager,Staff")]
 public class PickupSlotsManagerController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -26,6 +26,7 @@ public class PickupSlotsManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Create([FromBody] CreatePickupSlotsCommand command, CancellationToken ct)
     {
         var result = await mediator.Send(command, ct);
@@ -44,6 +45,7 @@ public class PickupSlotsManagerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/retire")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Retire([FromRoute] Guid id, CancellationToken ct)
     {
         var result = await mediator.Send(new RetirePickupSlotCommand(id), ct);
