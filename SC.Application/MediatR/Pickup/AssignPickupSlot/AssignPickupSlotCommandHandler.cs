@@ -56,6 +56,24 @@ internal sealed class AssignPickupSlotCommandHandler(
             if (job is null)
                 return Result.Failure<AssignPickupSlotResponse>(Error.ServingJobNotFound, "No active serving job for this order.");
 
+            // Chỉ job ĐÃ RÁP XONG mới được lên kệ (Queued/Pushed = robot chưa làm; Failed = đang chờ xử lý)
+            if (job.Status != ServingJobStatus.Assembling)
+                return Result.Failure<AssignPickupSlotResponse>(
+                    Error.ServingJobNotReady,
+                    $"Serving job is '{job.Status}'; only assembled jobs can be shelved.");
+
+            // Khay quét phải ĐÚNG khay đã gán cho job này (chặn quét nhầm khay A/khay B)
+            if (job.TrayId != tray.Id)
+                return Result.Failure<AssignPickupSlotResponse>(
+                    Error.TrayMismatch,
+                    $"Tray '{tray.Code}' is not the tray assigned to this order.");
+
+            // Và khay phải đang giữ đúng đơn này (chặn khay của đơn khác / khay đã release)
+            if (tray.CurrentOrderId != request.OrderId)
+                return Result.Failure<AssignPickupSlotResponse>(
+                    Error.TrayMismatch,
+                    $"Tray '{tray.Code}' is not carrying this order.");
+
             slot.Assign(request.OrderId, tray.Id, actorId);
             pickupSlotRepository.Update(slot);
 

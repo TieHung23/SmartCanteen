@@ -76,6 +76,10 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
         "CodeAlreadyExists", "Code already exists.", 409);
     public static readonly Error ResourceBusy = new(
         "ResourceBusy", "Resource is currently in use and cannot be modified.", 409);
+    public static readonly Error ServingJobNotReady = new(
+        "ServingJobNotReady", "Serving job is not ready for this step.", 409);
+    public static readonly Error TrayMismatch = new(
+        "TrayMismatch", "Scanned tray does not match the tray assigned to this order.", 409);
 
     [JsonIgnore] public string Code { get; } = code;
 
