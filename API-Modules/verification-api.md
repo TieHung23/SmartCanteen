@@ -57,7 +57,10 @@ Auth: `[Authorize]`
 Auth: `[Authorize(Roles = "Manager")]` for all.
 
 ### `GET /api/admin/verifications`
-**Query:** `?pageNumber=1&pageSize=10`
+**Query:** `?pageNumber=1&pageSize=10&status=1`
+
+- `status` optional, defaults to `1=Pending`
+- VerificationStatus: `1=Pending, 2=Approved, 3=Rejected, 4=Expired`
 
 Paginated items:
 ```json
@@ -66,6 +69,7 @@ Paginated items:
   "userId": "guid",
   "userEmail": "string",
   "userName": "string",
+  "status": 1,
   "submittedAt": "...",
   "documentCount": 0
 }

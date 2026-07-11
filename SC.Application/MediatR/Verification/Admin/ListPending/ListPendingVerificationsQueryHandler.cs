@@ -20,8 +20,16 @@ internal class ListPendingVerificationsQueryHandler(
     {
         try
         {
+            var status = request.Status ?? (int)VerificationStatus.Pending;
+            if (!Enum.IsDefined(typeof(VerificationStatus), status))
+            {
+                return Result.Failure<PaginatedList<PendingVerificationItem>>(
+                    Error.InvalidValue,
+                    "Verification status is invalid.");
+            }
+
             var allPending = await verificationRepository
-                .FindListAsync(v => v.Status == VerificationStatus.Pending, cancellationToken);
+                .FindListAsync(v => (int)v.Status == status, cancellationToken);
 
             var total = allPending.Count;
             var page = allPending
@@ -40,12 +48,13 @@ internal class ListPendingVerificationsQueryHandler(
                 v.UserId,
                 users.TryGetValue(v.UserId, out var u) ? u!.Email : string.Empty,
                 users.TryGetValue(v.UserId, out var u2) ? u2!.Name : string.Empty,
+                v.Status,
                 v.SubmittedAt,
                 v.Documents.Count)).ToList();
 
             return Result.Success(
                 new PaginatedList<PendingVerificationItem>(items, request.PageNumber, request.PageSize, total),
-                "Pending verifications retrieved.");
+                "Verifications retrieved.");
         }
         catch (Exception ex)
         {
