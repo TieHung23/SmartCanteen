@@ -42,6 +42,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasConversion<int>();
 
+        builder.Property(x => x.StatusReason)
+            .HasMaxLength(1000);
+
         builder.Property(x => x.EmailVerified)
             .IsRequired();
 

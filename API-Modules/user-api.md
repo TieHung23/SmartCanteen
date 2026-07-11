@@ -7,6 +7,9 @@ Auth notes:
 - Endpoints marked `AllowAnonymous` do not require a token.
 - Endpoints marked `Authorize` require a valid JWT Bearer token.
 - `PUT /api/auth/me` uses `multipart/form-data` (other endpoints use JSON body).
+- Banned/suspended accounts are blocked by middleware on every authorized request, including when the access token was issued before the status changed.
+- When an account is banned or suspended through the manager user endpoints, all active refresh tokens are revoked.
+- Failure responses include `errorCode` for FE branching, for example `AccountBanned`, `AccountSuspended`, `UserNotFound`.
 
 ---
 
@@ -73,7 +76,11 @@ AllowAnonymous.
 }
 ```
 
-**Errors:** `400` — invalid credentials, email not verified, account suspended, Google-only account.
+**Errors:**
+- `401` `EmailNotVerified` — email is not verified.
+- `401` `AccountSuspended` — account is suspended.
+- `403` `AccountBanned` — account is banned.
+- `400/401` — invalid credentials or Google-only account.
 
 ---
 
@@ -132,7 +139,10 @@ AllowAnonymous. Token rotation — the old refresh token is revoked.
 
 **200:** Same `AuthTokensDto` shape as login.
 
-**Errors:** `400` — invalid/expired refresh token.
+**Errors:**
+- `401` — invalid/expired refresh token.
+- `401` `AccountSuspended` — account is suspended; provided refresh token is revoked.
+- `403` `AccountBanned` — account is banned; provided refresh token is revoked.
 
 ---
 
@@ -145,7 +155,11 @@ AllowAnonymous. Only FPT University emails accepted.
 
 **200:** Same `AuthTokensDto` shape as login.
 
-**Errors:** `400` — invalid Google token, non-FPT email, account suspended.
+**Errors:**
+- `401` — invalid Google token.
+- `403` — non-FPT email.
+- `401` `AccountSuspended` — account is suspended.
+- `403` `AccountBanned` — account is banned.
 
 ---
 
@@ -192,6 +206,28 @@ Authorize.
 Role: `1=Admin, 2=Manager, 3=User, 4=Staff`  
 AccountStatus: `1=Active, 2=PendingEmailVerification, 3=PendingIdentityVerification, 4=Suspended, 5=Banned`
 
+**Authorized request blocked by account status middleware:**
+
+`403 AccountSuspended`
+```json
+{
+  "isSuccess": false,
+  "errorCode": "AccountSuspended",
+  "message": "This account has been suspended.",
+  "reason": "Violation reason | null"
+}
+```
+
+`403 AccountBanned`
+```json
+{
+  "isSuccess": false,
+  "errorCode": "AccountBanned",
+  "message": "This account has been banned.",
+  "reason": "Violation reason | null"
+}
+```
+
 ---
 
 ## `PUT /api/auth/me`
@@ -209,3 +245,195 @@ Authorize. `Content-Type: multipart/form-data`
 Optional string fields are cleared when sent as `null` or empty. Student ID, email, role, status, and balance cannot be changed via this endpoint.
 
 **200:** Same `UserProfileResponse` shape as `GET /api/auth/me`.
+
+---
+
+# SmartCanteen Manager User API
+
+Base URL: `/api/manager/users`  
+API Version: `1.0`
+
+Auth notes:
+- Requires JWT Bearer token.
+- Requires `Manager` role.
+- Manager cannot change their own account status through these endpoints.
+- `Suspend` and `Ban` both revoke all active refresh tokens for the target user.
+- `Reactivate` sets a suspended user back to `Active`. Banned users cannot be reactivated.
+- Existing access tokens for the target user are blocked on the next authorized request by account status middleware.
+- Suspend/ban stores the current lock reason in `Users.StatusReason`.
+- Reactivate clears `Users.StatusReason`.
+
+---
+
+## `GET /api/manager/users`
+Authorize: `Manager`.
+
+**Query:**
+- `pageNumber` default `1`
+- `pageSize` default `10`, max `100`
+- `search` optional, matches name/email/student ID
+- `status` optional, `1=Active, 2=PendingEmailVerification, 3=PendingIdentityVerification, 4=Suspended, 5=Banned`
+- `role` optional, `1=Admin, 2=Manager, 3=User, 4=Staff`
+
+**200:**
+```json
+{
+  "value": {
+    "items": [
+      {
+        "id": "guid",
+        "name": "string",
+        "email": "string",
+        "imgUrl": "string | null",
+        "role": 3,
+        "status": 1,
+        "statusReason": "string | null",
+        "emailVerified": true,
+        "studentId": "string | null",
+        "majorOrClass": "string | null",
+        "phoneNumber": "string | null",
+        "balanceAmount": 0.0,
+        "lastLoginAt": "... | null",
+        "createdAtUtc": "..."
+      }
+    ],
+    "pageNumber": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 0,
+    "hasPreviousPage": false,
+    "hasNextPage": false
+  },
+  "isSuccess": true,
+  "message": "Users retrieved."
+}
+```
+
+---
+
+## `GET /api/manager/users/{id}`
+Authorize: `Manager`.
+
+**200:**
+```json
+{
+  "value": {
+    "id": "guid",
+    "name": "string",
+    "email": "string",
+    "imgUrl": "string | null",
+    "role": 3,
+    "status": 1,
+    "statusReason": "string | null",
+    "emailVerified": true,
+    "studentId": "string | null",
+    "dateOfBirth": "2024-01-15 | null",
+    "majorOrClass": "string | null",
+    "phoneNumber": "string | null",
+    "address": "string | null",
+    "gender": 1,
+    "balanceAmount": 0.0,
+    "lastLoginAt": "... | null",
+    "createdAtUtc": "...",
+    "updatedAtUtc": "... | null"
+  },
+  "isSuccess": true,
+  "message": "User detail retrieved."
+}
+```
+
+**Errors:**
+- `404` `UserNotFound` — user not found.
+
+---
+
+## `POST /api/manager/users/{id}/suspend`
+Authorize: `Manager`.
+
+```json
+{ "reason": "string" }
+```
+
+**200:**
+```json
+{
+  "value": {
+    "userId": "guid",
+    "status": 4,
+    "revokedRefreshTokenCount": 2,
+    "reason": "Violation reason",
+    "message": "User account has been suspended."
+  },
+  "isSuccess": true,
+  "message": "User account has been suspended."
+}
+```
+
+**Errors:**
+- `400` — invalid user id, missing reason, or manager attempts to suspend their own account.
+- `404` `UserNotFound` — user not found.
+
+Notes:
+- Stores `reason` in `Users.StatusReason`.
+- Revokes all active refresh tokens of the target user.
+- Any existing access token is blocked on the next authorized request by account status middleware.
+
+---
+
+## `POST /api/manager/users/{id}/ban`
+Authorize: `Manager`.
+
+```json
+{ "reason": "string" }
+```
+
+**200:**
+```json
+{
+  "value": {
+    "userId": "guid",
+    "status": 5,
+    "revokedRefreshTokenCount": 2,
+    "reason": "Violation reason",
+    "message": "User account has been banned."
+  },
+  "isSuccess": true,
+  "message": "User account has been banned."
+}
+```
+
+**Errors:**
+- `400` — invalid user id, missing reason, or manager attempts to ban their own account.
+- `404` `UserNotFound` — user not found.
+
+Notes:
+- Stores `reason` in `Users.StatusReason`.
+- Revokes all active refresh tokens of the target user.
+- Any existing access token is blocked on the next authorized request by account status middleware.
+
+---
+
+## `POST /api/manager/users/{id}/reactivate`
+Authorize: `Manager`.
+
+Reactivates a suspended account by setting `status` to `Active`. Banned accounts cannot be reactivated.
+
+**200:**
+```json
+{
+  "value": {
+    "userId": "guid",
+    "status": 1,
+    "message": "User account has been reactivated."
+  },
+  "isSuccess": true,
+  "message": "User account has been reactivated."
+}
+```
+
+**Errors:**
+- `400` — invalid user id, manager attempts to reactivate their own account, account is not suspended, or account is banned.
+- `404` `UserNotFound` — user not found.
+
+Notes:
+- Clears `Users.StatusReason`.
