@@ -36,13 +36,37 @@ internal class RefreshTokenCommandHandler(
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var user = await userRepository.GetByIdAsync(existing.UserId, cancellationToken);
-            if (user is null || user.Status is AccountStatus.Suspended or AccountStatus.Banned)
+            if (user is null)
             {
                 existing.Revoke();
                 refreshTokenRepository.Update(existing);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 await unitOfWork.CommitAsync(cancellationToken);
                 return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Account no longer eligible.");
+            }
+
+            if (user.Status == AccountStatus.Banned)
+            {
+                existing.Revoke();
+                refreshTokenRepository.Update(existing);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                await unitOfWork.CommitAsync(cancellationToken);
+                return Result.Failure<AuthTokensDto>(
+                    Error.AccountBanned,
+                    "This account has been banned.",
+                    user.StatusReason);
+            }
+
+            if (user.Status == AccountStatus.Suspended)
+            {
+                existing.Revoke();
+                refreshTokenRepository.Update(existing);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                await unitOfWork.CommitAsync(cancellationToken);
+                return Result.Failure<AuthTokensDto>(
+                    Error.AccountSuspended,
+                    "This account has been suspended.",
+                    user.StatusReason);
             }
 
             var newOpaque = tokenGenerator.GenerateOpaqueToken();

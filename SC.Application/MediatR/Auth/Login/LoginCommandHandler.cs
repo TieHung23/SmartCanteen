@@ -53,9 +53,20 @@ internal class LoginCommandHandler(
                 return Result.Failure<AuthTokensDto>(Error.EmailNotVerified, "Please verify your email before logging in.");
             }
 
-            if (user.Status is AccountStatus.Suspended or AccountStatus.Banned)
+            if (user.Status == AccountStatus.Banned)
             {
-                return Result.Failure<AuthTokensDto>(Error.AccountSuspended, "This account has been suspended.");
+                return Result.Failure<AuthTokensDto>(
+                    Error.AccountBanned,
+                    "This account has been banned.",
+                    user.StatusReason);
+            }
+
+            if (user.Status == AccountStatus.Suspended)
+            {
+                return Result.Failure<AuthTokensDto>(
+                    Error.AccountSuspended,
+                    "This account has been suspended.",
+                    user.StatusReason);
             }
 
             var isFullyVerified = user.Status == AccountStatus.Active;
