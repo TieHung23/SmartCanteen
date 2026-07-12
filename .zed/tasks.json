@@ -1,0 +1,9 @@
+// .zed/tasks.json
+[
+  {
+    "label": "Build API",
+    "command": "dotnet",
+    "args": ["build", "SC.Api/SC.Api.csproj"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  }
+]

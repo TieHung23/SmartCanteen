@@ -1,0 +1,9 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Workaround for NETSDK1226: some .NET 10 SDK builds ship without the
+         prune package data for the shared frameworks. -->
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+  </PropertyGroup>
+
+</Project>
