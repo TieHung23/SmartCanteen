@@ -9,13 +9,13 @@ BEGIN
   SELECT "Id" INTO sid FROM "Sessions" WHERE "Name" = 'TEST SESSION' LIMIT 1;
   IF sid IS NULL THEN
     sid := gen_random_uuid();
-    INSERT INTO "Sessions"("Id","Name","Description","IsActive","CreatedAtUtc","CreatedBy","UpdatedBy")
-    VALUES (sid,'TEST SESSION','hybrid test',true,now(),z,z);
+    INSERT INTO "Sessions"("Id","Name","Description","IsActive","CreatedAtUtc","CreatedBy","UpdatedBy","IsDeleted")
+    VALUES (sid,'TEST SESSION','hybrid test',true,now(),z,z,false);
   END IF;
-  INSERT INTO "Orders"("Id","SessionId","Status","CreatedAtUtc","CreatedBy","UpdatedBy")
-  VALUES (oid,sid,4,now(),z,z);
-  INSERT INTO "ServingJobs"("Id","OrderId","Status","CreatedAtUtc","CreatedBy","UpdatedBy")
-  VALUES (gen_random_uuid(),oid,0,now(),z,z);
+  INSERT INTO "Orders"("Id","SessionId","Status","CreatedAtUtc","CreatedBy","UpdatedBy","IsDeleted")
+  VALUES (oid,sid,4,now(),z,z,false);
+  INSERT INTO "ServingJobs"("Id","OrderId","Status","CreatedAtUtc","CreatedBy","UpdatedBy","IsDeleted")
+  VALUES (gen_random_uuid(),oid,0,now(),z,z,false);
   RAISE NOTICE '+1 Queued job cho order %', oid;
 END $$;
 SELECT count(*) AS queued_jobs FROM "ServingJobs" WHERE "Status" = 0;
