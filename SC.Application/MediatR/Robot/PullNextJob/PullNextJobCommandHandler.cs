@@ -44,8 +44,10 @@ internal sealed class PullNextJobCommandHandler(
             if (job.TrayId is Guid heldTrayId)
             {
                 var held = await trayRepository.GetByIdAsync(heldTrayId, cancellationToken);
-                if (held is not null && held.CurrentOrderId == job.OrderId)
-                    tray = held;                       // khay vẫn thuộc đơn này -> dùng tiếp
+                // Khay còn bận (chưa Available) nghĩa là vẫn của job này: force-release đã gỡ
+                // job.TrayId=null khi thu khay, nên job còn trỏ khay bận = khay chưa bị lấy đi.
+                if (held is not null && held.Status != TrayStatus.Available)
+                    tray = held;                       // dùng tiếp khay cũ (món đã gắp còn trên đó)
             }
             if (tray is null)
             {
@@ -72,7 +74,7 @@ internal sealed class PullNextJobCommandHandler(
             // 4) Gán khay (Available->Reserved) + claim job (Queued->Pushed). 1 SaveChanges = atomic.
             //     Nhiều robot: cần optimistic-concurrency / SELECT FOR UPDATE để không claim trùng.
             //       Hiện 1 service nên an toàn; nâng khi chạy nhiều tay.
-            tray.Reserve(order.Id, actorId);
+            tray.Reserve(actorId);
             trayRepository.Update(tray);
             job.AssignTray(tray.Id, actorId);
             job.MarkPushed(actorId);

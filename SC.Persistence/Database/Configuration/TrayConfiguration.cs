@@ -19,9 +19,6 @@ public class TrayConfiguration : IEntityTypeConfiguration<Tray>
             .IsRequired()
             .HasConversion<int>();
 
-        builder.Property(x => x.CurrentOrderId);
-        builder.HasIndex(x => x.CurrentOrderId);
-
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
     }
