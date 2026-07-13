@@ -6,7 +6,7 @@ namespace SC.Application.MediatR.PickupSlotAdmin.GetAllPickupSlots;
 public sealed record GetAllPickupSlotsQuery : IQuery<GetAllPickupSlotsResponse>;
 
 public sealed record PickupSlotDto(
-    Guid Id, string Code, string Status, Guid? OrderId, Guid? TrayId, DateTimeOffset? UpdatedAtUtc);
+    Guid Id, string Code, string Status, Guid? OrderId, DateTimeOffset? UpdatedAtUtc);
 
 public sealed record GetAllPickupSlotsResponse(
     int Empty, int Occupied, IReadOnlyList<PickupSlotDto> Slots);

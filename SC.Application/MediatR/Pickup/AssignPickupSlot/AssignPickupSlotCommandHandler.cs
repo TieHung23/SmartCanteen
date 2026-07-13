@@ -69,7 +69,7 @@ internal sealed class AssignPickupSlotCommandHandler(
                     Error.TrayMismatch,
                     $"Tray '{tray.Code}' is not the tray assigned to this order.");
 
-            slot.Assign(request.OrderId, tray.Id, actorId);
+            slot.Assign(request.OrderId, actorId);
             pickupSlotRepository.Update(slot);
 
             // Kraft bowls: staff bê đồ lên ô kệ -> KHAY RỖNG, trả về pool NGAY (không nằm trên ô).

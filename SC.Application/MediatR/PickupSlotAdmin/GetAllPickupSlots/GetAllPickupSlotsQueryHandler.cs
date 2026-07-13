@@ -23,7 +23,7 @@ internal sealed class GetAllPickupSlotsQueryHandler(
             var dtos = slots
                 .OrderBy(x => x.Code)
                 .Select(x => new PickupSlotDto(
-                    x.Id, x.Code, x.Status.ToString(), x.OrderId, x.TrayId, x.UpdatedAtUtc))
+                    x.Id, x.Code, x.Status.ToString(), x.OrderId, x.UpdatedAtUtc))
                 .ToList();
 
             return Result.Success(new GetAllPickupSlotsResponse(
