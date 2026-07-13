@@ -11,7 +11,6 @@ public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     public PickupSlotStatus Status { get; private set; } = PickupSlotStatus.Empty;
     public Guid? OrderId { get; private set; }
     public Guid? TrayId { get; private set; }
-    public bool? SensorOccupied { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -24,8 +23,8 @@ public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
         return new PickupSlot { Id = Guid.NewGuid(), Code = code, Status = PickupSlotStatus.Empty, CreatedAtUtc = DateTimeOffset.UtcNow, CreatedBy = createdBy, UpdatedBy = createdBy };
     }
 
-    public void Assign(Guid orderId, Guid trayId, Guid updatedBy) { OrderId = orderId; TrayId = trayId; Status = PickupSlotStatus.Occupied; SensorOccupied = true; Touch(updatedBy); }
-    public void Clear(Guid updatedBy) { OrderId = null; TrayId = null; Status = PickupSlotStatus.Empty; SensorOccupied = false; Touch(updatedBy); }
+    public void Assign(Guid orderId, Guid trayId, Guid updatedBy) { OrderId = orderId; TrayId = trayId; Status = PickupSlotStatus.Occupied; Touch(updatedBy); }
+    public void Clear(Guid updatedBy) { OrderId = null; TrayId = null; Status = PickupSlotStatus.Empty; Touch(updatedBy); }
     public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
     private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }
 }
