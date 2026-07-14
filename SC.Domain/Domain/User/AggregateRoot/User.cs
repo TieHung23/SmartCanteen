@@ -75,6 +75,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     {
         if (EmailVerified) return;
         EmailVerified = true;
+        StatusReason = null;
         Status = IsFptEmail() ? AccountStatus.Active : AccountStatus.PendingIdentityVerification;
     }
 
@@ -82,6 +83,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     {
         if (Status != AccountStatus.PendingIdentityVerification)
             throw new InvalidOperationException("Cannot activate: account is not awaiting identity verification approval.");
+        StatusReason = null;
         Status = AccountStatus.Active;
     }
 
