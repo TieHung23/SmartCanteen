@@ -9,6 +9,9 @@ using SC.Domain.Domain.Tray.Enum;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
+using SlotConfigurationEntity = SC.Domain.Domain.SlotConfiguration.Entity.SlotConfiguration;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
+using RobotArmEntity = SC.Domain.Domain.RobotArm.Entity.RobotArm;
 
 namespace SC.Application.MediatR.Robot.PullNextJob;
 
@@ -16,6 +19,9 @@ internal sealed class PullNextJobCommandHandler(
     IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<TrayEntity, Guid> trayRepository,
+    IGenericRepository<SlotConfigurationEntity, Guid> slotConfigurationRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<RobotArmEntity, Guid> robotArmRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     ILogger<PullNextJobCommandHandler> logger
@@ -71,7 +77,33 @@ internal sealed class PullNextJobCommandHandler(
                 return Result.Success(new PullNextJobResponse(null), "Order missing; job cancelled.");
             }
 
-            // 4) Gán khay (Available->Reserved) + claim job (Queued->Pushed). 1 SaveChanges = atomic.
+            // 4) Nhãn cho robot: món -> LaneCode (gắp Ở ĐÂU) + Station (TAY nào), theo cấu hình CA này.
+            //    Đọc TRƯỚC khi claim job: query lỗi thì job không bị kẹt ở Pushed mà chẳng ai làm.
+            //    Món chưa cấu hình lane -> LaneCode/Station = null (không fail pull; edge/staff xử lý).
+            var dishIds = order.OrderItems.Select(i => i.DishId).Distinct().ToList();
+
+            var configs = await slotConfigurationRepository.FindListAsync(
+                x => x.SessionId == order.SessionId && !x.IsDeleted, cancellationToken);
+            var configByDish = configs
+                .GroupBy(x => x.DishId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var dishes = dishIds.Count == 0
+                ? new List<DishAggregateRoot>()
+                : await dishRepository.FindListAsync(x => dishIds.Contains(x.Id), cancellationToken);
+            var dishNameById = dishes.ToDictionary(x => x.Id, x => x.Name);
+
+            var armIds = configByDish.Values
+                .Where(x => x.RobotArmId.HasValue)
+                .Select(x => x.RobotArmId!.Value)
+                .Distinct()
+                .ToList();
+            var arms = armIds.Count == 0
+                ? new List<RobotArmEntity>()
+                : await robotArmRepository.FindListAsync(x => armIds.Contains(x.Id), cancellationToken);
+            var armCodeById = arms.ToDictionary(x => x.Id, x => x.Code);
+
+            // 5) Gán khay (Available->Reserved) + claim job (Queued->Pushed). 1 SaveChanges = atomic.
             //     Nhiều robot: cần optimistic-concurrency / SELECT FOR UPDATE để không claim trùng.
             //       Hiện 1 service nên an toàn; nâng khi chạy nhiều tay.
             tray.Reserve(actorId);
@@ -87,9 +119,22 @@ internal sealed class PullNextJobCommandHandler(
                 OrderId = order.Id,
                 TrayId = tray.Id,
                 TrayCode = tray.Code,
-                Items = order.OrderItems
-                    .Select(i => new ServingJobItemMessage { DishId = i.DishId, Quantity = i.Quantity })
-                    .ToList()
+                Items = order.OrderItems.Select(i =>
+                {
+                    configByDish.TryGetValue(i.DishId, out var cfg);
+                    string? station = null;
+                    if (cfg?.RobotArmId is Guid armId && armCodeById.TryGetValue(armId, out var code))
+                        station = code;
+
+                    return new ServingJobItemMessage
+                    {
+                        DishId = i.DishId,
+                        DishName = dishNameById.TryGetValue(i.DishId, out var name) ? name : null,
+                        Quantity = i.Quantity,
+                        Station = station,
+                        LaneCode = cfg?.LaneCode
+                    };
+                }).ToList()
             };
 
             return Result.Success(new PullNextJobResponse(message), "Job dispatched.");

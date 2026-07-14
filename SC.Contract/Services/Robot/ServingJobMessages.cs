@@ -1,12 +1,16 @@
 namespace SC.Contract.Services.Robot;
 
-/// <summary>1 món trong job phục vụ (BE -&gt; robot service).</summary>
+/// <summary>
+/// 1 món trong job phục vụ (BE -&gt; robot service). Nhãn Station/LaneCode lấy từ
+/// SlotConfiguration của ca; món chưa cấu hình -&gt; cả hai null (edge/staff xử lý).
+/// </summary>
 public sealed class ServingJobItemMessage
 {
     public Guid DishId { get; init; }
     public string? DishName { get; init; }
     public int Quantity { get; init; }
-    public string? Station { get; init; }   // trạm/lane robot gắp (nếu đã cấu hình)
+    public string? Station { get; init; }    // TAY nào gắp: mã RobotArm, vd "S1"
+    public string? LaneCode { get; init; }   // GẮP Ở ĐÂU: mã lane, vd "S1-L2" (edge tra teaching point)
 }
 
 /// <summary>Job phục vụ đẩy cho robot service qua SignalR (event "ReceiveJob").</summary>
