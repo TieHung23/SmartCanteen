@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
+using SC.Domain.Domain.User.Enum;
 using UserAggregate = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.User.Manager.GetUserDetail;
@@ -32,7 +33,7 @@ internal class GetManagerUserDetailQueryHandler(
                 user.ImgUrl,
                 user.Role,
                 user.Status,
-                user.StatusReason,
+                GetCurrentStatusReason(user.Status, user.StatusReason),
                 user.EmailVerified,
                 user.StudentId,
                 user.DateOfBirth,
@@ -54,5 +55,12 @@ internal class GetManagerUserDetailQueryHandler(
                 Error.ServerError,
                 "An error occurred while retrieving user detail.");
         }
+    }
+
+    private static string? GetCurrentStatusReason(AccountStatus status, string? statusReason)
+    {
+        return status is AccountStatus.Suspended or AccountStatus.Banned
+            ? statusReason
+            : null;
     }
 }
