@@ -89,6 +89,7 @@ internal sealed class ReportServingStatusCommandHandler(
                     robotArmId: robotArmId,
                     servingJobId: job.Id,
                     orderId: job.OrderId,
+                    dishId: request.DishId,
                     message: request.Message ?? state),
                 cancellationToken);
 

@@ -14,6 +14,7 @@ public class RobotEventLogConfiguration : IEntityTypeConfiguration<RobotEventLog
         builder.Property(x => x.ServingJobId);
         builder.HasIndex(x => x.ServingJobId);
         builder.Property(x => x.OrderId);
+        builder.Property(x => x.DishId);
 
         builder.Property(x => x.EventType)
             .IsRequired()

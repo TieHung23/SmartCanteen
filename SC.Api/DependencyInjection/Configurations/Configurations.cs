@@ -109,6 +109,16 @@ public static class Configurations
         {
             options.OperationFilter<ApiVersionHeaderOperationFilter>();
 
+            // LaneCode: render dropdown chuỗi (S1_L1..S3_L3) trong Swagger — localized,
+            // KHÔNG bật JsonStringEnumConverter global (tránh lật serialize enum khác của team).
+            options.MapType<SC.Domain.Domain.RobotArm.Enum.LaneCode>(() => new OpenApiSchema
+            {
+                Type = "string",
+                Enum = Enum.GetNames<SC.Domain.Domain.RobotArm.Enum.LaneCode>()
+                    .Select(name => (IOpenApiAny)new OpenApiString(name))
+                    .ToList()
+            });
+
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Name = "Authorization",
