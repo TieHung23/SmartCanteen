@@ -11,6 +11,7 @@ public sealed class ServingJobItemMessage
     public int Quantity { get; init; }
     public string? Station { get; init; }    // TAY nào gắp: mã RobotArm, vd "S1"
     public string? LaneCode { get; init; }   // GẮP Ở ĐÂU: mã lane, vd "S1-L2" (edge tra teaching point)
+    public bool Done { get; init; }          // đã phục vụ xong lượt trước (BE suy từ RobotEventLogs) -> edge SKIP khi requeue
 }
 
 /// <summary>Job phục vụ đẩy cho robot service qua SignalR (event "ReceiveJob").</summary>
@@ -30,5 +31,6 @@ public sealed class ServingStatusUpdate
     public Guid? TrayId { get; init; }
     public string State { get; init; } = string.Empty;   // Assembling/PickStarted/PickCompleted/PlaceCompleted/Failed...
     public string? Station { get; init; }
+    public Guid? DishId { get; init; }                   // món của event mức món (PickCompleted/Error); null cho event mức job
     public string? Message { get; init; }
 }

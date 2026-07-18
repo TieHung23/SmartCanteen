@@ -6,12 +6,14 @@ using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.ServingJob.Enum;
 using SC.Domain.Domain.Tray.Enum;
+using SC.Domain.Domain.RobotEventLog.Enum;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 using SlotConfigurationEntity = SC.Domain.Domain.SlotConfiguration.Entity.SlotConfiguration;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using RobotArmEntity = SC.Domain.Domain.RobotArm.Entity.RobotArm;
+using RobotEventLogEntity = SC.Domain.Domain.RobotEventLog.Entity.RobotEventLog;
 
 namespace SC.Application.MediatR.Robot.PullNextJob;
 
@@ -22,6 +24,7 @@ internal sealed class PullNextJobCommandHandler(
     IGenericRepository<SlotConfigurationEntity, Guid> slotConfigurationRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<RobotArmEntity, Guid> robotArmRepository,
+    IGenericRepository<RobotEventLogEntity, Guid> robotEventLogRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     ILogger<PullNextJobCommandHandler> logger
@@ -52,13 +55,13 @@ internal sealed class PullNextJobCommandHandler(
                 var held = await trayRepository.GetByIdAsync(heldTrayId, cancellationToken);
                 // Khay còn bận (chưa Available) nghĩa là vẫn của job này: force-release đã gỡ
                 // job.TrayId=null khi thu khay, nên job còn trỏ khay bận = khay chưa bị lấy đi.
-                if (held is not null && held.Status != TrayStatus.Available)
+                if (held is not null && !held.IsDeleted && held.Status != TrayStatus.Available)
                     tray = held;                       // dùng tiếp khay cũ (món đã gắp còn trên đó)
             }
             if (tray is null)
             {
                 var availableTrays = await trayRepository
-                    .FindListAsync(x => x.Status == TrayStatus.Available, cancellationToken);
+                    .FindListAsync(x => x.Status == TrayStatus.Available && !x.IsDeleted, cancellationToken);
                 tray = availableTrays.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
                 if (tray is null)
                 {
@@ -113,6 +116,15 @@ internal sealed class PullNextJobCommandHandler(
             servingJobRepository.Update(job);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // 5b) RESUME: món đã PlaceCompleted ở lượt trước (đọc RobotEventLogs — nguồn chân lý,
+            //     sống qua restart edge). Requeue -> gắn Done=true để edge SKIP, khỏi gắp lại.
+            var placedLogs = await robotEventLogRepository.FindListAsync(
+                x => x.ServingJobId == job.Id
+                     && x.EventType == RobotEventType.PlaceCompleted
+                     && x.DishId != null,
+                cancellationToken);
+            var servedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+
             var message = new ServingJobMessage
             {
                 JobId = job.Id,
@@ -132,7 +144,8 @@ internal sealed class PullNextJobCommandHandler(
                         DishName = dishNameById.TryGetValue(i.DishId, out var name) ? name : null,
                         Quantity = i.Quantity,
                         Station = station,
-                        LaneCode = cfg?.LaneCode
+                        LaneCode = cfg?.LaneCode,
+                        Done = servedDishIds.Contains(i.DishId)
                     };
                 }).ToList()
             };

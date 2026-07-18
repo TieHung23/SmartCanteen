@@ -23,7 +23,7 @@ public class SlotConfiguration : Entity<Guid>, IAuditableEntity<Guid>, ISoftDele
         return new SlotConfiguration { Id = Guid.NewGuid(), SessionId = sessionId, DishId = dishId, LaneCode = laneCode, Capacity = capacity, RobotArmId = robotArmId, CreatedAtUtc = DateTimeOffset.UtcNow, CreatedBy = createdBy, UpdatedBy = createdBy };
     }
 
-    public void Update(Guid dishId, string laneCode, int capacity, Guid updatedBy) { DishId = dishId; LaneCode = laneCode; Capacity = capacity; Touch(updatedBy); }
+    public void Update(Guid dishId, string laneCode, int capacity, Guid? robotArmId, Guid updatedBy) { DishId = dishId; LaneCode = laneCode; Capacity = capacity; RobotArmId = robotArmId; Touch(updatedBy); }
     public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
     private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }
 }

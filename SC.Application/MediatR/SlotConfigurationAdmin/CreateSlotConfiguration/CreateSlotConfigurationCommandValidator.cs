@@ -10,10 +10,8 @@ public class CreateSlotConfigurationCommandValidator : AbstractValidator<CreateS
         RuleFor(x => x.DishId).NotEmpty();
 
         RuleFor(x => x.LaneCode)
-            .NotEmpty()
-            .MaximumLength(50)
-            .Matches("^[A-Za-z0-9_-]+$")
-            .WithMessage("LaneCode must contain only letters, numbers, underscore, or hyphen.");
+            .IsInEnum()
+            .WithMessage("LaneCode must be a valid lane (e.g. S1_L1..S3_L3).");
 
         RuleFor(x => x.Capacity)
             .GreaterThan(0);

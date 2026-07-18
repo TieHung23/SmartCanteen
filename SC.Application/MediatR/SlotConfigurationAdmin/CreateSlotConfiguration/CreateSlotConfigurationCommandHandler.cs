@@ -3,6 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.RobotArm;
 using SlotConfigurationEntity = SC.Domain.Domain.SlotConfiguration.Entity.SlotConfiguration;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
@@ -26,27 +27,30 @@ internal sealed class CreateSlotConfigurationCommandHandler(
     {
         try
         {
-            var laneCode = request.LaneCode.Trim();
-            if (laneCode.Length == 0 || request.Capacity <= 0)
+            var laneCode = request.LaneCode.ToString();   // enum -> "S1_L1"
+            if (request.Capacity <= 0)
             {
                 return Result.Failure<CreateSlotConfigurationResponse>(
-                    Error.InvalidValue, "LaneCode is required and Capacity must be > 0.");
+                    Error.InvalidValue, "Capacity must be > 0.");
             }
 
-            var session = await sessionRepository.GetByIdAsync(request.SessionId, cancellationToken);
+            var session = await sessionRepository.FindSingleAsync(
+                x => x.Id == request.SessionId && !x.IsDeleted, cancellationToken);
             if (session is null)
             {
                 return Result.Failure<CreateSlotConfigurationResponse>(
                     Error.SessionNotFound, "Session was not found.");
             }
 
-            var dish = await dishRepository.GetByIdAsync(request.DishId, cancellationToken);
+            var dish = await dishRepository.FindSingleAsync(
+                x => x.Id == request.DishId && !x.IsDeleted, cancellationToken);
             if (dish is null)
             {
                 return Result.Failure<CreateSlotConfigurationResponse>(
                     Error.DishNotFound, "Dish was not found.");
             }
 
+            string? armCode = null;
             if (request.RobotArmId is Guid armId)
             {
                 var arm = await robotArmRepository.FindSingleAsync(
@@ -56,6 +60,17 @@ internal sealed class CreateSlotConfigurationCommandHandler(
                     return Result.Failure<CreateSlotConfigurationResponse>(
                         Error.RobotArmNotFound, "Robot arm was not found.");
                 }
+                armCode = arm.Code;
+            }
+
+            // LaneCode phải là lane hợp lệ của trạm ({Code}_L1..L3) — khớp dropdown FE / GET lanes
+            if (!LaneCatalog.IsValidLane(laneCode, armCode))
+            {
+                return Result.Failure<CreateSlotConfigurationResponse>(
+                    Error.InvalidValue,
+                    armCode is null
+                        ? "LaneCode must look like '<station>_L1'..'_L3'."
+                        : $"LaneCode must be one of {string.Join(", ", LaneCatalog.ForStation(armCode))}.");
             }
 
             // 1 lane chỉ chứa 1 món trong 1 ca

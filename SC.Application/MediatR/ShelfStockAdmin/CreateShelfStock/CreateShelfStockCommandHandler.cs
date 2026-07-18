@@ -30,14 +30,16 @@ internal sealed class CreateShelfStockCommandHandler(
                     Error.InvalidValue, "Quantity must be >= 0.");
             }
 
-            var session = await sessionRepository.GetByIdAsync(request.SessionId, cancellationToken);
+            var session = await sessionRepository.FindSingleAsync(
+                x => x.Id == request.SessionId && !x.IsDeleted, cancellationToken);
             if (session is null)
             {
                 return Result.Failure<CreateShelfStockResponse>(
                     Error.SessionNotFound, "Session was not found.");
             }
 
-            var dish = await dishRepository.GetByIdAsync(request.DishId, cancellationToken);
+            var dish = await dishRepository.FindSingleAsync(
+                x => x.Id == request.DishId && !x.IsDeleted, cancellationToken);
             if (dish is null)
             {
                 return Result.Failure<CreateShelfStockResponse>(

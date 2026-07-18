@@ -36,14 +36,14 @@ internal sealed class AssignPickupSlotCommandHandler(
         try
         {
             var slot = await pickupSlotRepository
-                .FindSingleAsync(x => x.Code == request.SlotCode, cancellationToken);
+                .FindSingleAsync(x => x.Code == request.SlotCode && !x.IsDeleted, cancellationToken);
             if (slot is null)
                 return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotFound, "Pickup slot was not found.");
             if (slot.Status != PickupSlotStatus.Empty)
                 return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotAvailable, "Pickup slot is not empty.");
 
             var tray = await trayRepository
-                .FindSingleAsync(x => x.Code == request.TrayCode, cancellationToken);
+                .FindSingleAsync(x => x.Code == request.TrayCode && !x.IsDeleted, cancellationToken);
             if (tray is null)
                 return Result.Failure<AssignPickupSlotResponse>(Error.TrayNotFound, "Tray was not found.");
 

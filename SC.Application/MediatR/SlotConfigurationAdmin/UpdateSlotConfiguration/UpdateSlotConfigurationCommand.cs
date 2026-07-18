@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using SC.Contract.Abstraction.Message;
+using LaneCodeEnum = SC.Domain.Domain.RobotArm.Enum.LaneCode;
 
 namespace SC.Application.MediatR.SlotConfigurationAdmin.UpdateSlotConfiguration;
 
@@ -6,7 +8,7 @@ namespace SC.Application.MediatR.SlotConfigurationAdmin.UpdateSlotConfiguration;
 public sealed record UpdateSlotConfigurationCommand(
     Guid Id,
     Guid DishId,
-    string LaneCode,
+    [property: JsonConverter(typeof(JsonStringEnumConverter))] LaneCodeEnum LaneCode,
     int Capacity,
     Guid? RobotArmId) : ICommand<UpdateSlotConfigurationResponse>;
 
