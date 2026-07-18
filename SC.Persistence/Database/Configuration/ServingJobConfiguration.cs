@@ -14,6 +14,7 @@ public class ServingJobConfiguration : IEntityTypeConfiguration<ServingJob>
         builder.HasIndex(x => x.OrderId);
 
         builder.Property(x => x.TrayId);
+        builder.HasIndex(x => x.TrayId);   // query ngược "khay này thuộc job/đơn nào" (thay Tray.CurrentOrderId)
         builder.Property(x => x.PickupSlotId);
 
         builder.Property(x => x.Status)

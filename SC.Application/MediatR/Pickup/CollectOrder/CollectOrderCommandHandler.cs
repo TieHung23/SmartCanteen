@@ -8,7 +8,6 @@ using SC.Domain.Domain.PickupSlot.Enum;
 using SC.Domain.Domain.ServingJob.Enum;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
-using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 using PickupSlotEntity = SC.Domain.Domain.PickupSlot.Entity.PickupSlot;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 
@@ -16,7 +15,6 @@ namespace SC.Application.MediatR.Pickup.CollectOrder;
 
 internal sealed class CollectOrderCommandHandler(
     IGenericRepository<PickupSlotEntity, Guid> pickupSlotRepository,
-    IGenericRepository<TrayEntity, Guid> trayRepository,
     IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
@@ -48,19 +46,12 @@ internal sealed class CollectOrderCommandHandler(
             if (job is null)
                 return Result.Failure<CollectOrderResponse>(Error.ServingJobNotFound, "No active serving job for this order.");
 
+            // Khay ĐÃ được trả về pool lúc staff lên kệ (AssignPickupSlot). Collect chỉ dọn ô.
+            // (Không release khay ở đây: khay có thể đã tái dùng cho đơn khác -> release là sai.)
             string? slotCode = null;
             if (slot is not null)
             {
                 slotCode = slot.Code;
-                if (slot.TrayId is { } trayId)
-                {
-                    var tray = await trayRepository.GetByIdAsync(trayId, cancellationToken);
-                    if (tray is not null)
-                    {
-                        tray.Release(actorId);
-                        trayRepository.Update(tray);
-                    }
-                }
                 slot.Clear(actorId);
                 pickupSlotRepository.Update(slot);
             }

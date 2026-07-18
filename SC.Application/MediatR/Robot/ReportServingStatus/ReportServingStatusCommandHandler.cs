@@ -73,6 +73,13 @@ internal sealed class ReportServingStatusCommandHandler(
                 var arm = await robotArmRepository.FindSingleAsync(
                     x => x.Code == request.Station.Trim(), cancellationToken);
                 robotArmId = arm?.Id;
+
+                // Tay vừa báo việc = tay còn sống -> nhịp tim "miễn phí" (LastHeartbeatUtc, Offline->Idle)
+                if (arm is not null)
+                {
+                    arm.Heartbeat(actorId);
+                    robotArmRepository.Update(arm);
+                }
             }
 
             await robotEventLogRepository.AddAsync(

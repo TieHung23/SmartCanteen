@@ -10,8 +10,6 @@ public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     public string Code { get; private set; } = string.Empty;
     public PickupSlotStatus Status { get; private set; } = PickupSlotStatus.Empty;
     public Guid? OrderId { get; private set; }
-    public Guid? TrayId { get; private set; }
-    public bool? SensorOccupied { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -24,8 +22,10 @@ public class PickupSlot : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
         return new PickupSlot { Id = Guid.NewGuid(), Code = code, Status = PickupSlotStatus.Empty, CreatedAtUtc = DateTimeOffset.UtcNow, CreatedBy = createdBy, UpdatedBy = createdBy };
     }
 
-    public void Assign(Guid orderId, Guid trayId, Guid updatedBy) { OrderId = orderId; TrayId = trayId; Status = PickupSlotStatus.Occupied; SensorOccupied = true; Touch(updatedBy); }
-    public void Clear(Guid updatedBy) { OrderId = null; TrayId = null; Status = PickupSlotStatus.Empty; SensorOccupied = false; Touch(updatedBy); }
+    // Khay KHÔNG lưu trên ô: hộp kraft đã rời khay lúc staff lên kệ, khay về pool ngay.
+    // "Đơn này dùng khay nào" tra ở ServingJob.TrayId (nguồn sự thật duy nhất).
+    public void Assign(Guid orderId, Guid updatedBy) { OrderId = orderId; Status = PickupSlotStatus.Occupied; Touch(updatedBy); }
+    public void Clear(Guid updatedBy) { OrderId = null; Status = PickupSlotStatus.Empty; Touch(updatedBy); }
     public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }
     private void Touch(Guid updatedBy) { UpdatedAtUtc = DateTimeOffset.UtcNow; UpdatedBy = updatedBy; }
 }

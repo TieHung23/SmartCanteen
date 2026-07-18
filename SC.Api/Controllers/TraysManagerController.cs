@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Tray.CreateTrays;
 using SC.Application.MediatR.Tray.ForceReleaseTray;
 using SC.Application.MediatR.Tray.GetAllTrays;
+using SC.Application.MediatR.Tray.GetTrayDetail;
 using SC.Application.MediatR.Tray.RetireTray;
 
 namespace SC.Api.Controllers;
@@ -20,6 +21,16 @@ public class TraysManagerController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await mediator.Send(new GetAllTraysQuery(), ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    /// <summary>Chi tiết 1 khay: job/đơn đang phục vụ + lịch sử job khay từng chở.</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetTrayDetailQuery(id), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);

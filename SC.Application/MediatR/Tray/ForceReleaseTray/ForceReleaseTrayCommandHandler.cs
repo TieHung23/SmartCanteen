@@ -41,31 +41,29 @@ internal sealed class ForceReleaseTrayCommandHandler(
                     "Tray is already available.");
             }
 
-            // Guard: khay dang duoc job SONG dung (robot dang/ sap gap) -> KHONG cho ep tra
-            if (tray.CurrentOrderId is Guid oid)
+            // Guard: khay đang được job SỐNG dùng (robot đang/sắp gắp) -> KHÔNG cho ép trả.
+            // Tìm job sống trỏ THẲNG vào khay này (thay Tray.CurrentOrderId, dùng index TrayId).
+            var jobs = await servingJobRepository.FindListAsync(
+                x => x.TrayId == tray.Id
+                     && x.Status != ServingJobStatus.Cancelled
+                     && x.Status != ServingJobStatus.Collected,
+                cancellationToken);
+            var activeJob = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
+
+            if (activeJob is not null &&
+                activeJob.Status is ServingJobStatus.Pushed or ServingJobStatus.Assembling)
             {
-                var jobs = await servingJobRepository.FindListAsync(
-                    x => x.OrderId == oid
-                         && x.Status != ServingJobStatus.Cancelled
-                         && x.Status != ServingJobStatus.Collected,
-                    cancellationToken);
-                var activeJob = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
+                return Result.Failure<ForceReleaseTrayResponse>(
+                    Error.ResourceBusy,
+                    $"Tray is in use by an active serving job ({activeJob.Status}). " +
+                    "Resolve or cancel the job first.");
+            }
 
-                if (activeJob is not null &&
-                    activeJob.Status is ServingJobStatus.Pushed or ServingJobStatus.Assembling)
-                {
-                    return Result.Failure<ForceReleaseTrayResponse>(
-                        Error.ResourceBusy,
-                        $"Tray is in use by an active serving job ({activeJob.Status}). " +
-                        "Resolve or cancel the job first.");
-                }
-
-                // Job Failed con tro vao khay -> go khay khoi job (staff da don do khoi khay)
-                if (activeJob is not null && activeJob.TrayId == tray.Id)
-                {
-                    activeJob.ClearTray(currentUserService.UserId);
-                    servingJobRepository.Update(activeJob);
-                }
+            // Job Failed còn trỏ vào khay -> gỡ khay khỏi job (staff đã dọn đồ khỏi khay)
+            if (activeJob is not null)
+            {
+                activeJob.ClearTray(currentUserService.UserId);
+                servingJobRepository.Update(activeJob);
             }
 
             tray.Release(currentUserService.UserId);

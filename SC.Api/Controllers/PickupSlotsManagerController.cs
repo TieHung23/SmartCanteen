@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.PickupSlotAdmin.CreatePickupSlots;
 using SC.Application.MediatR.PickupSlotAdmin.ForceClearPickupSlot;
 using SC.Application.MediatR.PickupSlotAdmin.GetAllPickupSlots;
+using SC.Application.MediatR.PickupSlotAdmin.GetPickupSlotDetail;
 using SC.Application.MediatR.PickupSlotAdmin.RetirePickupSlot;
 
 namespace SC.Api.Controllers;
@@ -20,6 +21,16 @@ public class PickupSlotsManagerController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await mediator.Send(new GetAllPickupSlotsQuery(), ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    /// <summary>Chi tiết 1 ô kệ: đơn đang giữ, giữ bao lâu rồi (soi no-show) + lịch sử.</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetPickupSlotDetailQuery(id), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);

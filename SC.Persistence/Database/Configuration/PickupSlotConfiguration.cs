@@ -22,9 +22,6 @@ public class PickupSlotConfiguration : IEntityTypeConfiguration<PickupSlot>
         builder.Property(x => x.OrderId);
         builder.HasIndex(x => x.OrderId);
 
-        builder.Property(x => x.TrayId);
-        builder.Property(x => x.SensorOccupied);
-
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
     }

@@ -62,19 +62,14 @@ internal sealed class AssignPickupSlotCommandHandler(
                     Error.ServingJobNotReady,
                     $"Serving job is '{job.Status}'; only assembled jobs can be shelved.");
 
-            // Khay quét phải ĐÚNG khay đã gán cho job này (chặn quét nhầm khay A/khay B)
+            // Khay quét phải ĐÚNG khay job này đang dùng (chặn quét nhầm khay A/khay B).
+            // job lấy theo OrderId nên check này = "đơn này ↔ khay này" khớp cả 2 chiều.
             if (job.TrayId != tray.Id)
                 return Result.Failure<AssignPickupSlotResponse>(
                     Error.TrayMismatch,
                     $"Tray '{tray.Code}' is not the tray assigned to this order.");
 
-            // Và khay phải đang giữ đúng đơn này (chặn khay của đơn khác / khay đã release)
-            if (tray.CurrentOrderId != request.OrderId)
-                return Result.Failure<AssignPickupSlotResponse>(
-                    Error.TrayMismatch,
-                    $"Tray '{tray.Code}' is not carrying this order.");
-
-            slot.Assign(request.OrderId, tray.Id, actorId);
+            slot.Assign(request.OrderId, actorId);
             pickupSlotRepository.Update(slot);
 
             // Kraft bowls: staff bê đồ lên ô kệ -> KHAY RỖNG, trả về pool NGAY (không nằm trên ô).

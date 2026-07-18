@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SC.Persistence.Database;
@@ -11,9 +12,11 @@ using SC.Persistence.Database;
 namespace SC.Persistence.Database.Migrations
 {
     [DbContext(typeof(SmartCanteenDbContext))]
-    partial class SmartCanteenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713012758_DropRedundantRobotFields")]
+    partial class DropRedundantRobotFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -674,6 +677,9 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("TrayId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
