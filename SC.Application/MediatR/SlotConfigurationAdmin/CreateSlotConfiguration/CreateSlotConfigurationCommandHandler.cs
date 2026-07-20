@@ -27,11 +27,11 @@ internal sealed class CreateSlotConfigurationCommandHandler(
     {
         try
         {
-            var laneCode = request.LaneCode.ToString();   // enum -> "S1_L1"
-            if (request.Capacity <= 0)
+            var laneCode = request.LaneCode.Trim();
+            if (laneCode.Length == 0 || request.Capacity <= 0)
             {
                 return Result.Failure<CreateSlotConfigurationResponse>(
-                    Error.InvalidValue, "Capacity must be > 0.");
+                    Error.InvalidValue, "LaneCode is required and Capacity must be > 0.");
             }
 
             var session = await sessionRepository.FindSingleAsync(
