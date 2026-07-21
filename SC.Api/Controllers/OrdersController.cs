@@ -6,7 +6,6 @@ using SC.Application.MediatR.Order.CreateOrder;
 using SC.Application.MediatR.Order.DeleteOrder;
 using SC.Application.MediatR.Order.GetAllOrders;
 using SC.Application.MediatR.Order.GetOrderById;
-using SC.Application.MediatR.Order.UpdateOrder;
 using SC.Contract.Shared;
 
 namespace SC.Api.Controllers;
@@ -29,7 +28,9 @@ public class OrdersController(IMediator mediator) : ControllerBase
 
         if (result.IsFailure)
         {
-            return BadRequest(result);
+            return StatusCode(
+                result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest,
+                result);
         }
 
         return Ok(result);
@@ -47,7 +48,9 @@ public class OrdersController(IMediator mediator) : ControllerBase
 
         if (result.IsFailure)
         {
-            return NotFound(result);
+            return StatusCode(
+                result.Error?.HttpStatusCode ?? StatusCodes.Status404NotFound,
+                result);
         }
 
         return Ok(result);
@@ -76,37 +79,6 @@ public class OrdersController(IMediator mediator) : ControllerBase
         }
 
         return CreatedAtAction(nameof(GetOrderById), new { id = result.Value!.Id }, result);
-    }
-
-    /// <summary>
-    /// Update order status
-    /// </summary>
-    /// <param name="id">Order ID</param>
-    /// <param name="command">New order status (0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled)</param>
-    /// <returns>Updated order information</returns>
-    /// <remarks>
-    /// Status values:
-    /// - 0: Pending
-    /// - 1: ReadyForPickup
-    /// - 2: Completed
-    /// - 3: Cancelled
-    /// </remarks>
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateOrder([FromRoute] Guid id, [FromBody] UpdateOrderCommand command)
-    {
-        if (id != command.Id)
-        {
-            command.Id = id;
-        }
-
-        var result = await mediator.Send(command);
-
-        if (result.IsFailure)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
     }
 
     /// <summary>
