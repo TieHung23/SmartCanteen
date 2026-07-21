@@ -11,6 +11,8 @@ public class UpdateSessionCommand : ICommand<UpdateSessionResponse>
     public DateTimeOffset AvailableFrom { get; set; }
     public DateTimeOffset AvailableTo { get; set; }
     public DateTimeOffset AvailableForOrder { get; set; }
+    public DateTimeOffset? FinalizationDeadline { get; set; }
+    public int AutoFinalizePolicy { get; set; }
     public List<MealTemplateUpdate> MealTemplates { get; set; } = new();
     public List<SessionDishUpdate> Dishes { get; set; } = new();
 }

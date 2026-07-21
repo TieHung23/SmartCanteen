@@ -74,11 +74,11 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
         Touch(updatedBy);
     }
 
-    public void ConfigureFinalization(DateTimeOffset deadline, AutoFinalizePolicy autoPolicy, Guid updatedBy)
+    public void ConfigureFinalization(DateTimeOffset? deadline, AutoFinalizePolicy autoPolicy, Guid updatedBy)
     {
         if (IsFinalized)
             throw new InvalidOperationException("Session is already finalized.");
-        if (deadline <= DateTimeOffset.UtcNow)
+        if (deadline.HasValue && deadline.Value <= DateTimeOffset.UtcNow)
             throw new ArgumentException("Finalization deadline must be in the future.", nameof(deadline));
 
         FinalizationDeadline = deadline;

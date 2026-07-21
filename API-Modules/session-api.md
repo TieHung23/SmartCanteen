@@ -8,6 +8,10 @@ Auth: `GET` endpoints are `[AllowAnonymous]`. All other endpoints require `[Auth
 AutoFinalizePolicy: `0=AutoReject, 1=AutoConfirmAll`  
 `preparedQuantity` is `null` before finalization, set after `POST .../finalize`.
 
+`isActive` in session responses means the session is currently open for ordering:
+`manual IsActive = true`, not deleted, `now >= availableForOrder`, and `now <= availableTo`.
+Future sessions return `isActive=false` until `availableForOrder`.
+
 ---
 
 ## `GET /api/sessions`
@@ -125,19 +129,34 @@ Authorize.
 }
 ```
 
+**400 validation examples:**
+- `AvailableFrom must be before AvailableTo.`
+- `AvailableForOrder must be before or equal to AvailableFrom.`
+- `AutoFinalizePolicy is invalid.`
+- `FinalizationDeadline must be in the future.`
+- `Session time overlaps with another session.`
+
 ---
 
 ## `PUT /api/sessions/{id}`
 Authorize. Route `id` must match body `id` (else `400`).
 
+Updates are allowed only before ordering opens for the current session:
+`now < current availableForOrder`.
+
+`mealTemplates` are replaced by the submitted list. `dishes` are treated as the final submitted list: existing dishes that remain are kept, missing dishes are removed, and new dishes are added.
+
 ```json
 {
+  "id": "guid",
   "name": "string",
   "description": "string",
   "isActive": true,
   "availableFrom": "...",
   "availableTo": "...",
   "availableForOrder": "...",
+  "finalizationDeadline": "... | null",
+  "autoFinalizePolicy": 0,
   "mealTemplates": [
     {
       "name": "string",
@@ -161,6 +180,14 @@ Authorize. Route `id` must match body `id` (else `400`).
 ```json
 { "value": { "id": "guid", "name": "string", "message": "Session updated successfully." }, "isSuccess": true }
 ```
+
+**400 validation examples:**
+- `AvailableFrom must be before AvailableTo.`
+- `AvailableForOrder must be before or equal to AvailableFrom.`
+- `AutoFinalizePolicy is invalid.`
+- `FinalizationDeadline must be in the future.`
+- `Session cannot be updated after ordering has opened.`
+- `Session time overlaps with another session.`
 
 ---
 

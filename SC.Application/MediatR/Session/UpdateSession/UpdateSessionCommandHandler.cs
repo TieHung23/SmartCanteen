@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
@@ -6,6 +7,7 @@ using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Dish;
 using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.Domain.Session.Entity;
+using SC.Domain.Domain.Session.Enum;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
@@ -14,6 +16,8 @@ namespace SC.Application.MediatR.Session.UpdateSession;
 internal class UpdateSessionCommandHandler(
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<MealTemplate, Guid> mealTemplateRepository,
+    IGenericRepository<SessionDish, Guid> sessionDishRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<UpdateSessionCommandHandler> logger
@@ -25,13 +29,26 @@ internal class UpdateSessionCommandHandler(
     {
         try
         {
-            var session = await sessionRepository.GetByIdAsync(request.Id, cancellationToken);
+            var session = await sessionRepository.FindSingleAsync(
+                x => x.Id == request.Id,
+                q => q.Include(x => x.MealTemplates)
+                    .ThenInclude(x => x.Settings),
+                cancellationToken);
 
             if (session is null)
             {
                 return Result.Failure<UpdateSessionResponse>(
                     Error.NullValue,
                     $"Session with id {request.Id} not found.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            if (now >= session.AvailableForOrder)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "Session cannot be updated after ordering has opened.");
             }
 
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -41,19 +58,59 @@ internal class UpdateSessionCommandHandler(
                     "Session name is required.");
             }
 
+            if (request.AvailableFrom >= request.AvailableTo)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "AvailableFrom must be before AvailableTo.");
+            }
+
+            if (request.AvailableForOrder > request.AvailableFrom)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "AvailableForOrder must be before or equal to AvailableFrom.");
+            }
+
+            if (!Enum.IsDefined(typeof(AutoFinalizePolicy), request.AutoFinalizePolicy))
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "AutoFinalizePolicy is invalid.");
+            }
+
+            if (request.FinalizationDeadline.HasValue
+                && request.FinalizationDeadline.Value <= now)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "FinalizationDeadline must be in the future.");
+            }
+
+            if (session.IsFinalized)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "Finalized session cannot be updated.");
+            }
+
+            var hasOverlappingSession = await sessionRepository.ExistsAsync(
+                x => !x.IsDeleted
+                     && x.Id != request.Id
+                     && x.AvailableFrom < request.AvailableTo
+                     && request.AvailableFrom < x.AvailableTo,
+                cancellationToken);
+
+            if (hasOverlappingSession)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.InvalidValue,
+                    "Session time overlaps with another session.");
+            }
+
             var currentUserId = currentUserService.UserId;
 
-            session.Update(
-                request.Name,
-                request.Description,
-                request.AvailableFrom,
-                request.AvailableTo,
-                request.AvailableForOrder,
-                request.IsActive,
-                currentUserId);
-
-            // Update meal templates
-            session.ClearMealTemplates();
+            var replacementMealTemplates = new List<MealTemplate>();
             foreach (var templateInput in request.MealTemplates)
             {
                 if (string.IsNullOrWhiteSpace(templateInput.Name))
@@ -84,13 +141,19 @@ internal class UpdateSessionCommandHandler(
                     template.AddSetting(setting.CategoryId, setting.MinQuantity, setting.MaxQuantity, setting.IsRequired);
                 }
 
-                session.AddMealTemplate(template);
+                replacementMealTemplates.Add(template);
             }
 
-            // Update dish sessions
-            session.ClearSessionDishes();
+            var requestedDishIds = new HashSet<Guid>();
             foreach (var dishInput in request.Dishes)
             {
+                if (!requestedDishIds.Add(dishInput.DishId))
+                {
+                    return Result.Failure<UpdateSessionResponse>(
+                        Error.InvalidValue,
+                        $"Dish {dishInput.DishId} is duplicated in the session.");
+                }
+
                 var dish = await dishRepository.GetByIdAsync(dishInput.DishId, cancellationToken);
                 if (dish is null || dish.IsDeleted || !dish.IsActive)
                 {
@@ -98,14 +161,54 @@ internal class UpdateSessionCommandHandler(
                         Error.NullValue,
                         $"Dish with id {dishInput.DishId} not found or inactive.");
                 }
-
-                session.AddSessionDish(SessionDish.Create(
-                    dishInput.DishId,
-                    session.Id));
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
-            sessionRepository.Update(session);
+
+            var existingMealTemplates = session.MealTemplates.ToList();
+            var existingSessionDishes = await sessionDishRepository.FindListAsync(
+                x => x.SessionId == session.Id,
+                cancellationToken);
+            var sessionDishesToRemove = existingSessionDishes
+                .Where(x => !requestedDishIds.Contains(x.DishId))
+                .ToList();
+            var existingDishIds = existingSessionDishes
+                .Select(x => x.DishId)
+                .ToHashSet();
+            var sessionDishesToAdd = requestedDishIds
+                .Where(dishId => !existingDishIds.Contains(dishId))
+                .Select(dishId => SessionDish.Create(dishId, session.Id))
+                .ToList();
+
+            session.Update(
+                request.Name,
+                request.Description,
+                request.AvailableFrom,
+                request.AvailableTo,
+                request.AvailableForOrder,
+                request.IsActive,
+                currentUserId);
+
+            session.ConfigureFinalization(
+                request.FinalizationDeadline,
+                (AutoFinalizePolicy)request.AutoFinalizePolicy,
+                currentUserId);
+
+            mealTemplateRepository.DeleteRange(existingMealTemplates);
+            sessionDishRepository.DeleteRange(sessionDishesToRemove);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            foreach (var template in replacementMealTemplates)
+            {
+                await mealTemplateRepository.AddAsync(template, cancellationToken);
+            }
+
+            foreach (var sessionDish in sessionDishesToAdd)
+            {
+                await sessionDishRepository.AddAsync(sessionDish, cancellationToken);
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 

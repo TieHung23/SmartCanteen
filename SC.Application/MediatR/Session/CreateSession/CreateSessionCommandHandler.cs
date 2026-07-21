@@ -6,6 +6,7 @@ using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Dish;
 using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.Domain.Session.Entity;
+using SC.Domain.Domain.Session.Enum;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
@@ -32,6 +33,48 @@ internal class CreateSessionCommandHandler(
                     "Session name is required.");
             }
 
+            if (request.AvailableFrom >= request.AvailableTo)
+            {
+                return Result.Failure<CreateSessionResponse>(
+                    Error.InvalidValue,
+                    "AvailableFrom must be before AvailableTo.");
+            }
+
+            if (request.AvailableForOrder > request.AvailableFrom)
+            {
+                return Result.Failure<CreateSessionResponse>(
+                    Error.InvalidValue,
+                    "AvailableForOrder must be before or equal to AvailableFrom.");
+            }
+
+            if (!Enum.IsDefined(typeof(AutoFinalizePolicy), request.AutoFinalizePolicy))
+            {
+                return Result.Failure<CreateSessionResponse>(
+                    Error.InvalidValue,
+                    "AutoFinalizePolicy is invalid.");
+            }
+
+            if (request.FinalizationDeadline.HasValue
+                && request.FinalizationDeadline.Value <= DateTimeOffset.UtcNow)
+            {
+                return Result.Failure<CreateSessionResponse>(
+                    Error.InvalidValue,
+                    "FinalizationDeadline must be in the future.");
+            }
+
+            var hasOverlappingSession = await sessionRepository.ExistsAsync(
+                x => !x.IsDeleted
+                     && x.AvailableFrom < request.AvailableTo
+                     && request.AvailableFrom < x.AvailableTo,
+                cancellationToken);
+
+            if (hasOverlappingSession)
+            {
+                return Result.Failure<CreateSessionResponse>(
+                    Error.InvalidValue,
+                    "Session time overlaps with another session.");
+            }
+
             var currentUserId = currentUserService.UserId;
 
             var session = SessionAggregateRoot.Create(
@@ -46,7 +89,7 @@ internal class CreateSessionCommandHandler(
             {
                 session.ConfigureFinalization(
                     request.FinalizationDeadline.Value,
-                    (SC.Domain.Domain.Session.Enum.AutoFinalizePolicy)request.AutoFinalizePolicy,
+                    (AutoFinalizePolicy)request.AutoFinalizePolicy,
                     currentUserId);
             }
 
@@ -103,12 +146,13 @@ internal class CreateSessionCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 
+            var now = DateTimeOffset.UtcNow;
             var response = new CreateSessionResponse
             {
                 Id = session.Id,
                 Name = session.Name,
                 Description = session.Description,
-                IsActive = session.IsActive,
+                IsActive = SessionAvailability.IsOpenForOrder(session, now),
                 AvailableFrom = session.AvailableFrom,
                 AvailableTo = session.AvailableTo,
                 AvailableForOrder = session.AvailableForOrder,
