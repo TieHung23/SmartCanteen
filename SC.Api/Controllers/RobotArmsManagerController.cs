@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.RobotArm.CreateRobotArm;
 using SC.Application.MediatR.RobotArm.DeleteRobotArm;
 using SC.Application.MediatR.RobotArm.GetAllRobotArms;
-using SC.Application.MediatR.RobotArm.GetLanes;
 using SC.Application.MediatR.RobotArm.SetRobotArmMaintenance;
 using SC.Application.MediatR.RobotArm.UpdateRobotArm;
 
@@ -22,16 +21,6 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await mediator.Send(new GetAllRobotArmsQuery(), ct);
-        return result.IsFailure
-            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
-            : Ok(result);
-    }
-
-    /// <summary>Danh sách lane hợp lệ theo từng trạm — cho FE dropdown khi cấu hình SlotConfiguration.</summary>
-    [HttpGet("lanes")]
-    public async Task<IActionResult> GetLanes(CancellationToken ct)
-    {
-        var result = await mediator.Send(new GetLanesQuery(), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);

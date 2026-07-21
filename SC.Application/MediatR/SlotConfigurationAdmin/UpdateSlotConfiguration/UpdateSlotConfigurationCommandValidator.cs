@@ -9,8 +9,10 @@ public class UpdateSlotConfigurationCommandValidator : AbstractValidator<UpdateS
         RuleFor(x => x.DishId).NotEmpty();
 
         RuleFor(x => x.LaneCode)
-            .IsInEnum()
-            .WithMessage("LaneCode must be a valid lane (e.g. S1_L1..S3_L3).");
+            .NotEmpty()
+            .MaximumLength(20)
+            .Matches(@"^[A-Za-z0-9]+_L[1-3]$")
+            .WithMessage("LaneCode must be a lane position code like S1_L1..S3_L3.");
 
         RuleFor(x => x.Capacity)
             .GreaterThan(0);
