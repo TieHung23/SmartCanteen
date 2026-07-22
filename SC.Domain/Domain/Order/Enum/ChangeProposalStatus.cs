@@ -4,5 +4,6 @@ public enum ChangeProposalStatus
 {
     WaitingResponse = 0,
     Accepted = 1,
-    RefundRequested = 2
+    RefundRequested = 2,
+    OrderRefundRequested = 3
 }

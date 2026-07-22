@@ -16,6 +16,15 @@ public class RefundRequestConfiguration : IEntityTypeConfiguration<RefundRequest
         builder.Property(x => x.UserId).IsRequired();
         builder.HasIndex(x => x.UserId);
 
+        builder.Property(x => x.OrderItemId);
+        builder.HasIndex(x => x.OrderItemId);
+
+        builder.Property(x => x.ChangeProposalId);
+        builder.HasIndex(x => x.ChangeProposalId);
+
+        builder.Property(x => x.DishId);
+        builder.HasIndex(x => x.DishId);
+
         builder.Property(x => x.PolicyCode)
             .IsRequired()
             .HasMaxLength(255);

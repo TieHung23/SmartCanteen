@@ -13,6 +13,9 @@ public class RefundRequest : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftD
 
     public Guid OrderId { get; private set; }
     public Guid UserId { get; private set; }
+    public int? OrderItemId { get; private set; }
+    public Guid? ChangeProposalId { get; private set; }
+    public Guid? DishId { get; private set; }
     public string PolicyCode { get; private set; } = string.Empty;
     public string PolicyNameSnapshot { get; private set; } = string.Empty;
     public decimal RefundPercentSnapshot { get; private set; }
@@ -73,6 +76,23 @@ public class RefundRequest : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftD
             CreatedBy = userId,
             UpdatedBy = userId
         };
+    }
+
+    public void AttachProposalContext(
+        int? orderItemId,
+        Guid? changeProposalId,
+        Guid? dishId)
+    {
+        if (orderItemId.HasValue && orderItemId.Value <= 0)
+            throw new ArgumentOutOfRangeException(nameof(orderItemId), "Order item ID must be greater than zero.");
+        if (changeProposalId.HasValue && changeProposalId.Value == Guid.Empty)
+            throw new ArgumentException("Change proposal ID cannot be empty.", nameof(changeProposalId));
+        if (dishId.HasValue && dishId.Value == Guid.Empty)
+            throw new ArgumentException("Dish ID cannot be empty.", nameof(dishId));
+
+        OrderItemId = orderItemId;
+        ChangeProposalId = changeProposalId;
+        DishId = dishId;
     }
 
     public void AddImage(RefundRequestImage image)

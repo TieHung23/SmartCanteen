@@ -22,6 +22,7 @@ public class OrderItemDto
     public string? ImgUrl { get; set; }
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
+    public int ItemStatus { get; set; }
 }
 
 public class OrderStatusHistoryDto

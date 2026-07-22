@@ -6,6 +6,12 @@ Currency: **Point**
 
 RefundRequestStatus: `1=Pending, 2=Approved, 3=Rejected`
 
+Proposal refund context fields:
+
+- `orderItemId`: set only for item-level proposal refunds.
+- `changeProposalId`: set for proposal-driven refunds.
+- `dishId`: current dish that caused the proposal refund.
+
 ---
 
 ## `POST /api/refunds`
@@ -29,6 +35,9 @@ Content-Type: `multipart/form-data`
   "value": {
     "id": "guid",
     "orderId": "guid",
+    "orderItemId": null,
+    "changeProposalId": null,
+    "dishId": null,
     "policyCode": "string",
     "policyName": "string",
     "refundPercent": 25.0,
@@ -58,6 +67,9 @@ Scoped to current user.
       {
         "id": "guid",
         "orderId": "guid",
+        "orderItemId": null,
+        "changeProposalId": null,
+        "dishId": null,
         "policyName": "string",
         "refundPercent": 25.0,
         "orderAmount": 100000.0,
@@ -91,6 +103,9 @@ Auth: `[Authorize]`
   "value": {
     "id": "guid",
     "orderId": "guid",
+    "orderItemId": null,
+    "changeProposalId": null,
+    "dishId": null,
     "policyCode": "string",
     "policyName": "string",
     "refundPercent": 25.0,

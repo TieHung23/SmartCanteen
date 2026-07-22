@@ -1,16 +1,21 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
+using OrderAggregate = SC.Domain.Domain.Order.AggregateRoot.Order;
 
 namespace SC.Application.MediatR.Refund.Manager.RejectRefundRequest;
 
 internal sealed class RejectRefundRequestCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
+    IGenericRepository<OrderAggregate, Guid> orderRepository,
+    IGenericRepository<OrderItemChangeProposal, Guid> proposalRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IRefundLockService refundLockService,
@@ -48,6 +53,41 @@ internal sealed class RejectRefundRequestCommandHandler(
             }
 
             refund.Reject(currentUserService.UserId, request.Reason);
+
+            OrderAggregate? order = null;
+            if (refund.OrderItemId.HasValue)
+            {
+                order = await orderRepository.FindSingleAsync(
+                    order => !order.IsDeleted && order.Id == refund.OrderId,
+                    query => query.Include(order => order.OrderItems),
+                    cancellationToken);
+
+                var item = order?.OrderItems.FirstOrDefault(item => item.Id == refund.OrderItemId.Value);
+                if (item is null)
+                {
+                    await unitOfWork.RollbackAsync(cancellationToken);
+                    return Result.Failure<RejectRefundRequestResponse>(
+                        Error.NullValue,
+                        "Refund request order item not found.");
+                }
+
+                item.CancelRefund();
+                orderRepository.Update(order!);
+            }
+
+            if (refund.OrderItemId.HasValue && refund.ChangeProposalId.HasValue)
+            {
+                var proposal = await proposalRepository.GetByIdAsync(
+                    refund.ChangeProposalId.Value,
+                    cancellationToken);
+
+                if (proposal is not null)
+                {
+                    proposal.ReopenRefundRequest(currentUserService.UserId);
+                    proposalRepository.Update(proposal);
+                }
+            }
+
             refundRepository.Update(refund);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

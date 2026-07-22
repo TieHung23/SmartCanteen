@@ -1,12 +1,15 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
 using SC.Domain.Domain.WalletTransaction.Enum;
+using OrderAggregate = SC.Domain.Domain.Order.AggregateRoot.Order;
 using UserAggregate = SC.Domain.Domain.User.User;
 using WalletTransactionEntity = SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction;
 
@@ -14,6 +17,7 @@ namespace SC.Application.MediatR.Refund.Manager.ApproveRefundRequest;
 
 internal sealed class ApproveRefundRequestCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
+    IGenericRepository<OrderAggregate, Guid> orderRepository,
     IGenericRepository<UserAggregate, Guid> userRepository,
     IGenericRepository<WalletTransactionEntity, Guid> walletTransactionRepository,
     ICurrentUserService currentUserService,
@@ -90,6 +94,27 @@ internal sealed class ApproveRefundRequestCommandHandler(
                 WalletTransactionType.Refund);
 
             refund.Approve(currentUserService.UserId, walletTransaction.Id);
+
+            OrderAggregate? order = null;
+            if (refund.OrderItemId.HasValue)
+            {
+                order = await orderRepository.FindSingleAsync(
+                    order => !order.IsDeleted && order.Id == refund.OrderId,
+                    query => query.Include(order => order.OrderItems),
+                    cancellationToken);
+
+                var item = order?.OrderItems.FirstOrDefault(item => item.Id == refund.OrderItemId.Value);
+                if (item is null)
+                {
+                    await unitOfWork.RollbackAsync(cancellationToken);
+                    return Result.Failure<ApproveRefundRequestResponse>(
+                        Error.NullValue,
+                        "Refund request order item not found.");
+                }
+
+                item.CompleteRefund();
+                orderRepository.Update(order!);
+            }
 
             await walletTransactionRepository.AddAsync(
                 walletTransaction,

@@ -67,7 +67,8 @@ internal class GetOrderByIdQueryHandler(
                         DishName = dish?.Name ?? string.Empty,
                         ImgUrl = dish?.ImgUrl,
                         Quantity = item.Quantity,
-                        UnitPrice = item.UnitPrice.Amount
+                        UnitPrice = item.UnitPrice.Amount,
+                        ItemStatus = (int)item.ItemStatus
                     };
                 }).ToList(),
                 StatusHistories = statusHistories

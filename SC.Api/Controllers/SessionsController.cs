@@ -123,7 +123,7 @@ public class SessionsController(IMediator mediator) : ControllerBase
     /// Finalize a session — manager confirms prepared quantities.
     /// </summary>
     [HttpPost("{id:guid}/finalize")]
-    [Authorize]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> FinalizeSession([FromRoute] Guid id, [FromBody] FinalizeSessionCommand command)
     {
         command.SessionId = id;

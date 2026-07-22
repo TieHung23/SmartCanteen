@@ -57,4 +57,25 @@ public class OrderItem : Entity<int>
             throw new InvalidOperationException($"Cannot refund item in status {ItemStatus}.");
         ItemStatus = OrderItemStatus.Refunded;
     }
+
+    public void MarkRefundPending()
+    {
+        if (ItemStatus != OrderItemStatus.ChangePending && ItemStatus != OrderItemStatus.Pending)
+            throw new InvalidOperationException($"Cannot mark refund-pending item in status {ItemStatus}.");
+        ItemStatus = OrderItemStatus.RefundPending;
+    }
+
+    public void CompleteRefund()
+    {
+        if (ItemStatus != OrderItemStatus.RefundPending)
+            throw new InvalidOperationException($"Cannot complete refund item in status {ItemStatus}.");
+        ItemStatus = OrderItemStatus.Refunded;
+    }
+
+    public void CancelRefund()
+    {
+        if (ItemStatus != OrderItemStatus.RefundPending)
+            throw new InvalidOperationException($"Cannot cancel refund item in status {ItemStatus}.");
+        ItemStatus = OrderItemStatus.ChangePending;
+    }
 }
