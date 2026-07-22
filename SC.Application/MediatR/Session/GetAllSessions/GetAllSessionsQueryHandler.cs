@@ -116,6 +116,7 @@ internal class GetAllSessionsQueryHandler(
                             }).ToList()
                     }).ToList(),
                 Dishes = m.SessionDishes
+                    .Where(x => dishMap.ContainsKey(x.DishId))
                     .Select(dm =>
                     {
                         var dish = dishMap.GetValueOrDefault(dm.DishId);
