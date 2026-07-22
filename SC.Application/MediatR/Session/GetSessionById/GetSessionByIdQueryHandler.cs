@@ -38,7 +38,7 @@ internal class GetSessionByIdQueryHandler(
 
             var dishIds = session.SessionDishes.Select(d => d.DishId).Distinct().ToList();
             var dishes = await dishRepository
-                .FindListAsync(d => dishIds.Contains(d.Id) & d.IsDeleted == false, cancellationToken);
+                .FindListAsync(d => dishIds.Contains(d.Id) && d.IsDeleted == false, cancellationToken);
             var dishMap = dishes.ToDictionary(d => d.Id);
 
             var allCategoryIds = session.MealTemplates
@@ -92,6 +92,7 @@ internal class GetSessionByIdQueryHandler(
                     })
                     .ToList(),
                 Dishes = session.SessionDishes
+                    .Where(dm => dishMap.ContainsKey(dm.DishId))
                     .Select(dm =>
                     {
                         var dish = dishMap.GetValueOrDefault(dm.DishId);
