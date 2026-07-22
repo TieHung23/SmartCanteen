@@ -1,14 +1,14 @@
-# Flow: Admin xem API Logs
+# Flow: Admin Views API Logs
 
-> Hướng dẫn FE tích hợp tính năng Admin xem log API từ bảng `ApiLogs`.
+> FE integration guide for the Admin feature to view API logs from the `ApiLogs` table.
 
 ---
 
-## 1. Tổng quan
+## 1. Overview
 
-Mọi request HTTP vào hệ thống (ngoại trừ OPTIONS) đều được ghi vào bảng `ApiLogs` bởi `ApiLoggerMiddleware`. Admin có thể xem, lọc, và tìm kiếm các log này để debug hoặc giám sát.
+Every HTTP request to the system (except OPTIONS) is written to the `ApiLogs` table by `ApiLoggerMiddleware`. Admins can view, filter, and search these logs for debugging or monitoring.
 
-**Lưu ý:** Middleware chỉ ghi log các request có path chứa `/api/` (bỏ qua Swagger, SignalR negotiate, v.v.).
+**Note:** The middleware only logs requests whose path contains `/api/` (Swagger, SignalR negotiate, etc. are skipped).
 
 ---
 
@@ -17,39 +17,39 @@ Mọi request HTTP vào hệ thống (ngoại trừ OPTIONS) đều được ghi
 ```
 Admin (FE)                      Backend                         DB
     │                               │                            │
-    │                               │  (Middleware ghi log tự động)
-    │                               │  Mỗi request API           │
+    │                               │  (Middleware logs automatically)
+    │                               │  Every API request         │
     │                               │───────────────────────────>│
     │                               │  INSERT INTO "ApiLogs"     │
     │                               │                            │
-    │  1. Vào trang Logs            │                            │
+    │  1. Open the Logs page        │                            │
     │──────────────────────────────>│                            │
     │                               │                            │
-    │  2. Fetch danh sách logs      │                            │
+    │  2. Fetch the log list        │                            │
     │  GET /api/admin/logs?page=1   │                            │
     │──────────────────────────────>│                            │
     │                               │  SELECT FROM "ApiLogs"     │
     │                               │───────────────────────────>│
     │                               │<───────────────────────────│
     │<──────────────────────────────│                            │
-    │  Danh sách log + pagination   │                            │
+    │  Log list + pagination        │                            │
     │                               │                            │
-    │  3. Xem chi tiết log          │                            │
+    │  3. View log detail           │                            │
     │──────────────────────────────>│                            │
     │<──────────────────────────────│                            │
     │  Request body + response body │                            │
     │                               │                            │
-    │  4. Lọc theo level/status     │                            │
+    │  4. Filter by level/status    │                            │
     │──────────────────────────────>│                            │
     │<──────────────────────────────│                            │
-    │  Kết quả lọc                  │                            │
+    │  Filtered results             │                            │
 ```
 
 ---
 
-## 3. API Endpoint (cần implement)
+## 3. API Endpoint (to be implemented)
 
-> Hiện tại backend chưa có endpoint public để query ApiLogs. Cần implement handler + controller.
+> The backend does not yet expose a public endpoint to query ApiLogs. A handler + controller need to be implemented.
 
 ### 3.1 List logs
 
@@ -60,16 +60,16 @@ Auth: Admin
 
 **Query params:**
 
-| Param | Type | Mô tả |
-|-------|------|-------|
+| Param | Type | Description |
+|-------|------|-------------|
 | `pageNumber` | int | default 1 |
 | `pageSize` | int | default 20, max 100 |
-| `logLevel` | string | Lọc theo level: `INFO`, `ERROR`, `DEBUG` |
-| `method` | string | Lọc theo HTTP method: `GET`, `POST`, `PUT`, `DELETE` |
-| `url` | string | Tìm kiếm URL (contains) |
-| `statusCodeMin` | int | Lọc response status >= (VD: 400 để xem lỗi) |
-| `fromDate` | DateTimeOffset | Lọc từ ngày |
-| `toDate` | DateTimeOffset | Lọc đến ngày |
+| `logLevel` | string | Filter by level: `INFO`, `ERROR`, `DEBUG` |
+| `method` | string | Filter by HTTP method: `GET`, `POST`, `PUT`, `DELETE` |
+| `url` | string | URL search (contains) |
+| `statusCodeMin` | int | Filter response status >= (e.g. 400 to see errors) |
+| `fromDate` | DateTimeOffset | Filter from date |
+| `toDate` | DateTimeOffset | Filter to date |
 
 **Paginated response items:**
 ```json
@@ -128,15 +128,15 @@ Auth: Admin
 
 ---
 
-## 4. UI/UX gợi ý
+## 4. Suggested UI/UX
 
-### Màn hình danh sách logs
+### Log list screen
 
 ```
 ┌─── 📋 API Logs ─────────────────────────────────────────────────────────┐
 │                                                                         │
 │  🔍 [______________]  Level: [All ▼]  Method: [All ▼]  Status: [≥__]  │
-│  Từ: [__/__/____]  Đến: [__/__/____]  [Lọc] [Xóa lọc]                  │
+│  From: [__/__/____]  To: [__/__/____]  [Filter] [Clear]                │
 │                                                                         │
 │  ┌──────┬──────────┬────────────────────────────────┬───────┬──────────┐
 │  │ Time │ Level    │ URL                            │Method│ Status   │
@@ -150,23 +150,23 @@ Auth: Admin
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Màu sắc gợi ý theo level:**
-| Level | Color | Ý nghĩa |
+**Suggested colors by level:**
+| Level | Color | Meaning |
 |-------|-------|---------|
-| ERROR | 🔴 Đỏ | Lỗi server (5xx) hoặc exception |
-| INFO | 🟢 Xanh | Thành công (2xx, 4xx) |
-| DEBUG | 🟡 Vàng | Thông tin debug |
+| ERROR | 🔴 Red | Server error (5xx) or exception |
+| INFO | 🟢 Green | Success (2xx, 4xx) |
+| DEBUG | 🟡 Yellow | Debug information |
 
-**Màu status code:**
+**Status code colors:**
 | Status | Color |
 |--------|-------|
-| 2xx | 🟢 Xanh |
-| 4xx | 🟡 Vàng |
-| 5xx | 🔴 Đỏ |
+| 2xx | 🟢 Green |
+| 4xx | 🟡 Yellow |
+| 5xx | 🔴 Red |
 
-### Màn hình chi tiết log
+### Log detail screen
 
-Khi click vào một log, mở drawer hoặc page:
+When clicking a log, open a drawer or page:
 
 ```
 ┌─── 📄 Log Detail ─────────────────────────────────────────────────────┐
@@ -211,23 +211,23 @@ Khi click vào một log, mở drawer hoặc page:
 
 ## 5. Filter/Search behavior
 
-| Filter | Behavior | Gợi ý UI |
-|--------|----------|----------|
-| `logLevel` | Multi-select dropdown | Checkbox: ERROR, INFO, DEBUG |
-| `method` | Multi-select dropdown | Checkbox: GET, POST, PUT, DELETE |
-| `url` | Text input, tìm kiếm contains | Search input với debounce 300ms |
-| `statusCode` | Range input (min - max) | 2 input số hoặc select nhanh: 2xx, 3xx, 4xx, 5xx |
+| Filter | Behavior | UI suggestion |
+|--------|----------|---------------|
+| `logLevel` | Multi-select dropdown | Checkboxes: ERROR, INFO, DEBUG |
+| `method` | Multi-select dropdown | Checkboxes: GET, POST, PUT, DELETE |
+| `url` | Text input, contains search | Search input with 300ms debounce |
+| `statusCode` | Range input (min - max) | 2 number inputs or quick select: 2xx, 3xx, 4xx, 5xx |
 | `fromDate/toDate` | Date range picker | Date picker + time picker |
-| `requestId` | Text input chính xác | Search input riêng |
+| `requestId` | Exact-match text input | Separate search input |
 
 ---
 
 ## 6. Auto-refresh (real-time)
 
-Nếu đang ở màn hình logs, có thể thêm auto-refresh:
+While on the logs screen, auto-refresh can be added:
 
 ```javascript
-// Gợi ý: Polling 30s hoặc SignalR event khi có log mới
+// Suggestion: 30s polling, or a SignalR event when a new log arrives
 useEffect(() => {
   const interval = setInterval(() => {
     if (isAutoRefresh) fetchLogs();
@@ -238,27 +238,27 @@ useEffect(() => {
 
 ---
 
-## 7. Export (nâng cao)
+## 7. Export (advanced)
 
-Có thể thêm nút export để tải logs về CSV:
+An export button can be added to download logs as CSV:
 
 ```
 GET /api/admin/logs/export?fromDate=...&toDate=...&logLevel=ERROR
 ```
 
-Trả về file CSV với headers:
+Returns a CSV file with headers:
 ```
 Timestamp,Level,Method,URL,StatusCode,Duration(ms),IP,RequestId
 ```
 
 ---
 
-## 8. Lưu ý cho FE
+## 8. Notes for FE
 
-| Yếu tố | Ghi chú |
-|--------|---------|
-| `apiBody` / `apiResponse` | Có thể rất dài (>10KB) — chỉ fetch khi xem detail |
-| `errorTrace` | Có thể null nếu request thành công |
-| `createdDate` / `endDate` | Format ISO 8601, FE cần format theo timezone local |
-| `requestId` | Dùng để trace request từ FE → BE → DB |
-| Pagination | Mặc định 20 items/trang, không cho pageSize > 100 |
+| Item | Note |
+|------|------|
+| `apiBody` / `apiResponse` | Can be very large (>10KB) — only fetch when viewing detail |
+| `errorTrace` | May be null when the request succeeded |
+| `createdDate` / `endDate` | ISO 8601 format; FE must format to the local timezone |
+| `requestId` | Used to trace a request from FE → BE → DB |
+| Pagination | Default 20 items/page; pageSize must not exceed 100 |
