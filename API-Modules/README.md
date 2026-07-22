@@ -22,6 +22,7 @@ Currency: **Point**
 | Refund Policy | [`refundpolicy-api.md`](refundpolicy-api.md) | `/api/refund-policies` / `/api/manager/refund-policies` |
 | Notification / FCM | [`notification.md`](notification.md) | `/api/notifications` / `/api/device-tokens` / `/api/admin/notifications` |
 | Change Proposal | [`change-proposal-api.md`](change-proposal-api.md) | `/api/changeproposals` |
+| Change Proposal Refund Flow | [`change-proposal-refund-flow.md`](change-proposal-refund-flow.md) | `/api/changeproposals` / `/api/refunds` / `/api/manager/refunds` |
 | Admin Logs | — | `/api/admin/logs` |
 | Robot Serving | [`robot-api.md`](robot-api.md) | `/api/robot/serving-jobs` |
 | Pickup | [`pickup-api.md`](pickup-api.md) | `/api/pickup` |

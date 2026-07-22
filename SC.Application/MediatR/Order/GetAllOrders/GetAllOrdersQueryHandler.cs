@@ -3,6 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.Enum;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 
 namespace SC.Application.MediatR.Order.GetAllOrders;
@@ -33,6 +34,13 @@ internal class GetAllOrdersQueryHandler(
 
             if (request.Status.HasValue)
             {
+                if (!Enum.IsDefined(typeof(OrderStatus), request.Status.Value))
+                {
+                    return Result.Failure<PaginatedList<GetAllOrdersResponse>>(
+                        Error.InvalidValue,
+                        "Order status is invalid.");
+                }
+
                 filtered = filtered.Where(x => (int)x.Status == request.Status.Value);
             }
 

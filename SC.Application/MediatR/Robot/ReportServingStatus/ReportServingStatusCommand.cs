@@ -10,6 +10,7 @@ public sealed record ReportServingStatusCommand(
     string State,
     string? Station,
     string? Message,
-    Guid? TrayId) : ICommand<ReportServingStatusResponse>;
+    Guid? TrayId,
+    Guid? DishId = null) : ICommand<ReportServingStatusResponse>;
 
 public sealed record ReportServingStatusResponse(Guid OrderId, string State, string ServingJobStatus);

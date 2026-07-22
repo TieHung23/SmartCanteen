@@ -6,11 +6,13 @@ using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Order.Enum;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
+using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 
 namespace SC.Application.MediatR.Order.UpdateOrder;
 
 internal class UpdateOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
@@ -56,8 +58,12 @@ internal class UpdateOrderCommandHandler(
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
+            var fromStatus = order.Status;
             order.UpdateStatus(newStatus, currentUserId);
             orderRepository.Update(order);
+            await orderStatusHistoryRepository.AddAsync(
+                OrderStatusHistoryEntity.Create(order.Id, fromStatus, newStatus, currentUserId, "ManualUpdate"),
+                cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 

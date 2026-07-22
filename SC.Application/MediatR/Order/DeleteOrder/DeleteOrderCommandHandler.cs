@@ -10,6 +10,7 @@ namespace SC.Application.MediatR.Order.DeleteOrder;
 internal class DeleteOrderCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IUnitOfWork unitOfWork,
+    ICurrentUserService currentUserService,
     ILogger<DeleteOrderCommandHandler> logger
 ) : ICommandHandler<DeleteOrderCommand, DeleteOrderResponse>
 {
@@ -25,6 +26,20 @@ internal class DeleteOrderCommandHandler(
                 return Result.Failure<DeleteOrderResponse>(
                     Error.NullValue,
                     $"Order with id {request.Id} not found.");
+            }
+
+            if (order.CreatedBy != currentUserService.UserId)
+            {
+                return Result.Failure<DeleteOrderResponse>(
+                    Error.Forbidden,
+                    "You do not have permission to delete this order.");
+            }
+
+            if (order.WalletTransactionId.HasValue)
+            {
+                return Result.Failure<DeleteOrderResponse>(
+                    Error.ResourceBusy,
+                    "Paid orders cannot be deleted or modified.");
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);

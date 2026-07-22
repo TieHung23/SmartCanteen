@@ -29,7 +29,9 @@ internal class GetAllSessionsQueryHandler(
                       .ThenInclude(x => x.Settings),
                 cancellationToken);
 
-            var filtered = allSessions.AsEnumerable();
+            var filtered = allSessions
+                .Where(x => !x.IsDeleted)
+                .AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
@@ -59,7 +61,7 @@ internal class GetAllSessionsQueryHandler(
                 .ToList();
 
             var dishes = await dishRepository
-                .FindListAsync(d => allDishIds.Contains(d.Id), cancellationToken);
+                .FindListAsync(d => allDishIds.Contains(d.Id) && d.IsDeleted == false, cancellationToken);
 
             var dishMap = dishes.ToDictionary(d => d.Id);
 

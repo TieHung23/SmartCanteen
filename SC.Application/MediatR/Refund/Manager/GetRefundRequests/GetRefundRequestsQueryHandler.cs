@@ -58,6 +58,9 @@ internal sealed class GetRefundRequestsQueryHandler(
                 {
                     Id = refund.Id,
                     OrderId = refund.OrderId,
+                    OrderItemId = refund.OrderItemId,
+                    ChangeProposalId = refund.ChangeProposalId,
+                    DishId = refund.DishId,
                     UserId = refund.UserId,
                     UserName = user?.Name ?? string.Empty,
                     StudentId = user?.StudentId,

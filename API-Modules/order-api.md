@@ -5,7 +5,8 @@ Auth: `[Authorize]`
 API Version: `1.0`  
 Currency: **Point**
 
-Orders are scoped to the authenticated user. Manager endpoints not yet exposed.
+User endpoints are scoped to the authenticated user. Manager endpoints are scoped by manager role.
+Customer orders cannot be modified after payment. Operational status changes are handled by Manager/Staff endpoints.
 
 OrderStatus: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled, 4=Preparing, 5=Serving, 6=InHoldingArea, 7=Expired, 8=Disposed`
 
@@ -32,7 +33,56 @@ Paginated items (scoped to current user):
 
 ---
 
+## `GET /api/manager/orders/session/{sessionId}`
+Auth: `Manager` or `Staff`
+
+**Query:** `?status=int&pageNumber=1&pageSize=10`
+
+Returns all orders in the session, not scoped to the current user:
+```json
+{
+  "id": "guid",
+  "sessionId": "guid",
+  "mealTemplateId": "guid | null",
+  "transactionId": "guid | null",
+  "userId": "guid",
+  "status": 0,
+  "totalPrice": 0.0,
+  "itemCount": 0,
+  "createdAtUtc": "..."
+}
+```
+
+---
+
+## `GET /api/manager/orders/{id}`
+Auth: `Manager` or `Staff`
+
+Returns one customer order detail for operations staff, including `items` and `statusHistories`.
+
+**200:** same response shape as `GET /api/orders/{id}`.
+
+---
+
+## `PUT /api/manager/orders/{id}/status`
+Auth: `Manager` or `Staff`
+
+Updates an order status and writes one row to `OrderStatusHistories` with `reasonCode = "ManualUpdate"`.
+
+```json
+{ "status": 1 }
+```
+
+**200:**
+```json
+{ "value": { "id": "guid", "status": 1, "message": "string" }, "isSuccess": true }
+```
+
+---
+
 ## `GET /api/orders/{id}`
+Auth: authenticated customer. The order must belong to the current user.
+
 **200:**
 ```json
 {
@@ -53,13 +103,25 @@ Paginated items (scoped to current user):
         "unitPrice": 0.0
       }
     ],
+    "statusHistories": [
+      {
+        "id": "guid",
+        "fromStatus": 0,
+        "toStatus": 4,
+        "reasonCode": "RobotPickStarted | AssignedToPickupSlot | Collected | ManualUpdate | string | null",
+        "note": "string | null",
+        "createdAtUtc": "...",
+        "createdBy": "guid"
+      }
+    ],
     "createdAtUtc": "...",
     "updatedAtUtc": "... | null"
   },
   "isSuccess": true
 }
 ```
-`404` if not found or not owned by current user.
+`403` if the order does not belong to the current user.  
+`404` if not found.
 
 ---
 
@@ -95,19 +157,11 @@ Reads the user's persisted cart, validates against the session/template, deducts
 
 ---
 
-## `PUT /api/orders/{id}`
-```json
-{ "status": 0 }
-```
-
-**200:**
-```json
-{ "value": { "id": "guid", "status": 0, "message": "string" }, "isSuccess": true }
-```
-
----
-
 ## `DELETE /api/orders/{id}`
+Auth: authenticated customer. The order must belong to the current user.
+
+Only unpaid orders can be deleted. Paid orders return `409 ResourceBusy` and must not be edited after checkout/payment.
+
 **200:**
 ```json
 { "value": { "id": "guid", "message": "string" }, "isSuccess": true }

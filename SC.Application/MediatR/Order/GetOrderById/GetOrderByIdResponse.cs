@@ -10,6 +10,7 @@ public class GetOrderByIdResponse
     public int Status { get; set; }
     public decimal TotalPrice { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
+    public List<OrderStatusHistoryDto> StatusHistories { get; set; } = new();
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 }
@@ -21,4 +22,16 @@ public class OrderItemDto
     public string? ImgUrl { get; set; }
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
+    public int ItemStatus { get; set; }
+}
+
+public class OrderStatusHistoryDto
+{
+    public Guid Id { get; set; }
+    public int? FromStatus { get; set; }
+    public int ToStatus { get; set; }
+    public string? ReasonCode { get; set; }
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public Guid CreatedBy { get; set; }
 }

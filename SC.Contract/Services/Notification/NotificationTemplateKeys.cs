@@ -8,6 +8,12 @@ public static class NotificationTemplateKeys
     public const string RefundSubmitted = "RefundSubmitted";
     public const string RefundApproved = "RefundApproved";
     public const string RefundRejected = "RefundRejected";
+    public const string ChangeProposalCreated = "ChangeProposalCreated";
+    public const string ChangeProposalAccepted = "ChangeProposalAccepted";
+    public const string ChangeProposalItemRefundRequested = "ChangeProposalItemRefundRequested";
+    public const string ChangeProposalOrderRefundRequested = "ChangeProposalOrderRefundRequested";
+    public const string SessionAutoRejected = "SessionAutoRejected";
+    public const string SessionAutoConfirmed = "SessionAutoConfirmed";
     public const string VerificationSubmitted = "VerificationSubmitted";
     public const string VerificationApproved = "VerificationApproved";
     public const string VerificationRejected = "VerificationRejected";

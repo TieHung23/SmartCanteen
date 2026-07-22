@@ -58,10 +58,20 @@ internal class GoogleLoginCommandHandler(
             }
             else
             {
-                if (user!.Status is AccountStatus.Suspended or AccountStatus.Banned)
+                if (user!.Status == AccountStatus.Banned)
                 {
                     return Result.Failure<AuthTokensDto>(
-                        Error.AccountSuspended, "This account has been suspended.");
+                        Error.AccountBanned,
+                        "This account has been banned.",
+                        user.StatusReason);
+                }
+
+                if (user.Status == AccountStatus.Suspended)
+                {
+                    return Result.Failure<AuthTokensDto>(
+                        Error.AccountSuspended,
+                        "This account has been suspended.",
+                        user.StatusReason);
                 }
 
                 // First Google sign-in for an account originally registered with a password.

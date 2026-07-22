@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace SC.Contract.Shared;
 
 public class Result
 {
-    protected Result(bool isSuccess, Error error, string? message = "")
+    protected Result(bool isSuccess, Error error, string? message = "", string? reason = null)
     {
         switch (isSuccess)
         {
@@ -12,6 +14,7 @@ public class Result
                 throw new InvalidOperationException("A failure result must have an error.");
             default:
                 Message = message;
+                Reason = reason;
                 IsSuccess = isSuccess;
                 Error = error;
                 break;
@@ -19,9 +22,16 @@ public class Result
     }
 
     public string? Message { get; private set; }
+    
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; private set; }
+
     public bool IsSuccess { get; }
     public bool IsFailure => !IsSuccess;
     public Error? Error { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ErrorCode => IsFailure ? Error?.Code : null;
 
     public static Result Success(string? message)
     {
@@ -33,6 +43,11 @@ public class Result
         return new Result(false, error, message);
     }
 
+    public static Result Failure(Error error, string? message, string? reason)
+    {
+        return new Result(false, error, message, reason);
+    }
+
     public static Result<TValue> Success<TValue>(TValue value, string? message)
     {
         return new Result<TValue>(true, value, Error.None, message);
@@ -41,6 +56,11 @@ public class Result
     public static Result<TValue> Failure<TValue>(Error error, string? message)
     {
         return new Result<TValue>(false, default, error, message);
+    }
+
+    public static Result<TValue> Failure<TValue>(Error error, string? message, string? reason)
+    {
+        return new Result<TValue>(false, default, error, message, reason);
     }
 
     protected static Result<TValue> Create<TValue>(TValue? value, string? message)

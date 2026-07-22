@@ -9,7 +9,6 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
 
     public Guid OrderId { get; private set; }
     public Guid? TrayId { get; private set; }
-    public Guid? RobotArmId { get; private set; }
     public Guid? PickupSlotId { get; private set; }
     public ServingJobStatus Status { get; private set; } = ServingJobStatus.Queued;
     public DateTimeOffset? PushedAtUtc { get; private set; }
@@ -43,9 +42,10 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
         Touch(updatedBy);
     }
 
-    public void MarkPushed(Guid? robotArmId, Guid updatedBy)
+    // Mô hình dây chuyền: 1 job nhiều tay cùng làm -> job KHÔNG giữ RobotArmId.
+    // "Tay nào gắp món nào" ghi ở RobotEventLog (mức món, resolve từ station robot báo).
+    public void MarkPushed(Guid updatedBy)
     {
-        RobotArmId = robotArmId;
         Status = ServingJobStatus.Pushed;
         PushedAtUtc = DateTimeOffset.UtcNow;
         Touch(updatedBy);
@@ -76,6 +76,31 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     {
         Status = ServingJobStatus.Failed;
         FailureReason = reason;
+        Touch(updatedBy);
+    }
+
+    // Staff cho chạy lại job Failed: về hàng đợi, GIỮ TrayId (món đã gắp còn trên khay)
+    // -> pull kế tiếp tái dùng khay, robot gắp tiếp phần thiếu (resume, không replay).
+    public void Requeue(Guid updatedBy)
+    {
+        Status = ServingJobStatus.Queued;
+        FailureReason = null;
+        Touch(updatedBy);
+    }
+
+    // Staff tự đặt tay phần món còn thiếu -> khay coi như ráp xong, đủ điều kiện lên kệ.
+    public void MarkAssembledManually(Guid updatedBy)
+    {
+        Status = ServingJobStatus.Assembling;
+        FailureReason = null;
+        AcknowledgedAtUtc ??= DateTimeOffset.UtcNow;
+        Touch(updatedBy);
+    }
+
+    // Gỡ khay khỏi job (khi manager force-release khay của job Failed đã dọn đồ).
+    public void ClearTray(Guid updatedBy)
+    {
+        TrayId = null;
         Touch(updatedBy);
     }
 

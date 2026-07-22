@@ -10,9 +10,9 @@ public class RobotEventLog : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletabl
     public Guid? RobotArmId { get; private set; }
     public Guid? ServingJobId { get; private set; }
     public Guid? OrderId { get; private set; }
+    public Guid? DishId { get; private set; }          // món liên quan (event mức món: PickCompleted/Error); null cho event mức job
     public RobotEventType EventType { get; private set; }
     public string? Message { get; private set; }
-    public string? PayloadJson { get; private set; }
     public DateTimeOffset OccurredAtUtc { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedAtUtc { get; private set; }
@@ -21,10 +21,10 @@ public class RobotEventLog : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletabl
     public Guid CreatedBy { get; private set; }
     public Guid UpdatedBy { get; private set; }
 
-    public static RobotEventLog Create(RobotEventType eventType, Guid createdBy, Guid? robotArmId = null, Guid? servingJobId = null, Guid? orderId = null, string? message = null, string? payloadJson = null)
+    public static RobotEventLog Create(RobotEventType eventType, Guid createdBy, Guid? robotArmId = null, Guid? servingJobId = null, Guid? orderId = null, Guid? dishId = null, string? message = null)
     {
         var now = DateTimeOffset.UtcNow;
-        return new RobotEventLog { Id = Guid.NewGuid(), EventType = eventType, RobotArmId = robotArmId, ServingJobId = servingJobId, OrderId = orderId, Message = message, PayloadJson = payloadJson, OccurredAtUtc = now, CreatedAtUtc = now, CreatedBy = createdBy, UpdatedBy = createdBy };
+        return new RobotEventLog { Id = Guid.NewGuid(), EventType = eventType, RobotArmId = robotArmId, ServingJobId = servingJobId, OrderId = orderId, DishId = dishId, Message = message, OccurredAtUtc = now, CreatedAtUtc = now, CreatedBy = createdBy, UpdatedBy = createdBy };
     }
 
     public void SoftDelete() { IsDeleted = true; DeletedAtUtc = DateTimeOffset.UtcNow; }

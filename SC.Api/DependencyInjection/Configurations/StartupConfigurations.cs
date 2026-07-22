@@ -203,6 +203,7 @@ public static class StartupConfigurations
         app.UseCors();
         app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseMiddleware<AccountStatusMiddleware>();
         app.UseAuthorization();
         app.MapControllers();
 

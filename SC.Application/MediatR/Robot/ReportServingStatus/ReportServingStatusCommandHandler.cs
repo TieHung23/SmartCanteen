@@ -10,6 +10,7 @@ using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using RobotEventLogEntity = SC.Domain.Domain.RobotEventLog.Entity.RobotEventLog;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
+using RobotArmEntity = SC.Domain.Domain.RobotArm.Entity.RobotArm;
 
 namespace SC.Application.MediatR.Robot.ReportServingStatus;
 
@@ -18,6 +19,7 @@ internal sealed class ReportServingStatusCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<RobotEventLogEntity, Guid> robotEventLogRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
+    IGenericRepository<RobotArmEntity, Guid> robotArmRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     ILogger<ReportServingStatusCommandHandler> logger
@@ -63,13 +65,31 @@ internal sealed class ReportServingStatusCommandHandler(
 
             servingJobRepository.Update(job);
 
+            // "Tay nào làm" resolve từ station robot báo (S1/S2/S3) — job KHÔNG giữ RobotArmId
+            // (mô hình dây chuyền: 1 đơn nhiều tay; attribution ở log mức món).
+            Guid? robotArmId = null;
+            if (!string.IsNullOrWhiteSpace(request.Station))
+            {
+                var arm = await robotArmRepository.FindSingleAsync(
+                    x => x.Code == request.Station.Trim(), cancellationToken);
+                robotArmId = arm?.Id;
+
+                // Tay vừa báo việc = tay còn sống -> nhịp tim "miễn phí" (LastHeartbeatUtc, Offline->Idle)
+                if (arm is not null)
+                {
+                    arm.Heartbeat(actorId);
+                    robotArmRepository.Update(arm);
+                }
+            }
+
             await robotEventLogRepository.AddAsync(
                 RobotEventLogEntity.Create(
                     eventType,
                     actorId,
-                    robotArmId: job.RobotArmId,
+                    robotArmId: robotArmId,
                     servingJobId: job.Id,
                     orderId: job.OrderId,
+                    dishId: request.DishId,
                     message: request.Message ?? state),
                 cancellationToken);
 

@@ -7,6 +7,6 @@ public enum TrayStatus
 {
     Available = 0,  // rảnh trong pool, có thể gán cho order mới
     Reserved = 1,   // đã gán cho 1 order, chờ robot ráp
-    InUse = 2,      // robot đang ráp món lên khay
-    AtSlot = 3      // khay đã nằm trên ô kệ pickup, chờ HS lấy
+    InUse = 2       // robot đang ráp món lên khay -> xong thì Release về Available
+    // (đã bỏ AtSlot=3: khay free về pool ngay ở bước staff, không nằm trên ô kệ)
 }

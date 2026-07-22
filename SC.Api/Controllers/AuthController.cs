@@ -50,7 +50,7 @@ public class AuthController(
         var result = await mediator.Send(command);
         if (result.IsFailure)
         {
-            return BadRequest(result);
+            return StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result);
         }
 
         return Ok(result);
@@ -63,7 +63,7 @@ public class AuthController(
         var result = await mediator.Send(command);
         if (result.IsFailure)
         {
-            return BadRequest(result);
+            return StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result);
         }
 
         return Ok(result);
@@ -115,7 +115,7 @@ public class AuthController(
         var result = await mediator.Send(command);
         if (result.IsFailure)
         {
-            return BadRequest(result);
+            return StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result);
         }
 
         return Ok(result);
@@ -128,7 +128,7 @@ public class AuthController(
         var result = await mediator.Send(command);
         if (result.IsFailure)
         {
-            return BadRequest(result);
+            return StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result);
         }
 
         return Ok(result);

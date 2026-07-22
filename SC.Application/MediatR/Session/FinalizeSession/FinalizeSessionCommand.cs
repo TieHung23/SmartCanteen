@@ -12,4 +12,5 @@ public class PreparedDishDto
 {
     public Guid DishId { get; set; }
     public int PreparedQuantity { get; set; }
+    public Guid? SuggestedDishId { get; set; }
 }

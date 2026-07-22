@@ -495,6 +495,11 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CurrentDishId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsRequiredItem")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid");
 
@@ -502,6 +507,15 @@ namespace SC.Persistence.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
+
+                    b.Property<Guid?>("RequiredCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RespondedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SelectedDishId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("SuggestedDishId")
                         .HasColumnType("uuid");
@@ -672,14 +686,8 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool?>("SensorOccupied")
-                        .HasColumnType("boolean");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
-
-                    b.Property<Guid?>("TrayId")
-                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -717,6 +725,12 @@ namespace SC.Persistence.Database.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<Guid?>("ChangeProposalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DishId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -726,6 +740,9 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("OrderItemId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PolicyCode")
                         .IsRequired()
@@ -772,7 +789,13 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChangeProposalId");
+
+                    b.HasIndex("DishId");
+
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("OrderItemId");
 
                     b.HasIndex("Status");
 
@@ -902,6 +925,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<DateTimeOffset?>("DeletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("DishId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("EventType")
                         .HasColumnType("integer");
 
@@ -917,9 +943,6 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("PayloadJson")
-                        .HasColumnType("text");
 
                     b.Property<Guid?>("RobotArmId")
                         .HasColumnType("uuid");
@@ -979,9 +1002,6 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<DateTimeOffset?>("PushedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("RobotArmId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -999,6 +1019,8 @@ namespace SC.Persistence.Database.Migrations
                     b.HasIndex("OrderId");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("TrayId");
 
                     b.ToTable("ServingJobs");
                 });
@@ -1336,9 +1358,6 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("CurrentOrderId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTimeOffset?>("DeletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1358,8 +1377,6 @@ namespace SC.Persistence.Database.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
-
-                    b.HasIndex("CurrentOrderId");
 
                     b.ToTable("Trays");
                 });
@@ -1561,6 +1578,10 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<string>("StatusReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("StudentId")
                         .HasMaxLength(50)

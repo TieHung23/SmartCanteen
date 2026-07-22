@@ -7,10 +7,8 @@ public enum OrderStatus
     Completed = 2,
     Cancelled = 3,
 
-    // Mở rộng cho luồng robot (PUSH/BUFFER). Append-only, không đổi giá trị cũ.
+    // Mở rộng cho luồng robot. GIỮ NGUYÊN giá trị int cũ (đừng renumber — DB lưu int).
     Preparing = 4,      // đã thanh toán, robot đang ráp khay
-    Serving = 5,        // robot đang gắp/đặt món
-    InHoldingArea = 6,  // quá hạn lấy -> chuyển khu giữ thủ công (staff)
-    Expired = 7,        // hết hạn lấy
-    Disposed = 8        // đã huỷ bỏ phần ăn ở khu giữ
+    Expired = 7         // no-show quá hạn lấy -> staff dọn, ô về Empty
+    // (đã bỏ Serving=5 [trùng vai ServingJob], InHoldingArea=6 & Disposed=8 [gom vào Expired])
 }

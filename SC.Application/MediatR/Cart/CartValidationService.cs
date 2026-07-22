@@ -112,6 +112,7 @@ public sealed class CartValidationService(
         {
             var session = sessions[sessionData.SessionId];
             var items = sessionData.Items!;
+            var now = DateTimeOffset.UtcNow;
 
             if (session.IsDeleted || !session.IsActive)
             {
@@ -120,7 +121,14 @@ public sealed class CartValidationService(
                     "One or more sessions are not available.");
             }
 
-            if (DateTimeOffset.UtcNow > session.AvailableTo)
+            if (now < session.AvailableForOrder)
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "One or more sessions are not open for ordering yet.");
+            }
+
+            if (now > session.AvailableTo)
             {
                 return Result.Failure<ValidatedCart>(
                     Error.InvalidValue,

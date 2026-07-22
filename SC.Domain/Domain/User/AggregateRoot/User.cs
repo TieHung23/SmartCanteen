@@ -23,6 +23,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     public string? ImgUrl { get; private set; }
     public Role Role { get; private set; } = Role.User;
     public AccountStatus Status { get; private set; } = AccountStatus.PendingEmailVerification;
+    public string? StatusReason { get; private set; }
     public bool EmailVerified { get; private set; }
     public string? StudentId { get; private set; }
     public DateOnly? DateOfBirth { get; private set; }
@@ -74,6 +75,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     {
         if (EmailVerified) return;
         EmailVerified = true;
+        StatusReason = null;
         Status = IsFptEmail() ? AccountStatus.Active : AccountStatus.PendingIdentityVerification;
     }
 
@@ -81,12 +83,26 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     {
         if (Status != AccountStatus.PendingIdentityVerification)
             throw new InvalidOperationException("Cannot activate: account is not awaiting identity verification approval.");
+        StatusReason = null;
         Status = AccountStatus.Active;
     }
 
-    public void Suspend()
+    public void Suspend(string reason)
     {
+        StatusReason = reason;
         Status = AccountStatus.Suspended;
+    }
+
+    public void Ban(string reason)
+    {
+        StatusReason = reason;
+        Status = AccountStatus.Banned;
+    }
+
+    public void Reactivate()
+    {
+        StatusReason = null;
+        Status = AccountStatus.Active;
     }
 
     public void RecordLogin()

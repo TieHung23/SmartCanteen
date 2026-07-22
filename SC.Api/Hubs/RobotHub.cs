@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SC.Application.MediatR.Robot.ReportServingStatus;
+using SC.Application.MediatR.Robot.RobotHeartbeat;
 using SC.Contract.Services.Robot;
 
 namespace SC.Api.Hubs;
@@ -35,5 +36,10 @@ public sealed class RobotHub(ISender mediator) : Hub
             update.State,
             update.Station,
             update.Message,
-            update.TrayId));
+            update.TrayId,
+            update.DishId));
+
+    /// <summary>robot service -&gt; server: nhịp tim ~20s/lần — các trạm còn sống (không ghi event log).</summary>
+    public Task Heartbeat(string[] stations)
+        => mediator.Send(new RobotHeartbeatCommand(stations));
 }

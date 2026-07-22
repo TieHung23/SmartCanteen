@@ -9,6 +9,9 @@ public sealed class GetRefundRequestDetailResponse
 {
     public Guid Id { get; set; }
     public Guid OrderId { get; set; }
+    public int? OrderItemId { get; set; }
+    public Guid? ChangeProposalId { get; set; }
+    public Guid? DishId { get; set; }
     public Guid UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
     public string UserEmail { get; set; } = string.Empty;

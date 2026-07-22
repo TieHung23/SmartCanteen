@@ -167,6 +167,9 @@ internal sealed class SubmitRefundRequestCommandHandler(
             {
                 Id = refundRequest.Id,
                 OrderId = refundRequest.OrderId,
+                OrderItemId = refundRequest.OrderItemId,
+                ChangeProposalId = refundRequest.ChangeProposalId,
+                DishId = refundRequest.DishId,
                 PolicyCode = refundRequest.PolicyCode,
                 PolicyName = refundRequest.PolicyNameSnapshot,
                 RefundPercent = refundRequest.RefundPercentSnapshot,
