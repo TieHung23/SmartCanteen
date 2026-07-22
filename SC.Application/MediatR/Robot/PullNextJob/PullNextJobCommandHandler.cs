@@ -47,27 +47,13 @@ internal sealed class PullNextJobCommandHandler(
                 return Result.Success(new PullNextJobResponse(null), "No queued job.");
             }
 
-            // 2) Khay: job REQUEUE còn giữ khay cũ (món đã gắp nằm trên đó) -> TÁI DÙNG.
-            //    Job mới -> gán khay TRỐNG (lazy). Hết khay -> giữ Queued, trả null.
-            TrayEntity? tray = null;
-            if (job.TrayId is Guid heldTrayId)
-            {
-                var held = await trayRepository.GetByIdAsync(heldTrayId, cancellationToken);
-                // Khay còn bận (chưa Available) nghĩa là vẫn của job này: force-release đã gỡ
-                // job.TrayId=null khi thu khay, nên job còn trỏ khay bận = khay chưa bị lấy đi.
-                if (held is not null && !held.IsDeleted && held.Status != TrayStatus.Available)
-                    tray = held;                       // dùng tiếp khay cũ (món đã gắp còn trên đó)
-            }
-            if (tray is null)
-            {
-                var availableTrays = await trayRepository
-                    .FindListAsync(x => x.Status == TrayStatus.Available && !x.IsDeleted, cancellationToken);
-                tray = availableTrays.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
-                if (tray is null)
-                {
-                    return Result.Success(new PullNextJobResponse(null), "No free tray.");
-                }
-            }
+            // 2) Khay: KHÔNG auto-gán ở đây nữa — edge quét mã khay VẬT LÝ rồi gọi bind-tray
+            //    (đảm bảo TrayId khớp khay thật, để pickup không lệch). Job MỚI -> tray=null.
+            //    Job REQUEUE đã có khay từ lượt trước (món đã gắp còn trên đó) -> pass-through
+            //    để edge biết khay nào, KHỎI quét lại.
+            TrayEntity? tray = job.TrayId is Guid heldTrayId
+                ? await trayRepository.GetByIdAsync(heldTrayId, cancellationToken)
+                : null;
 
             // 3) Lấy order + items
             var order = await orderRepository.GetByIdAsync(
@@ -106,12 +92,8 @@ internal sealed class PullNextJobCommandHandler(
                 : await robotArmRepository.FindListAsync(x => armIds.Contains(x.Id), cancellationToken);
             var armCodeById = arms.ToDictionary(x => x.Id, x => x.Code);
 
-            // 5) Gán khay (Available->Reserved) + claim job (Queued->Pushed). 1 SaveChanges = atomic.
-            //     Nhiều robot: cần optimistic-concurrency / SELECT FOR UPDATE để không claim trùng.
-            //       Hiện 1 service nên an toàn; nâng khi chạy nhiều tay.
-            tray.Reserve(actorId);
-            trayRepository.Update(tray);
-            job.AssignTray(tray.Id, actorId);
+            // 5) Claim job (Queued->Pushed). CHƯA gán khay — edge quét khay thật rồi gọi bind-tray.
+            //     (Requeue: job giữ nguyên TrayId cũ, không đụng.)
             job.MarkPushed(actorId);
             servingJobRepository.Update(job);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -129,8 +111,8 @@ internal sealed class PullNextJobCommandHandler(
             {
                 JobId = job.Id,
                 OrderId = order.Id,
-                TrayId = tray.Id,
-                TrayCode = tray.Code,
+                TrayId = job.TrayId,      // null cho job mới (edge quét+bind); có sẵn cho requeue
+                TrayCode = tray?.Code,    // null cho job mới
                 Items = order.OrderItems.Select(i =>
                 {
                     configByDish.TryGetValue(i.DishId, out var cfg);
