@@ -54,14 +54,13 @@ internal class GetSessionByIdQueryHandler(
                 : [];
 
             var categoryMap = categories.ToDictionary(c => c.Id);
-            var now = DateTimeOffset.UtcNow;
 
             var response = new GetSessionByIdResponse
             {
                 Id = session.Id,
                 Name = session.Name,
                 Description = session.Description,
-                IsActive = SessionAvailability.IsOpenForOrder(session, now),
+                IsActive = session.IsActive,
                 AvailableFrom = session.AvailableFrom,
                 AvailableTo = session.AvailableTo,
                 AvailableForOrder = session.AvailableForOrder,

@@ -6,5 +6,6 @@ public enum OrderItemStatus
     Confirmed = 1,
     ChangePending = 2,
     Swapped = 3,
-    Refunded = 4
+    Refunded = 4,
+    RefundPending = 5
 }

@@ -8,9 +8,13 @@ Auth: `GET` endpoints are `[AllowAnonymous]`. All other endpoints require `[Auth
 AutoFinalizePolicy: `0=AutoReject, 1=AutoConfirmAll`  
 `preparedQuantity` is `null` before finalization, set after `POST .../finalize`.
 
-`isActive` in session responses means the session is currently open for ordering:
-`manual IsActive = true`, not deleted, `now >= availableForOrder`, and `now <= availableTo`.
-Future sessions return `isActive=false` until `availableForOrder`.
+When a session passes `finalizationDeadline` without manual finalization:
+
+- `AutoReject`: cancels affected orders, marks pending/change-pending items as refunded, creates a full-order `RefundRequest` for paid orders using `CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE`, and sends realtime notifications.
+- `AutoConfirmAll`: sets each dish `preparedQuantity` to the total ordered quantity, confirms pending order items, and sends realtime notifications.
+
+`isActive` in session responses is the manager-controlled active flag.
+Ordering is still enforced by time rules on cart/order APIs: users can order only when `now >= availableForOrder` and `now <= availableTo`.
 
 ---
 
@@ -202,15 +206,21 @@ Authorize. Soft-delete.
 ---
 
 ## `POST /api/sessions/{id}/finalize`
-Authorize. Manager confirms prepared quantities per dish. Under-supplied items trigger change proposals.
+Authorize role: `Manager`. Manager confirms prepared quantities per dish. Under-supplied items trigger change proposals and realtime notifications.
 
 ```json
 {
   "preparedDishes": [
-    { "dishId": "guid", "preparedQuantity": 10 }
+    {
+      "dishId": "guid",
+      "preparedQuantity": 10,
+      "suggestedDishId": "guid | null"
+    }
   ]
 }
 ```
+
+`suggestedDishId` is optional. When provided, it must be active, part of the same session, different from `dishId`, allowed by affected order templates, and in the same required category when the missing dish is required.
 
 **200:**
 ```json

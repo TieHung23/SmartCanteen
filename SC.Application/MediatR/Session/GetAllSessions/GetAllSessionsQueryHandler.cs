@@ -29,7 +29,6 @@ internal class GetAllSessionsQueryHandler(
                       .ThenInclude(x => x.Settings),
                 cancellationToken);
 
-            var now = DateTimeOffset.UtcNow;
             var filtered = allSessions
                 .Where(x => !x.IsDeleted)
                 .AsEnumerable();
@@ -42,8 +41,7 @@ internal class GetAllSessionsQueryHandler(
 
             if (request.IsActive.HasValue)
             {
-                filtered = filtered.Where(x =>
-                    SessionAvailability.IsOpenForOrder(x, now) == request.IsActive.Value);
+                filtered = filtered.Where(x => x.IsActive == request.IsActive.Value);
             }
 
             var filteredList = filtered.ToList();
@@ -87,7 +85,7 @@ internal class GetAllSessionsQueryHandler(
                 Id = m.Id,
                 Name = m.Name,
                 Description = m.Description,
-                IsActive = SessionAvailability.IsOpenForOrder(m, now),
+                IsActive = m.IsActive,
                 AvailableFrom = m.AvailableFrom,
                 AvailableTo = m.AvailableTo,
                 AvailableForOrder = m.AvailableForOrder,

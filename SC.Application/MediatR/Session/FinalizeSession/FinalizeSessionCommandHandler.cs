@@ -11,7 +11,7 @@ internal class FinalizeSessionCommandHandler(
     public async Task<Result<FinalizeSessionResponse>> Handle(FinalizeSessionCommand request, CancellationToken cancellationToken)
     {
         var preparedDishes = request.PreparedDishes
-            .Select(d => (d.DishId, d.PreparedQuantity))
+            .Select(d => (d.DishId, d.PreparedQuantity, d.SuggestedDishId))
             .ToList();
 
         var result = await finalizeSessionService.FinalizeAsync(

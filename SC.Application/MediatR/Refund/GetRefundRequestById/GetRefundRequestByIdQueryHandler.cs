@@ -39,6 +39,9 @@ internal sealed class GetRefundRequestByIdQueryHandler(
             {
                 Id = refund.Id,
                 OrderId = refund.OrderId,
+                OrderItemId = refund.OrderItemId,
+                ChangeProposalId = refund.ChangeProposalId,
+                DishId = refund.DishId,
                 PolicyCode = refund.PolicyCode,
                 PolicyName = refund.PolicyNameSnapshot,
                 RefundPercent = refund.RefundPercentSnapshot,
