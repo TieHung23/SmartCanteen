@@ -81,6 +81,16 @@ public class OrderItemChangeProposal : AggregateRoot<Guid>, IAuditableEntity<Gui
         Touch(updatedBy);
     }
 
+    public void ReopenOrderRefundRequest(Guid updatedBy)
+    {
+        if (ProposalStatus != ChangeProposalStatus.OrderRefundRequested)
+            throw new InvalidOperationException($"Cannot reopen order refund request on proposal in status {ProposalStatus}.");
+
+        ProposalStatus = ChangeProposalStatus.WaitingResponse;
+        RespondedAtUtc = null;
+        Touch(updatedBy);
+    }
+
     public void RequestOrderRefund(Guid updatedBy)
     {
         if (ProposalStatus != ChangeProposalStatus.WaitingResponse)

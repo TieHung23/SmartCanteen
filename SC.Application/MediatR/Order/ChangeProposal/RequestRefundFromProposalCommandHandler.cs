@@ -5,6 +5,7 @@ using SC.Application.MediatR.RefundPolicy;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Order.AggregateRoot;
+using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
@@ -21,6 +22,7 @@ internal class RequestRefundFromProposalCommandHandler(
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
     IBusinessNotificationService businessNotificationService) : ICommandHandler<RequestRefundFromProposalCommand, RequestRefundFromProposalResponse>
 {
     public async Task<Result<RequestRefundFromProposalResponse>> Handle(RequestRefundFromProposalCommand request, CancellationToken cancellationToken)
@@ -43,11 +45,18 @@ internal class RequestRefundFromProposalCommandHandler(
         }
 
         var order = await orderRepository.FindSingleAsync(
-            o => o.Id == proposal.OrderId,
+            o => o.Id == proposal.OrderId && !o.IsDeleted,
             cancellationToken);
 
         if (order is null)
             return Result.Failure<RequestRefundFromProposalResponse>(Error.NullValue, "Order not found.");
+
+        if (order.Status != OrderStatus.Preparing)
+        {
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                Error.InvalidValue,
+                "Order is no longer available for change proposal actions.");
+        }
 
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == order.SessionId && !s.IsDeleted,
@@ -59,24 +68,6 @@ internal class RequestRefundFromProposalCommandHandler(
         var item = order.OrderItems.FirstOrDefault(i => i.DishId == proposal.CurrentDishId);
         if (item is null)
             return Result.Failure<RequestRefundFromProposalResponse>(Error.NullValue, "Order item not found.");
-
-        var activeRequestExists = await refundRepository.ExistsAsync(
-            refund =>
-                !refund.IsDeleted
-                && refund.OrderId == order.Id
-                && (refund.Status == RefundRequestStatus.Pending
-                    || refund.Status == RefundRequestStatus.Approved)
-                && (!refund.OrderItemId.HasValue
-                    || refund.OrderItemId == item.Id
-                    || refund.ChangeProposalId == proposal.Id),
-            cancellationToken);
-
-        if (activeRequestExists)
-        {
-            return Result.Failure<RequestRefundFromProposalResponse>(
-                Error.InvalidValue,
-                "This order item already has a pending or approved refund request.");
-        }
 
         var policyResult = await GetConfiguredPolicyAsync(cancellationToken);
         if (policyResult.IsFailure)
@@ -112,6 +103,26 @@ internal class RequestRefundFromProposalCommandHandler(
             item.DishId);
 
         await unitOfWork.BeginTransactionAsync(cancellationToken);
+        await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
+
+        var activeRequestExists = await refundRepository.ExistsAsync(
+            refund =>
+                !refund.IsDeleted
+                && refund.OrderId == order.Id
+                && (refund.Status == RefundRequestStatus.Pending
+                    || refund.Status == RefundRequestStatus.Approved)
+                && (!refund.OrderItemId.HasValue
+                    || refund.OrderItemId == item.Id
+                    || refund.ChangeProposalId == proposal.Id),
+            cancellationToken);
+
+        if (activeRequestExists)
+        {
+            await unitOfWork.RollbackAsync(cancellationToken);
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                Error.InvalidValue,
+                "This order item already has a pending or approved refund request.");
+        }
 
         proposal.RequestRefund(currentUserService.UserId);
         item.MarkRefundPending();

@@ -16,4 +16,13 @@ public class RefundLockService(SmartCanteenDbContext context) : IRefundLockServi
              """,
             cancellationToken);
     }
+
+    public async Task LockOrderRefundRequestsAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        var lockKey = $"refund-order-{orderId:N}";
+
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtext({lockKey}))",
+            cancellationToken);
+    }
 }

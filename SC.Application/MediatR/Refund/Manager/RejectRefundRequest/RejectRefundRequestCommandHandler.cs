@@ -6,9 +6,11 @@ using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Order.AggregateRoot;
+using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
 using OrderAggregate = SC.Domain.Domain.Order.AggregateRoot.Order;
+using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 
 namespace SC.Application.MediatR.Refund.Manager.RejectRefundRequest;
 
@@ -16,6 +18,7 @@ internal sealed class RejectRefundRequestCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     IGenericRepository<OrderAggregate, Guid> orderRepository,
     IGenericRepository<OrderItemChangeProposal, Guid> proposalRepository,
+    IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IRefundLockService refundLockService,
@@ -73,6 +76,48 @@ internal sealed class RejectRefundRequestCommandHandler(
 
                 item.CancelRefund();
                 orderRepository.Update(order!);
+            }
+            else if (refund.ChangeProposalId.HasValue)
+            {
+                order = await orderRepository.FindSingleAsync(
+                    order => !order.IsDeleted && order.Id == refund.OrderId,
+                    cancellationToken);
+
+                if (order is null)
+                {
+                    await unitOfWork.RollbackAsync(cancellationToken);
+                    return Result.Failure<RejectRefundRequestResponse>(
+                        Error.NullValue,
+                        "Refund request order not found.");
+                }
+
+                var fromStatus = order.Status;
+                if (fromStatus == OrderStatus.Cancelled)
+                {
+                    order.UpdateStatus(OrderStatus.Preparing, currentUserService.UserId);
+                    await orderStatusHistoryRepository.AddAsync(
+                        OrderStatusHistoryEntity.Create(
+                            order.Id,
+                            fromStatus,
+                            OrderStatus.Preparing,
+                            currentUserService.UserId,
+                            "ChangeProposalOrderRefundRejected"),
+                        cancellationToken);
+                }
+
+                var proposals = await proposalRepository.FindListAsync(
+                    proposal =>
+                        proposal.OrderId == refund.OrderId
+                        && proposal.ProposalStatus == ChangeProposalStatus.OrderRefundRequested,
+                    cancellationToken);
+
+                foreach (var proposal in proposals)
+                {
+                    proposal.ReopenOrderRefundRequest(currentUserService.UserId);
+                    proposalRepository.Update(proposal);
+                }
+
+                orderRepository.Update(order);
             }
 
             if (refund.OrderItemId.HasValue && refund.ChangeProposalId.HasValue)

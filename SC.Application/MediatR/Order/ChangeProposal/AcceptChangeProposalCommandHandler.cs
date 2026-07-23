@@ -59,11 +59,18 @@ internal class AcceptChangeProposalCommandHandler(
         }
 
         var order = await orderRepository.FindSingleAsync(
-            o => o.Id == proposal.OrderId,
+            o => o.Id == proposal.OrderId && !o.IsDeleted,
             cancellationToken);
 
         if (order is null)
             return Result.Failure<AcceptChangeProposalResponse>(Error.NullValue, "Order not found.");
+
+        if (order.Status != OrderStatus.Preparing)
+        {
+            return Result.Failure<AcceptChangeProposalResponse>(
+                Error.InvalidValue,
+                "Order is no longer available for change proposal actions.");
+        }
 
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == order.SessionId && !s.IsDeleted,
