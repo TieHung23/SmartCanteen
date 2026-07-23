@@ -61,7 +61,7 @@ internal class GetAllSessionsQueryHandler(
                 .ToList();
 
             var dishes = await dishRepository
-                .FindListAsync(d => allDishIds.Contains(d.Id), cancellationToken);
+                .FindListAsync(d => allDishIds.Contains(d.Id) && d.IsDeleted == false, cancellationToken);
 
             var dishMap = dishes.ToDictionary(d => d.Id);
 
@@ -116,6 +116,7 @@ internal class GetAllSessionsQueryHandler(
                             }).ToList()
                     }).ToList(),
                 Dishes = m.SessionDishes
+                    .Where(x => dishMap.ContainsKey(x.DishId))
                     .Select(dm =>
                     {
                         var dish = dishMap.GetValueOrDefault(dm.DishId);
