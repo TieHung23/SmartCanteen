@@ -25,6 +25,7 @@ internal class RequestOrderRefundFromProposalCommandHandler(
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
     IBusinessNotificationService businessNotificationService,
     ILogger<RequestOrderRefundFromProposalCommandHandler> logger)
     : ICommandHandler<RequestOrderRefundFromProposalCommand, RequestOrderRefundFromProposalResponse>
@@ -46,11 +47,18 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(Error.InvalidValue, "This proposal does not belong to you.");
 
             var order = await orderRepository.FindSingleAsync(
-                o => o.Id == proposal.OrderId,
+                o => o.Id == proposal.OrderId && !o.IsDeleted,
                 cancellationToken);
 
             if (order is null)
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(Error.NullValue, "Order not found.");
+
+            if (order.Status != OrderStatus.Preparing)
+            {
+                return Result.Failure<RequestOrderRefundFromProposalResponse>(
+                    Error.InvalidValue,
+                    "Order is no longer available for change proposal actions.");
+            }
 
             var session = await sessionRepository.FindSingleAsync(
                 s => s.Id == order.SessionId && !s.IsDeleted,
@@ -58,6 +66,9 @@ internal class RequestOrderRefundFromProposalCommandHandler(
 
             if (session is null)
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(Error.NullValue, "Session not found.");
+
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
 
             var activeRequestExists = await refundRepository.ExistsAsync(
                 refund =>
@@ -69,6 +80,7 @@ internal class RequestOrderRefundFromProposalCommandHandler(
 
             if (activeRequestExists)
             {
+                await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(
                     Error.InvalidValue,
                     "This order already has a pending or approved refund request.");
@@ -106,8 +118,6 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                 orderItemId: null,
                 changeProposalId: proposal.Id,
                 dishId: proposal.CurrentDishId);
-
-            await unitOfWork.BeginTransactionAsync(cancellationToken);
 
             proposal.RequestOrderRefund(currentUserService.UserId);
 
