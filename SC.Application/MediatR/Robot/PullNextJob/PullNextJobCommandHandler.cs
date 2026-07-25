@@ -11,6 +11,7 @@ using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 using SlotConfigurationEntity = SC.Domain.Domain.SlotConfiguration.Entity.SlotConfiguration;
+using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using RobotArmEntity = SC.Domain.Domain.RobotArm.Entity.RobotArm;
 using RobotEventLogEntity = SC.Domain.Domain.RobotEventLog.Entity.RobotEventLog;
@@ -22,6 +23,7 @@ internal sealed class PullNextJobCommandHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<TrayEntity, Guid> trayRepository,
     IGenericRepository<SlotConfigurationEntity, Guid> slotConfigurationRepository,
+    IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<RobotArmEntity, Guid> robotArmRepository,
     IGenericRepository<RobotEventLogEntity, Guid> robotEventLogRepository,
@@ -41,10 +43,36 @@ internal sealed class PullNextJobCommandHandler(
             // 1) Job Queued cũ nhất (FIFO theo giờ tạo). Chưa có việc -> Job = null (204).
             var queuedJobs = await servingJobRepository
                 .FindListAsync(x => x.Status == ServingJobStatus.Queued, cancellationToken);
-            var job = queuedJobs.OrderBy(x => x.CreatedAtUtc).FirstOrDefault();
-            if (job is null)
+
+            var orderedQueued = queuedJobs.OrderBy(x => x.CreatedAtUtc).ToList();
+            if (orderedQueued.Count == 0)
             {
                 return Result.Success(new PullNextJobResponse(null), "No queued job.");
+            }
+
+            // 1b) CHỈ phục vụ job của order thuộc CA đang MỞ (AvailableFrom <= now <= AvailableTo).
+            //     Map order -> session rồi lọc theo giờ; job của CA chưa mở / đã đóng thì chờ.
+            var now = DateTimeOffset.UtcNow;
+            var queuedOrderIds = orderedQueued.Select(x => x.OrderId).Distinct().ToList();
+            var queuedOrders = await orderRepository.FindListAsync(
+                x => queuedOrderIds.Contains(x.Id), cancellationToken);
+            var sessionIdByOrder = queuedOrders.ToDictionary(x => x.Id, x => x.SessionId);
+
+            var sessionIds = sessionIdByOrder.Values.Distinct().ToList();
+            var activeSessions = await sessionRepository.FindListAsync(
+                x => sessionIds.Contains(x.Id)
+                     && !x.IsDeleted
+                     && x.AvailableFrom <= now
+                     && now <= x.AvailableTo,
+                cancellationToken);
+            var activeSessionIds = activeSessions.Select(x => x.Id).ToHashSet();
+
+            var job = orderedQueued.FirstOrDefault(j =>
+                sessionIdByOrder.TryGetValue(j.OrderId, out var sid)
+                && activeSessionIds.Contains(sid));
+            if (job is null)
+            {
+                return Result.Success(new PullNextJobResponse(null), "No queued job for an active session.");
             }
 
             // 2) Khay: KHÔNG auto-gán ở đây nữa — edge quét mã khay VẬT LÝ rồi gọi bind-tray
@@ -65,6 +93,7 @@ internal sealed class PullNextJobCommandHandler(
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 return Result.Success(new PullNextJobResponse(null), "Order missing; job cancelled.");
             }
+
 
             // 4) Nhãn cho robot: món -> LaneCode (gắp Ở ĐÂU) + Station (TAY nào), theo cấu hình CA này.
             //    Đọc TRƯỚC khi claim job: query lỗi thì job không bị kẹt ở Pushed mà chẳng ai làm.
