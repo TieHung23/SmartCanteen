@@ -364,7 +364,108 @@ Suggested UI:
 
 ---
 
-## 4. Refund Policies Report
+## 4. Session Detail Report
+
+```http
+GET /api/manager/reports/sessions/{sessionId}
+```
+
+Use this endpoint for the detail page of one session. It does not take `from/to` because the `sessionId` already defines the timeline.
+
+### Response
+
+```json
+{
+  "value": {
+    "session": {
+      "sessionId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "sessionName": "Ca trua",
+      "description": "Lunch session",
+      "isActive": true,
+      "isFinalized": false,
+      "availableForOrder": "2026-07-22T07:00:00+00:00",
+      "availableFrom": "2026-07-22T10:00:00+00:00",
+      "availableTo": "2026-07-22T13:00:00+00:00",
+      "finalizationDeadline": "2026-07-22T09:45:00+00:00",
+      "finalizedAtUtc": null
+    },
+    "summary": {
+      "totalOrders": 120,
+      "pendingOrders": 7,
+      "preparingOrders": 10,
+      "readyForPickupOrders": 0,
+      "completedOrders": 90,
+      "cancelledOrders": 8,
+      "expiredOrders": 5,
+      "totalRevenue": 15000000,
+      "refundRequests": 6,
+      "approvedRefunds": 3,
+      "rejectedRefunds": 1,
+      "pendingRefunds": 2,
+      "refundAmount": 300000,
+      "completionRate": 75.0,
+      "cancelRate": 6.67,
+      "refundRate": 3.33,
+      "averageOrderValue": 166666.67
+    },
+    "timeline": [
+      {
+        "time": "2026-07-22T07:00:00+00:00",
+        "label": "Orders opened",
+        "type": "orders_opened"
+      }
+    ],
+    "orderTrend": [
+      {
+        "timeBucket": "2026-07-22T07:00:00+00:00",
+        "orders": 10,
+        "revenue": 350000
+      }
+    ],
+    "orderStats": [
+      {
+        "status": 2,
+        "label": "Completed",
+        "count": 90
+      }
+    ],
+    "popularDishes": [
+      {
+        "dishId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "dishName": "Bong cai xanh xao",
+        "imgUrl": "https://...",
+        "totalOrders": 50,
+        "totalQuantity": 70,
+        "revenue": 700000
+      }
+    ],
+    "recentOrders": [
+      {
+        "orderId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "userId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "customerName": "Nguyen Van A",
+        "customerEmail": "a@example.com",
+        "status": 2,
+        "totalPrice": 35000,
+        "itemCount": 4,
+        "createdAtUtc": "2026-07-22T07:04:00+00:00"
+      }
+    ]
+  },
+  "message": "Session detail report retrieved successfully.",
+  "isSuccess": true
+}
+```
+
+Notes:
+
+- `orderTrend` uses 30-minute buckets from `availableForOrder` to `availableTo` for normal sessions.
+- Revenue only counts `Completed` orders.
+- `recentOrders` returns the 20 newest orders in that session and includes customer name/email for manager tracking.
+
+---
+
+## 5. Refund Policies Report
 
 ```http
 GET /api/manager/reports/refund-policies?from=2026-07-01&to=2026-07-31
@@ -463,6 +564,7 @@ Recommended calls:
 ```http
 GET /api/manager/reports/summary?from=&to=
 GET /api/manager/reports/sessions?from=&to=
+GET /api/manager/reports/sessions/{sessionId}
 GET /api/manager/reports/order-issues?from=&to=
 GET /api/manager/reports/refund-policies?from=&to=
 ```
@@ -473,6 +575,7 @@ Suggested tabs:
 |---|---|
 | Overview | `summary` |
 | Sessions | `sessions` |
+| Session Detail | `sessions/{sessionId}` |
 | Issues | `order-issues` |
 | Refund Policies | `refund-policies` |
 

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Reports.Manager.GetOrderIssuesReport;
 using SC.Application.MediatR.Reports.Manager.GetRefundPoliciesReport;
 using SC.Application.MediatR.Reports.Manager.GetReportSummary;
+using SC.Application.MediatR.Reports.Manager.GetSessionDetailReport;
 using SC.Application.MediatR.Reports.Manager.GetSessionReport;
 
 namespace SC.Api.Controllers;
@@ -32,6 +33,17 @@ public sealed class ReportsManagerController(IMediator mediator) : ControllerBas
         CancellationToken cancellationToken)
     {
         var result = await mediator.Send(query, cancellationToken);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
+            : Ok(result);
+    }
+
+    [HttpGet("sessions/{sessionId:guid}")]
+    public async Task<IActionResult> GetSessionDetail(
+        [FromRoute] Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSessionDetailReportQuery(sessionId), cancellationToken);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
             : Ok(result);
