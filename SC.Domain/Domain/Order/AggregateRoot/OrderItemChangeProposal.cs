@@ -16,6 +16,7 @@ public class OrderItemChangeProposal : AggregateRoot<Guid>, IAuditableEntity<Gui
     public bool IsRequiredItem { get; private set; }
     public Guid? RequiredCategoryId { get; private set; }
     public ChangeProposalStatus ProposalStatus { get; private set; }
+    public DateTimeOffset ExpiresAtUtc { get; private set; }
     public DateTimeOffset? RespondedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
@@ -28,7 +29,8 @@ public class OrderItemChangeProposal : AggregateRoot<Guid>, IAuditableEntity<Gui
         Guid currentDishId,
         Guid? suggestedDishId,
         bool isRequiredItem,
-        Guid? requiredCategoryId)
+        Guid? requiredCategoryId,
+        DateTimeOffset expiresAtUtc)
     {
         return new OrderItemChangeProposal
         {
@@ -40,10 +42,17 @@ public class OrderItemChangeProposal : AggregateRoot<Guid>, IAuditableEntity<Gui
             IsRequiredItem = isRequiredItem,
             RequiredCategoryId = requiredCategoryId,
             ProposalStatus = ChangeProposalStatus.WaitingResponse,
+            ExpiresAtUtc = expiresAtUtc,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             CreatedBy = userId,
             UpdatedBy = userId
         };
+    }
+
+    public bool IsExpired(DateTimeOffset nowUtc)
+    {
+        return ProposalStatus == ChangeProposalStatus.WaitingResponse
+               && ExpiresAtUtc <= nowUtc;
     }
 
     public void Accept(Guid selectedDishId, Guid updatedBy)

@@ -19,5 +19,6 @@ public static class Configurations
         services.AddScoped<ISessionDishReservationService, SessionDishReservationService>();
         services.AddScoped<IRefundLockService, RefundLockService>();
         services.AddScoped<IFinalizeSessionService, FinalizeSessionService>();
+        services.AddScoped<IChangeProposalExpirationService, ChangeProposalExpirationService>();
     }
 }

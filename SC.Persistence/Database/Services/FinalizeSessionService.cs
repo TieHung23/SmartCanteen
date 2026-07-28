@@ -37,7 +37,10 @@ public class FinalizeSessionService(
     private const string RefundPolicyRequiresImageCode = "REQUIRES_IMAGE";
     private const string ChangeProposalGroup = "CHANGE_PROPOSAL";
     private const string ChangeProposalRefundScope = "REFUND";
+    private const string ChangeProposalResponseScope = "RESPONSE";
     private const string ChangeProposalOrderRefundPolicyCode = "ORDER_REFUND_POLICY_CODE";
+    private const string ChangeProposalResponseWindowMinutesCode = "RESPONSE_WINDOW_MINUTES";
+    private const int DefaultChangeProposalResponseWindowMinutes = 30;
 
     public async Task<Result> FinalizeAsync(Guid sessionId, List<(Guid DishId, int PreparedQuantity, Guid? SuggestedDishId)> preparedDishes, Guid managerId, CancellationToken cancellationToken = default)
     {
@@ -107,6 +110,8 @@ public class FinalizeSessionService(
         var dishMap = dishes.ToDictionary(d => d.Id);
         var dishCategoryByDish = dishMap.ToDictionary(d => d.Key, d => d.Value.CategoryId);
         var pendingNotifications = new List<ChangeProposalNotification>();
+        var proposalExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(
+            await GetChangeProposalResponseWindowMinutesAsync(cancellationToken));
 
         var suggestedDishValidation = ValidateSuggestedDishes(
             session,
@@ -144,7 +149,8 @@ public class FinalizeSessionService(
                         item.DishId,
                         suggestedDishByDish.GetValueOrDefault(item.DishId),
                         requiredCategoryId.HasValue,
-                        requiredCategoryId);
+                        requiredCategoryId,
+                        proposalExpiresAtUtc);
 
                     await proposalRepository.AddAsync(proposal, cancellationToken);
                     pendingNotifications.Add(CreateNotification(order, item.DishId, proposal, dishMap));
@@ -328,6 +334,27 @@ public class FinalizeSessionService(
         var setting = template?.Settings.FirstOrDefault(s => s.CategoryId == categoryId && !s.IsDeleted);
 
         return setting is { IsRequired: true } ? categoryId : null;
+    }
+
+    private async Task<int> GetChangeProposalResponseWindowMinutesAsync(
+        CancellationToken cancellationToken)
+    {
+        var setting = await settingRepository.FindSingleAsync(
+            setting =>
+                !setting.IsDeleted
+                && setting.Group.ToUpper() == ChangeProposalGroup
+                && setting.Scope.ToUpper() == ChangeProposalResponseScope
+                && setting.Code.ToUpper() == ChangeProposalResponseWindowMinutesCode,
+            cancellationToken);
+
+        if (setting is null
+            || !int.TryParse(setting.Value, out var minutes)
+            || minutes <= 0)
+        {
+            return DefaultChangeProposalResponseWindowMinutes;
+        }
+
+        return minutes;
     }
 
     public async Task AutoFinalizeOverdueSessionsAsync(CancellationToken cancellationToken = default)

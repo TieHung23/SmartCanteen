@@ -37,6 +37,13 @@ internal class RequestRefundFromProposalCommandHandler(
         if (proposal.UserId != currentUserService.UserId)
             return Result.Failure<RequestRefundFromProposalResponse>(Error.InvalidValue, "This proposal does not belong to you.");
 
+        if (proposal.IsExpired(DateTimeOffset.UtcNow))
+        {
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                Error.InvalidValue,
+                "Change proposal has expired.");
+        }
+
         if (proposal.IsRequiredItem)
         {
             return Result.Failure<RequestRefundFromProposalResponse>(
