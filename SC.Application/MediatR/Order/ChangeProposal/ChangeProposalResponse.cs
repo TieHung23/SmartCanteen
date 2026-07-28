@@ -14,6 +14,8 @@ public class ChangeProposalResponse
     public Guid? RequiredCategoryId { get; set; }
     public int ProposalStatus { get; set; }
     public List<string> AllowedActions { get; set; } = [];
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public bool IsExpired { get; set; }
     public DateTimeOffset? RespondedAtUtc { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

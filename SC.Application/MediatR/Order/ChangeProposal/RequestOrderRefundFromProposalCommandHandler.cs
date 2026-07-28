@@ -46,6 +46,13 @@ internal class RequestOrderRefundFromProposalCommandHandler(
             if (proposal.UserId != currentUserService.UserId)
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(Error.InvalidValue, "This proposal does not belong to you.");
 
+            if (proposal.IsExpired(DateTimeOffset.UtcNow))
+            {
+                return Result.Failure<RequestOrderRefundFromProposalResponse>(
+                    Error.InvalidValue,
+                    "Change proposal has expired.");
+            }
+
             var order = await orderRepository.FindSingleAsync(
                 o => o.Id == proposal.OrderId && !o.IsDeleted,
                 cancellationToken);

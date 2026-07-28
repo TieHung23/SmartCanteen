@@ -16,6 +16,7 @@ Proposal refund reads refund policy codes from `Settings`:
 |-------|-------|------|-------|
 | `CHANGE_PROPOSAL` | `REFUND` | `ORDER_REFUND_POLICY_CODE` | Refund policy code, for example `FULL_REFUND_NO_IMAGE` |
 | `CHANGE_PROPOSAL` | `REFUND` | `ITEM_REFUND_POLICY_CODE` | Refund policy code, for example `PROPOSAL_ITEM_REFUND_NO_IMAGE` |
+| `CHANGE_PROPOSAL` | `RESPONSE` | `RESPONSE_WINDOW_MINUTES` | Minutes before an unanswered proposal is automatically resolved. Default seed: `30` |
 
 The referenced refund policy must exist under `REFUND_POLICY` and must not require images.
 
@@ -32,6 +33,10 @@ Returns proposal detail, including:
 - `allowedActions`
 - `suggestedDishId`
 - `selectedDishId`
+- `expiresAtUtc`
+- `isExpired`
+
+When `isExpired = true`, `allowedActions` is empty and action APIs return `400`.
 
 Required item proposals allow:
 
@@ -115,3 +120,23 @@ Response:
   "isSuccess": true
 }
 ```
+
+---
+
+## Automatic Expiration
+
+The backend creates each proposal with `expiresAtUtc = now + RESPONSE_WINDOW_MINUTES`.
+
+A background job runs every minute and processes proposals where:
+
+```text
+proposalStatus = WaitingResponse
+expiresAtUtc <= now
+```
+
+Resolution rules:
+
+- Required affected item: create a full-order refund request, cancel the order, mark waiting proposals in that order as `OrderRefundRequested`, and notify the customer.
+- Optional affected item: create an item-level refund request, mark the item as `RefundPending`, mark the proposal as `RefundRequested`, and notify the customer.
+
+Refund requests are still created as `Pending`; manager approval follows the normal refund workflow.

@@ -11,6 +11,13 @@ Proposal refund context fields:
 - `orderItemId`: set only for item-level proposal refunds.
 - `changeProposalId`: set for proposal-driven refunds.
 - `dishId`: current dish that caused the proposal refund.
+- `dishName`: name of `dishId`.
+- `currentDishId`: original under-supplied dish ID from the proposal.
+- `currentDishName`: original under-supplied dish from the proposal.
+- `suggestedDishId`: replacement dish ID suggested by the manager, if any.
+- `suggestedDishName`: replacement dish suggested by the manager, if any.
+- `selectedDishId`: replacement dish ID selected by the customer, if any.
+- `selectedDishName`: replacement dish selected by the customer, if any.
 
 ---
 
@@ -70,6 +77,13 @@ Scoped to current user.
         "orderItemId": null,
         "changeProposalId": null,
         "dishId": null,
+        "dishName": null,
+        "currentDishId": null,
+        "currentDishName": null,
+        "suggestedDishId": null,
+        "suggestedDishName": null,
+        "selectedDishId": null,
+        "selectedDishName": null,
         "policyName": "string",
         "refundPercent": 25.0,
         "orderAmount": 100000.0,
@@ -106,6 +120,13 @@ Auth: `[Authorize]`
     "orderItemId": null,
     "changeProposalId": null,
     "dishId": null,
+    "dishName": null,
+    "currentDishId": null,
+    "currentDishName": null,
+    "suggestedDishId": null,
+    "suggestedDishName": null,
+    "selectedDishId": null,
+    "selectedDishName": null,
     "policyCode": "string",
     "policyName": "string",
     "refundPercent": 25.0,

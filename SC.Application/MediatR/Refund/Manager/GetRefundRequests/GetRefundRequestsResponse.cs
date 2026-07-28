@@ -7,6 +7,13 @@ public sealed class GetRefundRequestsResponse
     public int? OrderItemId { get; set; }
     public Guid? ChangeProposalId { get; set; }
     public Guid? DishId { get; set; }
+    public string? DishName { get; set; }
+    public Guid? CurrentDishId { get; set; }
+    public string? CurrentDishName { get; set; }
+    public Guid? SuggestedDishId { get; set; }
+    public string? SuggestedDishName { get; set; }
+    public Guid? SelectedDishId { get; set; }
+    public string? SelectedDishName { get; set; }
     public Guid UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
     public string? StudentId { get; set; }

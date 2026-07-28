@@ -34,6 +34,13 @@ internal class AcceptChangeProposalCommandHandler(
         if (proposal.UserId != currentUserService.UserId)
             return Result.Failure<AcceptChangeProposalResponse>(Error.InvalidValue, "This proposal does not belong to you.");
 
+        if (proposal.IsExpired(DateTimeOffset.UtcNow))
+        {
+            return Result.Failure<AcceptChangeProposalResponse>(
+                Error.InvalidValue,
+                "Change proposal has expired.");
+        }
+
         var newDish = await dishRepository.GetByIdAsync(request.NewDishId, cancellationToken);
         if (newDish is null || newDish.IsDeleted || !newDish.IsActive)
             return Result.Failure<AcceptChangeProposalResponse>(Error.NullValue, "New dish not found or inactive.");
