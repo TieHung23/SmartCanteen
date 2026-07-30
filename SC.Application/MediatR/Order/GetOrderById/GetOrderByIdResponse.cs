@@ -7,6 +7,8 @@ public class GetOrderByIdResponse
     public Guid? MealTemplateId { get; set; }
     public Guid? TransactionId { get; set; }
     public Guid UserId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? ImgUrl { get; set; }
     public int Status { get; set; }
     public decimal TotalPrice { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
