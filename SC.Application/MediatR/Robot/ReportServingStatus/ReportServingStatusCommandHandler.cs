@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -11,6 +12,7 @@ using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using RobotEventLogEntity = SC.Domain.Domain.RobotEventLog.Entity.RobotEventLog;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 using RobotArmEntity = SC.Domain.Domain.RobotArm.Entity.RobotArm;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 
 namespace SC.Application.MediatR.Robot.ReportServingStatus;
 
@@ -20,8 +22,10 @@ internal sealed class ReportServingStatusCommandHandler(
     IGenericRepository<RobotEventLogEntity, Guid> robotEventLogRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     IGenericRepository<RobotArmEntity, Guid> robotArmRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IServingVisualizer servingVisualizer,
     ILogger<ReportServingStatusCommandHandler> logger
 ) : ICommandHandler<ReportServingStatusCommand, ReportServingStatusResponse>
 {
@@ -108,6 +112,30 @@ internal sealed class ReportServingStatusCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Forward xuống Unity (digital twin): demo = echo lại report của chính Unity;
+            // robot thật = Unity mirror theo tay thật. Enrich DishId -> tên để Unity hiển thị.
+            var vizType = MapVizType(eventType);
+            if (vizType is not null)
+            {
+                string? dishName = null;
+                if (request.DishId is Guid dishId)
+                {
+                    var dish = await dishRepository.GetByIdAsync(dishId, cancellationToken);
+                    dishName = dish?.Name;
+                }
+
+                await servingVisualizer.PublishAsync(
+                    new ServingVisualEvent(
+                        vizType, request.OrderId,
+                        JobId: job.Id,
+                        Station: request.Station,
+                        DishId: request.DishId,
+                        DishName: dishName,
+                        Message: request.Message),
+                    cancellationToken);
+            }
+
             return Result.Success(
                 new ReportServingStatusResponse(request.OrderId, state, job.Status.ToString()),
                 "Status recorded.");
@@ -134,5 +162,17 @@ internal sealed class ReportServingStatusCommandHandler(
             "estop" or "emergencystop" => RobotEventType.EmergencyStop,
             "failed" or "error" => RobotEventType.Error,
             _ => RobotEventType.JobReceived
+        };
+
+    // RobotEventType -> loại event Unity. null = không thuộc luồng phục vụ 1 đơn (bỏ qua).
+    private static string? MapVizType(RobotEventType t) =>
+        t switch
+        {
+            RobotEventType.JobReceived => "jobReceived",
+            RobotEventType.PickStarted => "pickStarted",
+            RobotEventType.PickCompleted => "pickCompleted",
+            RobotEventType.PlaceCompleted => "placeCompleted",
+            RobotEventType.Error => "servingFailed",
+            _ => null   // Connected/Disconnected/EmergencyStop/Recovered: mức trạm, không phải mức đơn
         };
 }

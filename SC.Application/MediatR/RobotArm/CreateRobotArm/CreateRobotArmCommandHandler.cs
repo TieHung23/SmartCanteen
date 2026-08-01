@@ -35,9 +35,13 @@ internal sealed class CreateRobotArmCommandHandler(
                     Error.InvalidValue, "IpAddress is not a valid IP address.");
             }
 
-            var existing = await robotArmRepository.FindSingleAsync(
-                x => !x.IsDeleted && x.Code.ToLower() == code.ToLower(), cancellationToken);
-            if (existing is not null)
+            // Check KỂ CẢ dòng đã soft-delete: unique index trên Code là GLOBAL (tính cả IsDeleted)
+            // -> code đã xóa vẫn "chiếm chỗ", không tái dùng. Trước đây chỉ check !IsDeleted nên bỏ
+            // sót -> lọt xuống INSERT -> đụng unique -> 500. ExistsAsync (không FindSingle) để khỏi
+            // ném lỗi nếu có nhiều biến thể hoa/thường cùng ToLower (vd 'S2' đã xóa + 's2').
+            var codeExists = await robotArmRepository.ExistsAsync(
+                x => x.Code.ToLower() == code.ToLower(), cancellationToken);
+            if (codeExists)
             {
                 return Result.Failure<CreateRobotArmResponse>(
                     Error.CodeAlreadyExists, $"Robot arm code '{code}' already exists.");

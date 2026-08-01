@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -20,6 +21,7 @@ internal sealed class ForceClearPickupSlotCommandHandler(
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IServingVisualizer servingVisualizer,
     ILogger<ForceClearPickupSlotCommandHandler> logger
 ) : ICommandHandler<ForceClearPickupSlotCommand, ForceClearPickupSlotResponse>
 {
@@ -81,6 +83,17 @@ internal sealed class ForceClearPickupSlotCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Unity: ô bị dọn ép (khách no-show) -> dọn khay ở ô, đơn hết hạn. Best-effort.
+            if (orderId is Guid clearedOrderId)
+            {
+                await servingVisualizer.PublishAsync(
+                    new ServingVisualEvent(
+                        "expired", clearedOrderId,
+                        PickupSlotCode: slot.Code,
+                        Message: expiredOrderId is null ? "Slot cleared." : "No-show; order expired."),
+                    cancellationToken);
+            }
 
             return Result.Success(
                 new ForceClearPickupSlotResponse(slot.Id, slot.Code, expiredOrderId),

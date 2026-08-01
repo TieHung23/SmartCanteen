@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -20,6 +21,7 @@ internal sealed class CollectOrderCommandHandler(
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IServingVisualizer servingVisualizer,
     ILogger<CollectOrderCommandHandler> logger
 ) : ICommandHandler<CollectOrderCommand, CollectOrderResponse>
 {
@@ -71,6 +73,14 @@ internal sealed class CollectOrderCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Unity: khách đã lấy -> avatar học sinh nhận đồ, ô nhận mở/dọn. Best-effort.
+            await servingVisualizer.PublishAsync(
+                new ServingVisualEvent(
+                    "collected", request.OrderId,
+                    JobId: job.Id,
+                    PickupSlotCode: slotCode),
+                cancellationToken);
 
             return Result.Success(
                 new CollectOrderResponse(request.OrderId, slotCode),
