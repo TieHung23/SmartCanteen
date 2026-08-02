@@ -6,6 +6,7 @@ using SC.Application.MediatR.Session.CreateSession;
 using SC.Application.MediatR.Session.DeleteSession;
 using SC.Application.MediatR.Session.GetAllSessions;
 using SC.Application.MediatR.Session.GetSessionById;
+using SC.Application.MediatR.Session.GetSessionCalendar;
 using SC.Application.MediatR.Session.UpdateSession;
 using SC.Application.MediatR.Session.FinalizeSession;
 using SC.Contract.Shared;
@@ -26,6 +27,25 @@ public class SessionsController(IMediator mediator) : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetAllSessions([FromQuery] GetAllSessionsQuery request)
+    {
+        var result = await mediator.Send(request);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get a session calendar for a year — every day of the year with its session count
+    /// </summary>
+    /// <param name="request">Year to build the calendar for</param>
+    /// <returns>365 (or 366) days, each with the number of sessions on that day</returns>
+    [HttpGet("calendar")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSessionCalendar([FromQuery] GetSessionCalendarQuery request)
     {
         var result = await mediator.Send(request);
 
