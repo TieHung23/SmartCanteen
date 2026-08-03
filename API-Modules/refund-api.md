@@ -6,6 +6,8 @@ Currency: **Point**
 
 RefundRequestStatus: `1=Pending, 2=Approved, 3=Rejected`
 
+**Auto-approval for proposal-driven refunds:** any refund with `changeProposalId != null` (created via `POST /api/ChangeProposals/{id}/request-refund`, `request-order-refund`, or automatic proposal expiration — see `change-proposal-refund-flow.md`) is auto-approved and wallet-credited immediately, skipping `Pending`. Its `reviewedBy` stays `null` forever (no manager reviewed it). Only refunds submitted manually via `POST /api/refunds` (photo evidence, `changeProposalId = null`) go through the `Pending` → manager `approve`/`reject` flow described below.
+
 Proposal refund context fields:
 
 - `orderItemId`: set only for item-level proposal refunds.
@@ -144,7 +146,7 @@ Auth: `[Authorize]`
     "userName": "string",
     "userEmail": "string",
     "studentId": "string | null",
-    "reviewedBy": "guid",
+    "reviewedBy": "guid | null",
     "reviewedAtUtc": "...",
     "rejectionReason": null,
     "walletTransactionId": "guid",

@@ -24,6 +24,11 @@ public class OrdersController(IMediator mediator) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllOrders([FromQuery] GetAllOrdersQuery request)
     {
+        if (!User.IsInRole("Manager") && !User.IsInRole("Staff"))
+        {
+            request.UserId = null;
+        }
+
         var result = await mediator.Send(request);
 
         if (result.IsFailure)

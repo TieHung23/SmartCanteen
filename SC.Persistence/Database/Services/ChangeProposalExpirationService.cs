@@ -21,6 +21,7 @@ public sealed class ChangeProposalExpirationService(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     IRefundLockService refundLockService,
+    IRefundAutoCreditService refundAutoCreditService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
     ILogger<ChangeProposalExpirationService> logger)
@@ -95,8 +96,9 @@ public sealed class ChangeProposalExpirationService(
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
 
-        var activeRequestExists = await HasActiveRefundRequestAsync(order.Id, cancellationToken);
+        var activeRequestExists = await HasActiveOrderRefundRequestAsync(order.Id, cancellationToken);
         RefundRequest? refundRequest = null;
+        RefundAutoCreditResult? creditResult = null;
 
         if (!activeRequestExists)
         {
@@ -123,6 +125,20 @@ public sealed class ChangeProposalExpirationService(
                 changeProposalId: proposal.Id,
                 dishId: proposal.CurrentDishId);
             await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+            var creditOutcome = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+            if (creditOutcome.IsFailure)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                logger.LogError(
+                    "Failed to auto-credit refund {RefundRequestId} for expired proposal {ProposalId}: {Message}",
+                    refundRequest.Id,
+                    proposal.Id,
+                    creditOutcome.Message);
+                return;
+            }
+
+            creditResult = creditOutcome.Value;
         }
 
         proposal.RequestOrderRefund(proposal.UserId);
@@ -159,15 +175,22 @@ public sealed class ChangeProposalExpirationService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
 
-        await NotifyCustomerAsync(
-            NotificationTemplateKeys.ChangeProposalOrderRefundRequested,
-            proposal.UserId,
-            proposal.Id,
-            order.Id,
-            refundRequest?.Id,
-            refundRequest?.RefundAmount ?? 0,
-            "RefundOrder",
-            cancellationToken);
+        if (refundRequest is not null && creditResult is not null)
+        {
+            await NotifyRefundApprovedAsync(refundRequest, creditResult, cancellationToken);
+        }
+        else
+        {
+            await NotifyCustomerAsync(
+                NotificationTemplateKeys.ChangeProposalOrderRefundRequested,
+                proposal.UserId,
+                proposal.Id,
+                order.Id,
+                refundRequest?.Id,
+                refundRequest?.RefundAmount ?? 0,
+                "RefundOrder",
+                cancellationToken);
+        }
     }
 
     private async Task ProcessOptionalItemTimeoutAsync(
@@ -196,6 +219,7 @@ public sealed class ChangeProposalExpirationService(
             cancellationToken);
 
         RefundRequest? refundRequest = null;
+        RefundAutoCreditResult? creditResult = null;
         if (!activeRequestExists)
         {
             var policy = await GetConfiguredPolicyAsync(
@@ -221,6 +245,20 @@ public sealed class ChangeProposalExpirationService(
                 proposal.Id,
                 item.DishId);
             await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+            var creditOutcome = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+            if (creditOutcome.IsFailure)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                logger.LogError(
+                    "Failed to auto-credit refund {RefundRequestId} for expired proposal {ProposalId}: {Message}",
+                    refundRequest.Id,
+                    proposal.Id,
+                    creditOutcome.Message);
+                return;
+            }
+
+            creditResult = creditOutcome.Value;
         }
 
         proposal.RequestRefund(proposal.UserId);
@@ -229,23 +267,35 @@ public sealed class ChangeProposalExpirationService(
             item.MarkRefundPending();
         }
 
+        if (refundRequest is not null && item.ItemStatus == OrderItemStatus.RefundPending)
+        {
+            item.CompleteRefund();
+        }
+
         proposalRepository.Update(proposal);
         orderRepository.Update(order);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
 
-        await NotifyCustomerAsync(
-            NotificationTemplateKeys.ChangeProposalItemRefundRequested,
-            proposal.UserId,
-            proposal.Id,
-            order.Id,
-            refundRequest?.Id,
-            refundRequest?.RefundAmount ?? 0,
-            "RefundItem",
-            cancellationToken);
+        if (refundRequest is not null && creditResult is not null)
+        {
+            await NotifyRefundApprovedAsync(refundRequest, creditResult, cancellationToken);
+        }
+        else
+        {
+            await NotifyCustomerAsync(
+                NotificationTemplateKeys.ChangeProposalItemRefundRequested,
+                proposal.UserId,
+                proposal.Id,
+                order.Id,
+                refundRequest?.Id,
+                refundRequest?.RefundAmount ?? 0,
+                "RefundItem",
+                cancellationToken);
+        }
     }
 
-    private async Task<bool> HasActiveRefundRequestAsync(
+    private async Task<bool> HasActiveOrderRefundRequestAsync(
         Guid orderId,
         CancellationToken cancellationToken)
     {
@@ -253,6 +303,7 @@ public sealed class ChangeProposalExpirationService(
             refund =>
                 !refund.IsDeleted
                 && refund.OrderId == orderId
+                && !refund.OrderItemId.HasValue
                 && (refund.Status == RefundRequestStatus.Pending
                     || refund.Status == RefundRequestStatus.Approved),
             cancellationToken);
@@ -336,6 +387,31 @@ public sealed class ChangeProposalExpirationService(
         return true;
     }
 
+    private async Task NotifyRefundApprovedAsync(
+        RefundRequest refund,
+        RefundAutoCreditResult credit,
+        CancellationToken cancellationToken)
+    {
+        await businessNotificationService.NotifyAsync(
+            NotificationTemplateKeys.RefundApproved,
+            refund.UserId,
+            refund.Id,
+            new Dictionary<string, string>
+            {
+                ["referenceId"] = refund.Id.ToString(),
+                ["refundAmount"] = refund.RefundAmount.ToString("0.##")
+            },
+            new
+            {
+                RefundRequestId = refund.Id,
+                refund.OrderId,
+                refund.RefundAmount,
+                BalanceAfter = credit.BalanceAfter,
+                WalletTransactionId = credit.WalletTransactionId
+            },
+            cancellationToken);
+    }
+
     private async Task NotifyCustomerAsync(
         string templateKey,
         Guid userId,
@@ -370,7 +446,9 @@ public sealed class ChangeProposalExpirationService(
 
     private static decimal CalculateOrderAmount(Order order)
     {
-        return order.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity);
+        return order.OrderItems
+            .Where(item => item.ItemStatus != OrderItemStatus.Refunded)
+            .Sum(item => item.UnitPrice.Amount * item.Quantity);
     }
 
     private sealed record TimeoutRefundPolicy(

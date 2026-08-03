@@ -27,6 +27,9 @@ public class FinalizeSessionService(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
+    IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
+    IRefundAutoCreditService refundAutoCreditService,
     IBusinessNotificationService businessNotificationService,
     ILogger<FinalizeSessionService> logger) : IFinalizeSessionService
 {
@@ -428,48 +431,76 @@ public class FinalizeSessionService(
     {
         foreach (var order in orders)
         {
-            foreach (var item in order.OrderItems)
+            try
             {
-                if (item.ItemStatus is OrderItemStatus.Pending or OrderItemStatus.ChangePending)
-                {
-                    item.RefundItem();
-                }
+                await AutoRejectOrderAsync(order, session.Id, refundPolicy, pendingNotifications, cancellationToken);
             }
-
-            var fromStatus = order.Status;
-            if (fromStatus != OrderStatus.Cancelled)
+            catch (Exception ex)
             {
-                order.UpdateStatus(OrderStatus.Cancelled, order.CreatedBy);
-                await orderStatusHistoryRepository.AddAsync(
-                    OrderStatusHistoryEntity.Create(
-                        order.Id,
-                        fromStatus,
-                        OrderStatus.Cancelled,
-                        order.CreatedBy,
-                        "AutoFinalizeReject",
-                        "Session finalization deadline passed."),
-                    cancellationToken);
+                await unitOfWork.RollbackAsync(cancellationToken);
+                logger.LogError(
+                    ex,
+                    "Failed to auto-reject order {OrderId} for session {SessionId}",
+                    order.Id,
+                    session.Id);
             }
-
-            if (order.WalletTransactionId.HasValue)
-            {
-                await CreateAutoRejectRefundRequestIfNeededAsync(
-                    order,
-                    session.Id,
-                    refundPolicy,
-                    pendingNotifications,
-                    cancellationToken);
-            }
-            else
-            {
-                pendingNotifications.Add(CreateAutoRejectCancelledNotification(order, session.Id));
-            }
-
-            orderRepository.Update(order);
         }
     }
 
-    private async Task CreateAutoRejectRefundRequestIfNeededAsync(
+    private async Task AutoRejectOrderAsync(
+        Order order,
+        Guid sessionId,
+        AutoOrderRefundPolicy refundPolicy,
+        ICollection<AutoFinalizeNotification> pendingNotifications,
+        CancellationToken cancellationToken)
+    {
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
+
+        foreach (var item in order.OrderItems)
+        {
+            if (item.ItemStatus is OrderItemStatus.Pending or OrderItemStatus.ChangePending)
+            {
+                item.RefundItem();
+            }
+        }
+
+        var fromStatus = order.Status;
+        if (fromStatus != OrderStatus.Cancelled)
+        {
+            order.UpdateStatus(OrderStatus.Cancelled, order.CreatedBy);
+            await orderStatusHistoryRepository.AddAsync(
+                OrderStatusHistoryEntity.Create(
+                    order.Id,
+                    fromStatus,
+                    OrderStatus.Cancelled,
+                    order.CreatedBy,
+                    "AutoFinalizeReject",
+                    "Session finalization deadline passed."),
+                cancellationToken);
+        }
+
+        orderRepository.Update(order);
+
+        if (order.WalletTransactionId.HasValue)
+        {
+            await CreateAndCreditAutoRejectRefundIfNeededAsync(
+                order,
+                sessionId,
+                refundPolicy,
+                pendingNotifications,
+                cancellationToken);
+        }
+        else
+        {
+            pendingNotifications.Add(CreateAutoRejectCancelledNotification(order, sessionId));
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.CommitAsync(cancellationToken);
+    }
+
+    private async Task CreateAndCreditAutoRejectRefundIfNeededAsync(
         Order order,
         Guid sessionId,
         AutoOrderRefundPolicy refundPolicy,
@@ -507,6 +538,14 @@ public class FinalizeSessionService(
             $"Automatic full order refund because session {sessionId} was not finalized before deadline.");
 
         await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+        var creditResult = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+        if (creditResult.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"Failed to auto-credit refund for order {order.Id}: {creditResult.Message}");
+        }
+
         pendingNotifications.Add(CreateAutoRejectRefundNotification(order, sessionId, refundRequest));
     }
 
