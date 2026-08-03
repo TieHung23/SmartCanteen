@@ -111,6 +111,21 @@ public class RefundRequest : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftD
         Touch(reviewerId);
     }
 
+    /// <summary>
+    /// Approves the refund without a manager review. Used for refunds that originate from a
+    /// change proposal (kitchen could not fulfill the dish) - the restaurant is at fault, so the
+    /// refund is credited immediately instead of waiting on manual review. ReviewedBy is left null
+    /// to distinguish auto-approved refunds from manager-approved ones.
+    /// </summary>
+    public void AutoApprove(Guid walletTransactionId)
+    {
+        EnsurePending();
+        Status = RefundRequestStatus.Approved;
+        ReviewedAtUtc = DateTimeOffset.UtcNow;
+        WalletTransactionId = walletTransactionId;
+        Touch(UserId);
+    }
+
     public void Reject(Guid reviewerId, string reason)
     {
         if (string.IsNullOrWhiteSpace(reason))

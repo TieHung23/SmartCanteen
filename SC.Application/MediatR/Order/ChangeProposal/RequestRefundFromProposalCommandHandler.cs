@@ -23,6 +23,7 @@ internal class RequestRefundFromProposalCommandHandler(
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IRefundLockService refundLockService,
+    IRefundAutoCreditService refundAutoCreditService,
     IBusinessNotificationService businessNotificationService) : ICommandHandler<RequestRefundFromProposalCommand, RequestRefundFromProposalResponse>
 {
     public async Task<Result<RequestRefundFromProposalResponse>> Handle(RequestRefundFromProposalCommand request, CancellationToken cancellationToken)
@@ -135,6 +136,18 @@ internal class RequestRefundFromProposalCommandHandler(
         item.MarkRefundPending();
 
         await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+        var creditResult = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+        if (creditResult.IsFailure)
+        {
+            await unitOfWork.RollbackAsync(cancellationToken);
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                creditResult.Error ?? Error.ServerError,
+                creditResult.Message);
+        }
+
+        item.CompleteRefund();
+
         proposalRepository.Update(proposal);
         orderRepository.Update(order);
 
@@ -142,7 +155,7 @@ internal class RequestRefundFromProposalCommandHandler(
         await unitOfWork.CommitAsync(cancellationToken);
 
         await businessNotificationService.NotifyAsync(
-            NotificationTemplateKeys.RefundSubmitted,
+            NotificationTemplateKeys.RefundApproved,
             currentUserService.UserId,
             refundRequest.Id,
             new Dictionary<string, string>
@@ -158,6 +171,8 @@ internal class RequestRefundFromProposalCommandHandler(
                 refundRequest.ChangeProposalId,
                 refundRequest.DishId,
                 refundRequest.RefundAmount,
+                BalanceAfter = creditResult.Value!.BalanceAfter,
+                WalletTransactionId = creditResult.Value!.WalletTransactionId,
                 Status = refundRequest.Status.ToString()
             },
             cancellationToken);
@@ -179,7 +194,7 @@ internal class RequestRefundFromProposalCommandHandler(
             PolicyCode = refundRequest.PolicyCode,
             RefundAmount = refundRequest.RefundAmount,
             Status = refundRequest.Status.ToString(),
-            Message = "Item refund request submitted successfully."
+            Message = "Item refund approved and credited automatically."
         };
 
         return Result.Success(response, response.Message);

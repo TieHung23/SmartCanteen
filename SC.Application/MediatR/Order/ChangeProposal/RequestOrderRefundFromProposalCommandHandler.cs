@@ -26,6 +26,7 @@ internal class RequestOrderRefundFromProposalCommandHandler(
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IRefundLockService refundLockService,
+    IRefundAutoCreditService refundAutoCreditService,
     IBusinessNotificationService businessNotificationService,
     ILogger<RequestOrderRefundFromProposalCommandHandler> logger)
     : ICommandHandler<RequestOrderRefundFromProposalCommand, RequestOrderRefundFromProposalResponse>
@@ -77,20 +78,21 @@ internal class RequestOrderRefundFromProposalCommandHandler(
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
 
-            var activeRequestExists = await refundRepository.ExistsAsync(
+            var activeOrderRefundExists = await refundRepository.ExistsAsync(
                 refund =>
                     !refund.IsDeleted
                     && refund.OrderId == order.Id
+                    && !refund.OrderItemId.HasValue
                     && (refund.Status == RefundRequestStatus.Pending
                         || refund.Status == RefundRequestStatus.Approved),
                 cancellationToken);
 
-            if (activeRequestExists)
+            if (activeOrderRefundExists)
             {
                 await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(
                     Error.InvalidValue,
-                    "This order already has a pending or approved refund request.");
+                    "This order already has a pending or approved full order refund request.");
             }
 
             var policyResult = await GetConfiguredPolicyAsync(cancellationToken);
@@ -105,12 +107,15 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                     "Configured change proposal order refund policy cannot require images.");
             }
 
-            var orderAmount = order.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity);
+            var orderAmount = order.OrderItems
+                .Where(item => item.ItemStatus != OrderItemStatus.Refunded)
+                .Sum(item => item.UnitPrice.Amount * item.Quantity);
             if (orderAmount <= 0)
             {
+                await unitOfWork.RollbackAsync(cancellationToken);
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(
                     Error.InvalidValue,
-                    "Order amount must be greater than zero.");
+                    "Remaining order amount must be greater than zero.");
             }
 
             var refundRequest = RefundRequest.Submit(
@@ -128,6 +133,19 @@ internal class RequestOrderRefundFromProposalCommandHandler(
 
             proposal.RequestOrderRefund(currentUserService.UserId);
 
+            var siblingProposals = await proposalRepository.FindListAsync(
+                sibling =>
+                    sibling.OrderId == order.Id
+                    && sibling.Id != proposal.Id
+                    && sibling.ProposalStatus == ChangeProposalStatus.WaitingResponse,
+                cancellationToken);
+
+            foreach (var sibling in siblingProposals)
+            {
+                sibling.RequestOrderRefund(currentUserService.UserId);
+                proposalRepository.Update(sibling);
+            }
+
             var fromStatus = order.Status;
             if (fromStatus != OrderStatus.Cancelled)
             {
@@ -143,6 +161,16 @@ internal class RequestOrderRefundFromProposalCommandHandler(
             }
 
             await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+            var creditResult = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+            if (creditResult.IsFailure)
+            {
+                await unitOfWork.RollbackAsync(cancellationToken);
+                return Result.Failure<RequestOrderRefundFromProposalResponse>(
+                    creditResult.Error ?? Error.ServerError,
+                    creditResult.Message);
+            }
+
             proposalRepository.Update(proposal);
             orderRepository.Update(order);
 
@@ -150,7 +178,7 @@ internal class RequestOrderRefundFromProposalCommandHandler(
             await unitOfWork.CommitAsync(cancellationToken);
 
             await businessNotificationService.NotifyAsync(
-                NotificationTemplateKeys.RefundSubmitted,
+                NotificationTemplateKeys.RefundApproved,
                 currentUserService.UserId,
                 refundRequest.Id,
                 new Dictionary<string, string>
@@ -164,6 +192,8 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                     refundRequest.OrderId,
                     refundRequest.RefundAmount,
                     ProposalId = proposal.Id,
+                    BalanceAfter = creditResult.Value!.BalanceAfter,
+                    WalletTransactionId = creditResult.Value!.WalletTransactionId,
                     Status = refundRequest.Status.ToString()
                 },
                 cancellationToken);
@@ -184,7 +214,7 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                 PolicyCode = refundRequest.PolicyCode,
                 RefundAmount = refundRequest.RefundAmount,
                 Status = refundRequest.Status.ToString(),
-                Message = "Full order refund request submitted successfully."
+                Message = "Full order refund approved and credited automatically."
             };
 
             return Result.Success(response, response.Message);
