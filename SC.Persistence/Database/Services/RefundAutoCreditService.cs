@@ -3,6 +3,7 @@ using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.WalletTransaction.Enum;
+using SC.Domain.SharedKernel.ValueObjects;
 using UserAggregate = SC.Domain.Domain.User.User;
 using WalletTransactionEntity = SC.Domain.Domain.WalletTransaction.Entity.WalletTransaction;
 
