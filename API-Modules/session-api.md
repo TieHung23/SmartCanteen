@@ -10,7 +10,7 @@ AutoFinalizePolicy: `0=AutoReject, 1=AutoConfirmAll`
 
 When a session passes `finalizationDeadline` without manual finalization:
 
-- `AutoReject`: cancels affected orders, marks pending/change-pending items as refunded, creates a full-order `RefundRequest` for paid orders using `CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE`, and sends realtime notifications.
+- `AutoReject`: cancels affected orders, marks pending/change-pending items as refunded, creates a full-order `RefundRequest` for paid orders using `CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE`, **auto-approves and credits it to the customer's wallet immediately** (no manager review — same auto-approval rule as `ChangeProposal`-driven refunds, see `refund-api.md`/`change-proposal-refund-flow.md`; `reviewedBy = null`), and sends realtime notifications.
 - `AutoConfirmAll`: sets each dish `preparedQuantity` to the total ordered quantity, confirms pending order items, and sends realtime notifications.
 
 `isActive` in session responses is the manager-controlled active flag.

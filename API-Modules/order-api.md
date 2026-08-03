@@ -8,18 +8,27 @@ Currency: **Point**
 User endpoints are scoped to the authenticated user. Manager endpoints are scoped by manager role.
 Customer orders cannot be modified after payment. Operational status changes are handled by Manager/Staff endpoints.
 
-OrderStatus: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled, 4=Preparing, 5=Serving, 6=InHoldingArea, 7=Expired, 8=Disposed`
+OrderStatus: `0=Pending, 1=ReadyForPickup, 2=Completed, 3=Cancelled, 4=Preparing, 7=Expired`
+(Values `5=Serving`, `6=InHoldingArea`, `8=Disposed` were removed — do not use them.)
 
 ---
 
 ## `GET /api/orders`
-**Query:** `?sessionId=guid&status=int&pageNumber=1&pageSize=10`
+**Query:** `?sessionId=guid&status=int&createdFrom=datetime&createdTo=datetime&sessionDateFrom=datetime&sessionDateTo=datetime&pageNumber=1&pageSize=10`
+
+| Param | Type | Description |
+|-------|------|--------------|
+| `sessionId` | `Guid?` | Exact match on session |
+| `status` | `int?` | `OrderStatus` value, use as combobox filter |
+| `createdFrom` / `createdTo` | `DateTimeOffset?` | Filters on `Order.CreatedAtUtc` (order creation time) |
+| `sessionDateFrom` / `sessionDateTo` | `DateTimeOffset?` | Filters on `Session.AvailableFrom` (session serving start time) — **not** an overlap check against `AvailableTo`. Sessions do not span midnight in this system, so a single-day filter is safe to use directly |
 
 Paginated items (scoped to current user):
 ```json
 {
   "id": "guid",
   "sessionId": "guid",
+  "sessionName": "string",
   "mealTemplateId": "guid | null",
   "transactionId": "guid | null",
   "userId": "guid",
@@ -29,7 +38,7 @@ Paginated items (scoped to current user):
   "createdAtUtc": "..."
 }
 ```
-`totalPrice` is computed server-side from line items.
+`totalPrice` is computed server-side from line items. `sessionName` is new — added for list-screen display without a second call to `GET /api/Sessions/{id}`.
 
 ---
 

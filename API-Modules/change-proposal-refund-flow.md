@@ -80,6 +80,8 @@ RefundOrder
 | `2` | `Approved` | Approved and wallet credited |
 | `3` | `Rejected` | Rejected by manager |
 
+**Auto-approval:** every refund that originates from a `ChangeProposal` (manual `request-refund`/`request-order-refund`, or automatic on expiry) skips `Pending` entirely — it is created and returned as `Approved` in the same call, with `reviewedBy = null`. Only refunds submitted manually with photo evidence (`POST /api/refunds`, no `changeProposalId`) still go through `Pending` → manager `approve`/`reject`. Use `reviewedBy` to tell the two apart: `null` = auto-credited by the system, a `guid` = a manager reviewed it.
+
 ---
 
 ## 3. Required Backend Configuration
@@ -329,6 +331,8 @@ allowedActions contains "RefundItem"
 proposalStatus = 0
 ```
 
+**This refund is auto-approved and wallet-credited in this same call** — no manager step.
+
 Success response:
 
 ```json
@@ -340,10 +344,10 @@ Success response:
     "dishId": "9b4a0001-8cbe-4d41-801d-e03c0c1bedcf",
     "policyCode": "PROPOSAL_ITEM_REFUND_NO_IMAGE",
     "refundAmount": 3,
-    "status": "Pending",
-    "message": "Item refund request submitted successfully."
+    "status": "Approved",
+    "message": "Item refund approved and credited automatically."
   },
-  "message": "Item refund request submitted successfully.",
+  "message": "Item refund approved and credited automatically.",
   "isSuccess": true,
   "isFailure": false,
   "error": {}
@@ -358,13 +362,14 @@ refundAmount = OrderItem.UnitPrice.Amount * OrderItem.Quantity * policyPercent /
 
 For `PROPOSAL_ITEM_REFUND_NO_IMAGE`, current policy is `100%`, so amount equals item total.
 
-State changes:
+State changes (all synchronous in this one request):
 
 | Entity | Before | After |
 |--------|--------|-------|
 | `ChangeProposal.ProposalStatus` | `0 WaitingResponse` | `2 RefundRequested` |
-| `OrderItem.ItemStatus` | `2 ChangePending` | `5 RefundPending` |
-| `RefundRequest.Status` | none | `1 Pending` |
+| `OrderItem.ItemStatus` | `2 ChangePending` | `4 Refunded` (goes straight to final state) |
+| `RefundRequest.Status` | none | `2 Approved`, `reviewedBy = null` |
+| Customer wallet | old balance | old balance + `refundAmount`, immediately |
 
 FE refresh:
 
@@ -374,7 +379,7 @@ GET /api/refunds/{refundRequestId}
 GET /api/ChangeProposals/{proposalId}
 ```
 
-Expected order item while waiting manager approval:
+Expected order item right after the call (already final, no intermediate "waiting" state to poll for):
 
 ```json
 {
@@ -382,7 +387,7 @@ Expected order item while waiting manager approval:
   "dishName": "Bun tuoi",
   "quantity": 1,
   "unitPrice": 3,
-  "itemStatus": 5
+  "itemStatus": 4
 }
 ```
 
@@ -417,6 +422,8 @@ Allowed for:
 - Required item proposal.
 - Optional item proposal.
 
+**This refund is auto-approved and wallet-credited in this same call** — no manager step.
+
 Success response:
 
 ```json
@@ -426,23 +433,28 @@ Success response:
     "orderId": "b6fc2784-3653-418d-9afb-92479436ed88",
     "policyCode": "FULL_REFUND_NO_IMAGE",
     "refundAmount": 15,
-    "status": "Pending",
-    "message": "Full order refund request submitted successfully."
+    "status": "Approved",
+    "message": "Full order refund approved and credited automatically."
   },
-  "message": "Full order refund request submitted successfully.",
+  "message": "Full order refund approved and credited automatically.",
   "isSuccess": true,
   "isFailure": false,
   "error": {}
 }
 ```
 
+**`refundAmount` calculation:** sums every order item whose `itemStatus != Refunded` at the time of the call — items already refunded individually before this call are excluded, so the customer is never double-refunded. If nothing in the order was refunded yet, `refundAmount` covers the **entire order**, not just the item behind this proposal — choosing full-order refund cancels the whole order, including dishes that had enough stock.
+
+**Sibling cascade:** any other `WaitingResponse` proposal on the same order is automatically moved to `OrderRefundRequested` as part of this call. Refresh `GET /api/ChangeProposals` afterward to pick up their new state — do not assume they are still actionable.
+
 State changes:
 
 | Entity | Before | After |
 |--------|--------|-------|
-| `ChangeProposal.ProposalStatus` | `0 WaitingResponse` | `3 OrderRefundRequested` |
+| `ChangeProposal.ProposalStatus` (this proposal + any sibling `WaitingResponse` proposals in the order) | `0 WaitingResponse` | `3 OrderRefundRequested` |
 | `Order.Status` | active/paid state | `3 Cancelled` |
-| `RefundRequest.Status` | none | `1 Pending` |
+| `RefundRequest.Status` | none | `2 Approved`, `reviewedBy = null` |
+| Customer wallet | old balance | old balance + `refundAmount`, immediately |
 
 RefundRequest context:
 
@@ -456,9 +468,14 @@ RefundRequest context:
 
 FE behavior:
 
-- After success, navigate user to order detail or refund detail.
-- Disable all pending proposal actions for the cancelled order.
-- Show that wallet credit is still waiting manager approval until refund status becomes `Approved`.
+- After success, navigate user to order detail or refund detail — wallet balance is already updated, no "waiting for approval" state to show.
+- Refetch all proposals for the order (`GET /api/ChangeProposals`) — siblings are already resolved, disable their action buttons based on the fresh `proposalStatus`/`allowedActions`, don't hardcode them as still pending.
+
+Common errors:
+
+| HTTP | Message | FE Handling |
+|------|---------|-------------|
+| `400` | `This order already has a pending or approved full order refund request.` | Order already has a full-order refund in flight; refresh order/refund state. Note: an existing **item-level** refund on a different item no longer blocks this call — only a prior full-order refund does. |
 
 ---
 
@@ -475,6 +492,8 @@ Role:
 ```text
 Manager
 ```
+
+**Important change:** refunds created from a `ChangeProposal` (sections 6 and 7 above, plus automatic expiration) are **already `Approved`** by the time they reach this list — they never sit at `Pending`, so manager `approve`/`reject` never applies to them in practice. `GET /api/manager/refunds?status=1` (Pending) will only ever contain manually-submitted refunds (`POST /api/refunds`, photo evidence, `changeProposalId = null`). If the manager dashboard shows a "refunds needing action" count/badge, expect it to shrink — this is intentional, not a bug.
 
 ### List Refund Requests
 
@@ -727,10 +746,10 @@ The app sends notifications. FE should refresh related screens when these events
 | Notification | Suggested FE Refresh |
 |--------------|----------------------|
 | Change proposal created | `GET /api/ChangeProposals`, `GET /api/Orders/{orderId}` |
-| Item refund requested | Manager refreshes `GET /api/manager/refunds` |
-| Full order refund requested | Manager refreshes `GET /api/manager/refunds` and order list |
-| Refund approved | Customer refreshes `GET /api/refunds/{id}`, `GET /api/Orders/{orderId}`, wallet balance |
-| Refund rejected | Customer refreshes `GET /api/refunds/{id}`, `GET /api/ChangeProposals/{proposalId}`, `GET /api/Orders/{orderId}` |
+| Item refund requested (sent to manager, informational only — the refund is already `Approved` by the time this arrives) | Manager may refresh `GET /api/manager/refunds` for visibility, but there is no action to take |
+| Full order refund requested (sent to manager, informational only — same as above) | Manager may refresh `GET /api/manager/refunds` and order list for visibility |
+| Refund approved (now fires for proposal-driven refunds too, immediately after the customer's own action or after auto-expiration — not only after a manager clicks approve) | Customer refreshes `GET /api/refunds/{id}`, `GET /api/Orders/{orderId}`, wallet balance |
+| Refund rejected (manual/photo refunds only — proposal-driven refunds are never `Pending` so they can never be rejected) | Customer refreshes `GET /api/refunds/{id}`, `GET /api/ChangeProposals/{proposalId}`, `GET /api/Orders/{orderId}` |
 
 ---
 
@@ -766,9 +785,11 @@ Recommended implementation:
 
 | `status` | Suggested Label |
 |----------|-----------------|
-| `Pending` | Waiting for manager approval |
+| `Pending` | Waiting for manager approval (manual/photo refunds only) |
 | `Approved` | Refunded to wallet |
 | `Rejected` | Refund rejected |
+
+For proposal-driven refunds (`changeProposalId != null`), `status` is `Approved` from the moment the API call returns — FE should never expect to see `Pending` for these, so there's no "waiting" UI state to build for them. Use `reviewedBy == null` to label an `Approved` refund as "auto-refunded" vs. `reviewedBy != null` as "approved by manager".
 
 ---
 
@@ -786,39 +807,42 @@ Recommended implementation:
    - Expected proposal: `proposalStatus = 1`
    - Expected order item: `itemStatus = 3`
 
-### Optional Item Refund Approved
+### Optional Item Refund — Auto-Approved
 
 1. Manager finalizes session with optional dish shortage.
 2. Customer sees proposal:
    - `isRequiredItem = false`
    - `allowedActions` contains `RefundItem`
 3. Customer calls item refund.
-   - Expected refund request: `status = Pending`
-   - Expected order item: `itemStatus = 5`
-4. Manager approves refund.
-   - Expected refund request: `status = Approved`
-   - Expected order item: `itemStatus = 4`
-   - Expected wallet credited.
+   - Expected refund request: `status = Approved`, `reviewedBy = null`
+   - Expected order item: `itemStatus = 4` (already `Refunded`, no `RefundPending` step to wait on)
+   - Expected wallet credited immediately — no manager action needed.
 
-### Optional Item Refund Rejected
-
-1. Create another order/session test.
-2. Customer calls item refund.
-3. Manager rejects refund.
-   - Expected refund request: `status = Rejected`
-   - Expected order item: `itemStatus = 2`
-   - Expected proposal: `proposalStatus = 0`
-4. Customer can choose swap or full order refund again.
-
-### Full Order Refund From Proposal
+### Full Order Refund From Proposal — Auto-Approved
 
 1. Customer calls full order refund.
 2. Expected refund request:
    - `orderItemId = null`
    - `changeProposalId = proposalId`
    - `dishId = currentDishId`
-   - `status = Pending`
+   - `status = Approved`, `reviewedBy = null`
 3. Expected order:
    - order status becomes `Cancelled`.
-4. Manager approves refund.
-   - Customer wallet is credited.
+4. Customer wallet is credited immediately — no manager action needed.
+
+### Full Order Refund After a Prior Item Refund (mixed order)
+
+1. Order has 1 required item + 1 optional item, both short after finalize.
+2. Customer calls item refund on the optional item's proposal.
+   - Expected: `status = Approved`, wallet credited for that item's price.
+3. Customer calls full order refund on the required item's proposal.
+   - Expected: `status = Approved` (not blocked), `refundAmount` = only the **remaining** un-refunded amount (the required item's price, not the whole order again).
+   - Total credited across both calls must equal the full amount originally paid — no more, no less.
+4. If a third proposal existed on the same order and was untouched, expect it to auto-flip to `proposalStatus = 3 OrderRefundRequested` after step 3, without any direct call on it.
+
+### Manual Refund (Photo Evidence) — Unchanged, Still Manager-Reviewed
+
+1. Customer submits `POST /api/refunds` with `orderId` + images (no `changeProposalId`).
+   - Expected refund request: `status = Pending`.
+2. Manager approves or rejects via `/api/manager/refunds/{id}/approve|reject` as before.
+   - This flow is untouched by the auto-approval change — it only applies to proposal-driven refunds.
