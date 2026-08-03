@@ -9,6 +9,7 @@ using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
+using SC.Domain.SharedKernel.ValueObjects;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 
