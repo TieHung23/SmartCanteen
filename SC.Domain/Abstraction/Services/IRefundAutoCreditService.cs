@@ -10,4 +10,4 @@ public interface IRefundAutoCreditService
         CancellationToken cancellationToken = default);
 }
 
-public sealed record RefundAutoCreditResult(Guid WalletTransactionId, decimal BalanceAfter);
+public readonly record struct RefundAutoCreditResult(Guid WalletTransactionId, decimal BalanceAfter);

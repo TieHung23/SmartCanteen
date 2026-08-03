@@ -177,7 +177,7 @@ public sealed class ChangeProposalExpirationService(
 
         if (refundRequest is not null && creditResult is not null)
         {
-            await NotifyRefundApprovedAsync(refundRequest, creditResult, cancellationToken);
+            await NotifyRefundApprovedAsync(refundRequest, creditResult.Value, cancellationToken);
         }
         else
         {
@@ -279,7 +279,7 @@ public sealed class ChangeProposalExpirationService(
 
         if (refundRequest is not null && creditResult is not null)
         {
-            await NotifyRefundApprovedAsync(refundRequest, creditResult, cancellationToken);
+            await NotifyRefundApprovedAsync(refundRequest, creditResult.Value, cancellationToken);
         }
         else
         {

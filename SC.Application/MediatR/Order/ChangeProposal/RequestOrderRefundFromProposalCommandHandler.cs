@@ -171,6 +171,8 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                     creditResult.Message);
             }
 
+            var credit = creditResult.Value!;
+
             proposalRepository.Update(proposal);
             orderRepository.Update(order);
 
@@ -192,8 +194,8 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                     refundRequest.OrderId,
                     refundRequest.RefundAmount,
                     ProposalId = proposal.Id,
-                    BalanceAfter = creditResult.Value!.BalanceAfter,
-                    WalletTransactionId = creditResult.Value!.WalletTransactionId,
+                    BalanceAfter = credit.BalanceAfter,
+                    WalletTransactionId = credit.WalletTransactionId,
                     Status = refundRequest.Status.ToString()
                 },
                 cancellationToken);
