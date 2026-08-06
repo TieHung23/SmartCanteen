@@ -63,6 +63,9 @@ public static class StartupConfigurations
         builder.Services.AddScoped<
             SC.Contract.Services.Robot.IServingJobNotifier,
             SC.Api.Services.SignalRServingJobNotifier>();
+        builder.Services.AddScoped<
+            SC.Contract.Services.Visualization.IServingVisualizer,
+            SC.Api.Services.SignalRServingVisualizer>();
         builder.Services.AddScoped<SC.Persistence.Database.Interceptors.AuditableEntityInterceptor>();
 
         builder.Services.AddDbContext<SmartCanteenDbContext>((sp, options) =>
@@ -123,11 +126,15 @@ public static class StartupConfigurations
                             .GetRequiredService<IOptions<NotificationRealtimeOptions>>()
                             .Value;
                         var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
 
+                        // Websocket không set được Authorization header (Unity WebGL/browser) ->
+                        // đọc token từ query cho MỌI hub (/hubs/notifications, /hubs/robot, /hubs/visualization),
+                        // cộng HubPath cấu hình phòng khi đặt ngoài "/hubs".
                         if (!string.IsNullOrWhiteSpace(accessToken)
-                            && !string.IsNullOrWhiteSpace(realtimeOptions.HubPath)
-                            && context.HttpContext.Request.Path.StartsWithSegments(
-                                realtimeOptions.HubPath))
+                            && (path.StartsWithSegments("/hubs")
+                                || (!string.IsNullOrWhiteSpace(realtimeOptions.HubPath)
+                                    && path.StartsWithSegments(realtimeOptions.HubPath))))
                         {
                             context.Token = accessToken;
                         }
@@ -218,6 +225,7 @@ public static class StartupConfigurations
 
         app.MapHub<NotificationHub>(notificationRealtimeOptions.HubPath);
         app.MapHub<RobotHub>("/hubs/robot");
+        app.MapHub<VisualizationHub>("/hubs/visualization");
 
         app.Lifetime.ApplicationStarted.Register(() =>
         {

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Robot;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -19,6 +20,7 @@ internal sealed class CreateServingJobCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     IServingJobNotifier servingJobNotifier,
+    IServingVisualizer servingVisualizer,
     ILogger<CreateServingJobCommandHandler> logger
 ) : ICommandHandler<CreateServingJobCommand, CreateServingJobResponse>
 {
@@ -81,6 +83,11 @@ internal sealed class CreateServingJobCommandHandler(
             {
                 logger.LogError(ex, "Failed to ping robots for serving job {JobId} (order {OrderId})", job.Id, order.Id);
             }
+
+            // Đánh thức Unity (digital twin) biết có job mới -> Unity gọi PullNextJob. Best-effort.
+            await servingVisualizer.PublishAsync(
+                new ServingVisualEvent("jobCreated", job.OrderId, JobId: job.Id),
+                cancellationToken);
 
             return Result.Success(
                 new CreateServingJobResponse(job.Id, job.OrderId, job.TrayId, job.Status.ToString()),

@@ -10,7 +10,7 @@ public sealed class ServingJobItemMessage
     public string? DishName { get; init; }
     public int Quantity { get; init; }
     public string? Station { get; init; }    // TAY nào gắp: mã RobotArm, vd "S1"
-    public string? LaneCode { get; init; }   // GẮP Ở ĐÂU: mã lane, vd "S1-L2" (edge tra teaching point)
+    public string? LaneCode { get; init; }   // GẮP Ở ĐÂU: mã lane, vd "S1_L2" (UNDERSCORE; edge tra teaching point)
     public bool Done { get; init; }          // đã phục vụ xong lượt trước (BE suy từ RobotEventLogs) -> edge SKIP khi requeue
 }
 

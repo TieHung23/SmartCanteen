@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Robot;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -24,6 +25,7 @@ internal sealed class AssignPickupSlotCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     IServingJobNotifier servingJobNotifier,
+    IServingVisualizer servingVisualizer,
     ILogger<AssignPickupSlotCommandHandler> logger
 ) : ICommandHandler<AssignPickupSlotCommand, AssignPickupSlotResponse>
 {
@@ -101,6 +103,15 @@ internal sealed class AssignPickupSlotCommandHandler(
             {
                 logger.LogError(ex, "Failed to ping robots after freeing tray (slot {SlotCode})", request.SlotCode);
             }
+
+            // Unity: khay đã lên ô kệ -> animate khay chạy ra ô nhận. Best-effort.
+            await servingVisualizer.PublishAsync(
+                new ServingVisualEvent(
+                    "pickupAssigned", request.OrderId,
+                    JobId: job.Id,
+                    PickupSlotCode: slot.Code,
+                    TrayCode: tray.Code),
+                cancellationToken);
 
             return Result.Success(
                 new AssignPickupSlotResponse(slot.Id, slot.Code, request.OrderId, tray.Id),
