@@ -15,6 +15,7 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     public DateTimeOffset? AcknowledgedAtUtc { get; private set; }
     public DateTimeOffset? CompletedAtUtc { get; private set; }
     public string? FailureReason { get; private set; }
+    public int RequeueCount { get; private set; }   // so lan watchdog/staff da requeue -> chong kEt dau hang (cap -> Failed)
     public bool IsDeleted { get; private set; }
     public DateTimeOffset? DeletedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -85,6 +86,7 @@ public class ServingJob : Entity<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     {
         Status = ServingJobStatus.Queued;
         FailureReason = null;
+        RequeueCount++;
         Touch(updatedBy);
     }
 
