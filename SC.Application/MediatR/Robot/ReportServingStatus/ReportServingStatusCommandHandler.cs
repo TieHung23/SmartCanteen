@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Notification;
 using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
@@ -26,6 +27,7 @@ internal sealed class ReportServingStatusCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     IServingVisualizer servingVisualizer,
+    IServingFailureNotifier servingFailureNotifier,
     ILogger<ReportServingStatusCommandHandler> logger
 ) : ICommandHandler<ReportServingStatusCommand, ReportServingStatusResponse>
 {
@@ -112,6 +114,16 @@ internal sealed class ReportServingStatusCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Executor TỰ báo Failed (verify-fail / hết hàng / HoldForStaff) -> báo staff (mobile).
+            //   (Lỗi "câm" = executor chết -> Watchdog lo, KHÔNG qua đây.)
+            if (eventType == RobotEventType.Error)
+            {
+                await servingFailureNotifier.NotifyStaffAsync(
+                    request.OrderId,
+                    request.Message ?? "Serving lỗi (executor báo).",
+                    cancellationToken);
+            }
 
             // Forward xuống Unity (digital twin): demo = echo lại report của chính Unity;
             // robot thật = Unity mirror theo tay thật. Enrich DishId -> tên để Unity hiển thị.
