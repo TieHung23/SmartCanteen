@@ -182,6 +182,27 @@ public class FinalizeSessionService(
                 }
             }
 
+            // Same safety net as AutoConfirmAll: Order.Status is normally driven by the robot/pickup
+            // pipeline (set to Preparing by CreateServingJob right when the order is created), not by
+            // finalize. That call is best-effort - if it silently failed, the order would be stuck at
+            // Pending forever with no serving job and no other path back, even though its items just
+            // got confirmed/change-pending here. Applies regardless of the per-item outcome, since the
+            // order is now actively being handled either way.
+            if (order.Status == OrderStatus.Pending)
+            {
+                var fromStatus = order.Status;
+                order.UpdateStatus(OrderStatus.Preparing, managerId);
+                await orderStatusHistoryRepository.AddAsync(
+                    OrderStatusHistoryEntity.Create(
+                        order.Id,
+                        fromStatus,
+                        OrderStatus.Preparing,
+                        managerId,
+                        "FinalizeConfirm",
+                        "Session finalized; order was still Pending so it was moved to Preparing."),
+                    cancellationToken);
+            }
+
             orderRepository.Update(order);
         }
 
@@ -412,7 +433,7 @@ public class FinalizeSessionService(
                 }
                 else if (session.AutoFinalizePolicy == AutoFinalizePolicy.AutoConfirmAll)
                 {
-                    AutoConfirmAllSession(session, orders, pendingNotifications);
+                    await AutoConfirmAllSession(session, orders, pendingNotifications, cancellationToken);
                 }
 
                 session.AutoFinalize();
@@ -574,10 +595,11 @@ public class FinalizeSessionService(
         pendingNotifications.Add(CreateAutoRejectRefundNotification(order, sessionId, refundRequest));
     }
 
-    private static void AutoConfirmAllSession(
+    private async Task AutoConfirmAllSession(
         Session session,
         IReadOnlyCollection<Order> orders,
-        ICollection<AutoFinalizeNotification> pendingNotifications)
+        ICollection<AutoFinalizeNotification> pendingNotifications,
+        CancellationToken cancellationToken)
     {
         var totalOrderedByDish = orders
             .SelectMany(order => order.OrderItems)
@@ -599,6 +621,28 @@ public class FinalizeSessionService(
                 }
             }
 
+            // Order.Status is normally driven by the robot/pickup pipeline (set to Preparing by
+            // CreateServingJob right when the order is created), not by finalize. But that call is
+            // best-effort - if it silently failed, the order would be stuck at Pending forever with
+            // no serving job and no other path back. Auto-confirming its items without ever moving it
+            // out of Pending here would leave it permanently invisible to robots despite being paid
+            // for, so bring it into Preparing as a fallback whenever it's still Pending at this point.
+            if (order.Status == OrderStatus.Pending)
+            {
+                var fromStatus = order.Status;
+                order.UpdateStatus(OrderStatus.Preparing, order.CreatedBy);
+                await orderStatusHistoryRepository.AddAsync(
+                    OrderStatusHistoryEntity.Create(
+                        order.Id,
+                        fromStatus,
+                        OrderStatus.Preparing,
+                        order.CreatedBy,
+                        "AutoFinalizeConfirm",
+                        "Session auto-finalized with AutoConfirmAll; order was still Pending so it was moved to Preparing."),
+                    cancellationToken);
+            }
+
+            orderRepository.Update(order);
             pendingNotifications.Add(CreateAutoConfirmAllNotification(order, session.Id));
         }
     }

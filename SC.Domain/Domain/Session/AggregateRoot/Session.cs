@@ -120,6 +120,18 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
         }
     }
 
+    /// <summary>
+    /// Marks the session inactive once its serving window has closed, so it stops showing up as an
+    /// operating session (listings, "is this session still running" checks) even though the time
+    /// window alone already blocks new orders/robot pulls. No-op if already inactive.
+    /// </summary>
+    public void MarkInactive(Guid updatedBy)
+    {
+        if (!IsActive) return;
+        IsActive = false;
+        Touch(updatedBy);
+    }
+
     public void AddSessionDish(SessionDish sessionDish)
     {
         _sessionDishes.Add(sessionDish);
