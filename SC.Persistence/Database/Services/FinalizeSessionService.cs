@@ -45,7 +45,7 @@ public class FinalizeSessionService(
     private const string ChangeProposalResponseWindowMinutesCode = "RESPONSE_WINDOW_MINUTES";
     private const int DefaultChangeProposalResponseWindowMinutes = 30;
 
-    public async Task<Result> FinalizeAsync(Guid sessionId, List<(Guid DishId, int PreparedQuantity, Guid? SuggestedDishId)> preparedDishes, Guid managerId, CancellationToken cancellationToken = default)
+    public async Task<Result> FinalizeAsync(Guid sessionId, List<(Guid DishId, int PreparedQuantity, Guid? SuggestedDishId)> preparedDishes, Guid managerId, CancellationToken cancellationToken = default, bool startServingNow = false)
     {
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == sessionId && !s.IsDeleted,
@@ -71,6 +71,28 @@ public class FinalizeSessionService(
         catch (InvalidOperationException ex)
         {
             return Result.Failure(Error.InvalidValue, ex.Message);
+        }
+
+        if (startServingNow)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            if (session.AvailableTo <= now)
+                return Result.Failure(Error.InvalidValue, "Session's available window has already ended; cannot start serving now.");
+
+            // Pulling AvailableFrom to now widens this session's window to [now, session.AvailableTo].
+            // Check that widened window against every other session's *full* window (not just "is it
+            // active right now") - otherwise a session that hasn't started yet but falls inside the
+            // widened window would slip through and end up overlapping once it does start.
+            var hasOverlappingSession = await sessionRepository.ExistsAsync(
+                x => !x.IsDeleted
+                     && x.Id != session.Id
+                     && x.AvailableFrom < session.AvailableTo
+                     && now < x.AvailableTo,
+                cancellationToken);
+
+            if (hasOverlappingSession)
+                return Result.Failure(Error.InvalidValue, "This session's serving window would overlap with another session; sessions are not allowed to overlap.");
         }
 
         foreach (var input in preparedDishes)
@@ -164,6 +186,9 @@ public class FinalizeSessionService(
         }
 
         session.Finalize(managerId);
+
+        if (startServingNow)
+            session.StartServingNow(managerId);
 
         await context.SaveChangesAsync(cancellationToken);
 

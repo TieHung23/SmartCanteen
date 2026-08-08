@@ -9,6 +9,7 @@ using SC.Application.MediatR.Session.GetSessionById;
 using SC.Application.MediatR.Session.GetSessionCalendar;
 using SC.Application.MediatR.Session.UpdateSession;
 using SC.Application.MediatR.Session.FinalizeSession;
+using SC.Application.MediatR.Session.FinalizeSessionNow;
 using SC.Contract.Shared;
 
 namespace SC.Api.Controllers;
@@ -145,6 +146,27 @@ public class SessionsController(IMediator mediator) : ControllerBase
     [HttpPost("{id:guid}/finalize")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> FinalizeSession([FromRoute] Guid id, [FromBody] FinalizeSessionCommand command)
+    {
+        command.SessionId = id;
+        var result = await mediator.Send(command);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Demo/ops helper: finalize a session AND start serving immediately —
+    /// pulls the session's serving window (AvailableFrom) forward to now so
+    /// already-queued serving jobs become eligible for robot pickup right away,
+    /// instead of waiting for the originally scheduled time.
+    /// </summary>
+    [HttpPost("{id:guid}/finalize-now")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> FinalizeSessionNow([FromRoute] Guid id, [FromBody] FinalizeSessionNowCommand command)
     {
         command.SessionId = id;
         var result = await mediator.Send(command);
