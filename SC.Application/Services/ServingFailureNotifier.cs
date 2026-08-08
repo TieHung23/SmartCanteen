@@ -11,9 +11,27 @@ internal sealed class ServingFailureNotifier(
     IBusinessNotificationService businessNotificationService,
     ILogger<ServingFailureNotifier> logger) : IServingFailureNotifier
 {
-    public async Task NotifyStaffAsync(
+    public Task NotifyStaffAsync(
         Guid orderId,
         string reason,
+        CancellationToken cancellationToken = default)
+        => NotifyAllStaffAsync(
+            NotificationTemplateKeys.ServingFailed,
+            orderId,
+            new Dictionary<string, string>
+            {
+                ["referenceId"] = orderId.ToString(),
+                ["orderId"] = orderId.ToString(),
+                ["reason"] = reason
+            },
+            new { OrderId = orderId, Reason = reason },
+            cancellationToken);
+
+    public async Task NotifyAllStaffAsync(
+        string templateKey,
+        Guid orderId,
+        IReadOnlyDictionary<string, string> tokens,
+        object? data = null,
         CancellationToken cancellationToken = default)
     {
         var staff = await userRepository.FindListAsync(
@@ -23,27 +41,15 @@ internal sealed class ServingFailureNotifier(
         if (staff.Count == 0)
         {
             logger.LogWarning(
-                "ServingFailed for order {OrderId} but no Staff user to notify.",
-                orderId);
+                "Staff notification '{Template}' for order {OrderId} but no Staff user to notify.",
+                templateKey, orderId);
             return;
         }
-
-        var tokens = new Dictionary<string, string>
-        {
-            ["referenceId"] = orderId.ToString(),
-            ["orderId"] = orderId.ToString(),
-            ["reason"] = reason
-        };
 
         foreach (var user in staff)
         {
             await businessNotificationService.NotifyAsync(
-                NotificationTemplateKeys.ServingFailed,
-                user.Id,
-                orderId,
-                tokens,
-                new { OrderId = orderId, Reason = reason },
-                cancellationToken);
+                templateKey, user.Id, orderId, tokens, data, cancellationToken);
         }
     }
 }

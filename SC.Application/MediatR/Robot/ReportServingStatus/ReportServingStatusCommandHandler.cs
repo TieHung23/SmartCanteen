@@ -101,6 +101,7 @@ internal sealed class ReportServingStatusCommandHandler(
                 cancellationToken);
 
             // Đồng bộ Order status khi robot bắt đầu ráp
+            Guid? notifyPreparingStudentId = null;
             if (eventType is RobotEventType.PickStarted or RobotEventType.JobReceived)
             {
                 var order = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
@@ -111,10 +112,53 @@ internal sealed class ReportServingStatusCommandHandler(
                     await orderStatusHistoryRepository.AddAsync(
                         OrderStatusHistoryEntity.Create(order.Id, OrderStatus.Pending, OrderStatus.Preparing, actorId, "RobotPickStarted"),
                         cancellationToken);
+                    notifyPreparingStudentId = order.CreatedBy;   // báo Học Sinh "đang chuẩn bị" (sau commit)
                 }
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Báo Học Sinh: robot bắt đầu chuẩn bị đơn. Best-effort.
+            if (notifyPreparingStudentId is Guid studentId)
+            {
+                try
+                {
+                    await businessNotificationService.NotifyAsync(
+                        NotificationTemplateKeys.OrderPreparing,
+                        studentId,
+                        request.OrderId,
+                        new Dictionary<string, string> { ["referenceId"] = request.OrderId.ToString() },
+                        new { OrderId = request.OrderId },
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to notify student of preparing for order {OrderId}", request.OrderId);
+                }
+            }
+
+            // Báo Staff: robot vừa đặt xong MÓN CUỐI (khay đã ráp đủ) -> sẵn sàng để staff quét lên kệ. Best-effort.
+            if (eventType == RobotEventType.PlaceCompleted
+                && await IsOrderFullyAssembledAsync(request.OrderId, job.Id, cancellationToken))
+            {
+                try
+                {
+                    await servingFailureNotifier.NotifyAllStaffAsync(
+                        NotificationTemplateKeys.OrderAssembledStaff,
+                        request.OrderId,
+                        new Dictionary<string, string>
+                        {
+                            ["referenceId"] = request.OrderId.ToString(),
+                            ["orderId"] = request.OrderId.ToString()
+                        },
+                        new { OrderId = request.OrderId },
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to notify staff of assembled order {OrderId}", request.OrderId);
+                }
+            }
 
             // Executor TỰ báo Failed (verify-fail / hết hàng / HoldForStaff) -> báo staff (mobile).
             //   (Lỗi "câm" = executor chết -> Watchdog lo, KHÔNG qua đây.)
@@ -122,7 +166,7 @@ internal sealed class ReportServingStatusCommandHandler(
             {
                 await servingFailureNotifier.NotifyStaffAsync(
                     request.OrderId,
-                    request.Message ?? "Serving lỗi (executor báo).",
+                    request.Message ?? "Robot báo lỗi khi phục vụ.",
                     cancellationToken);
 
                 // Báo Học Sinh (chủ đơn): đơn đang được xử lý lại. Best-effort — notify lỗi KHÔNG làm hỏng report.
@@ -208,4 +252,24 @@ internal sealed class ReportServingStatusCommandHandler(
             RobotEventType.Error => "servingFailed",
             _ => null   // Connected/Disconnected/EmergencyStop/Recovered: mức trạm, không phải mức đơn
         };
+
+    // Đơn đã RÁP ĐỦ MÓN chưa: tất cả DishId của đơn đều có log PlaceCompleted (đọc RobotEventLog).
+    //   Dùng để báo Staff "cánh tay đã gắp xong" đúng lúc món cuối vừa đặt.
+    private async Task<bool> IsOrderFullyAssembledAsync(Guid orderId, Guid servingJobId, CancellationToken ct)
+    {
+        var order = await orderRepository.GetByIdAsync(orderId, ct, o => o.OrderItems);
+        if (order is null) return false;
+
+        var neededDishIds = order.OrderItems.Select(i => i.DishId).Distinct().ToHashSet();
+        if (neededDishIds.Count == 0) return false;
+
+        var placedLogs = await robotEventLogRepository.FindListAsync(
+            x => x.ServingJobId == servingJobId
+                 && x.EventType == RobotEventType.PlaceCompleted
+                 && x.DishId != null,
+            ct);
+        var placedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+
+        return neededDishIds.IsSubsetOf(placedDishIds);
+    }
 }
