@@ -105,6 +105,21 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
         FinalizedAtUtc = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>
+    /// Demo/ops helper: pulls the serving window's start forward to now so queued
+    /// serving jobs become eligible for robot pickup immediately instead of waiting
+    /// for the originally scheduled AvailableFrom. No-op if serving already started.
+    /// </summary>
+    public void StartServingNow(Guid updatedBy)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (AvailableFrom > now)
+        {
+            AvailableFrom = now;
+            Touch(updatedBy);
+        }
+    }
+
     public void AddSessionDish(SessionDish sessionDish)
     {
         _sessionDishes.Add(sessionDish);
