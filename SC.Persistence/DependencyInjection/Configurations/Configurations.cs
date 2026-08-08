@@ -22,5 +22,6 @@ public static class Configurations
         services.AddScoped<IFinalizeSessionService, FinalizeSessionService>();
         services.AddScoped<IChangeProposalExpirationService, ChangeProposalExpirationService>();
         services.AddScoped<IOrderExpirationService, OrderExpirationService>();
+        services.AddScoped<IServingJobWatchdogService, ServingJobWatchdogService>();
     }
 }

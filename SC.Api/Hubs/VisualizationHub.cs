@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using SC.Application.MediatR.Robot.AutoBindTray;
 using SC.Application.MediatR.Robot.BindTray;
+using SC.Application.MediatR.Robot.ClaimServingJob;
 using SC.Application.MediatR.Robot.GetServingMap;
 using SC.Application.MediatR.Robot.PullNextJob;
 using SC.Application.MediatR.Robot.ReportServingStatus;
@@ -24,7 +26,7 @@ namespace SC.Api.Hubs;
 /// Unity chỉ nghe "ServingEvent", KHÔNG gọi ngược (để Edge là nguồn report duy nhất).
 /// </summary>
 [Authorize]
-public sealed class VisualizationHub(ISender mediator) : Hub
+public sealed class VisualizationHub(ISender mediator, IConfiguration config) : Hub
 {
     public const string VizGroup = "visualization";
 
@@ -83,4 +85,18 @@ public sealed class VisualizationHub(ISender mediator) : Hub
             update.Message,
             update.TrayId,
             update.DishId));
+
+    /// <summary>
+    /// Unity -&gt; server: "nhận" job của 1 order (<c>Queued</c> -&gt; <c>Pushed</c>) mà KHÔNG qua pull
+    /// (bỏ khóa giờ ca), để test bằng JSON cứng (ScenarioPlayer) mà trạng thái job vẫn chạy đúng nấc.
+    /// CHỈ hoạt động khi cấu hình <c>Serving:AllowManualClaim = true</c> (bật ở môi trường test/demo);
+    /// production mặc định TẮT -&gt; trả false, không đụng gì.
+    /// </summary>
+    public async Task<bool> ClaimJob(Guid orderId)
+    {
+        if (!config.GetValue<bool>("Serving:AllowManualClaim"))
+            return false;   // khóa: production không cho "nhận" job thủ công
+        var result = await mediator.Send(new ClaimServingJobCommand(orderId));
+        return result.IsSuccess;
+    }
 }

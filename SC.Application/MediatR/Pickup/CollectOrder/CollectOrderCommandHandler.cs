@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Notification;
 using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
@@ -22,6 +23,7 @@ internal sealed class CollectOrderCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     IServingVisualizer servingVisualizer,
+    IServingFailureNotifier servingFailureNotifier,
     ILogger<CollectOrderCommandHandler> logger
 ) : ICommandHandler<CollectOrderCommand, CollectOrderResponse>
 {
@@ -73,6 +75,26 @@ internal sealed class CollectOrderCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Báo Staff: học sinh đã lấy món, ô kệ đã trống. Best-effort.
+            try
+            {
+                await servingFailureNotifier.NotifyAllStaffAsync(
+                    NotificationTemplateKeys.OrderCollectedStaff,
+                    request.OrderId,
+                    new Dictionary<string, string>
+                    {
+                        ["referenceId"] = request.OrderId.ToString(),
+                        ["orderId"] = request.OrderId.ToString(),
+                        ["slotCode"] = slotCode ?? "?"
+                    },
+                    new { OrderId = request.OrderId, SlotCode = slotCode },
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to notify staff of collected order {OrderId}", request.OrderId);
+            }
 
             // Unity: khách đã lấy -> avatar học sinh nhận đồ, ô nhận mở/dọn. Best-effort.
             await servingVisualizer.PublishAsync(
