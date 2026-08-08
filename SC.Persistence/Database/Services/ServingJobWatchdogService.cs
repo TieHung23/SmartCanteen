@@ -67,7 +67,7 @@ public sealed class ServingJobWatchdogService(
             if (job.RequeueCount >= MaxRequeue)
             {
                 job.MarkFailed(
-                    $"Watchdog: job treo quá {MaxRequeue} lần thử (executor mất kết nối / không báo).",
+                    $"Đơn bị treo — mất kết nối với robot, đã thử lại {MaxRequeue} lần không xong.",
                     SystemActor);
                 failedOrderIds.Add(job.OrderId);
             }
@@ -108,7 +108,7 @@ public sealed class ServingJobWatchdogService(
         {
             await servingFailureNotifier.NotifyStaffAsync(
                 orderId,
-                "Job treo — executor mất kết nối, đã quá số lần thử lại.",
+                "Đơn bị treo — mất kết nối với robot, đã thử lại nhiều lần không xong.",
                 cancellationToken);
         }
 

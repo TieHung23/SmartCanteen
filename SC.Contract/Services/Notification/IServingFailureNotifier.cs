@@ -7,4 +7,12 @@ namespace SC.Contract.Services.Notification;
 public interface IServingFailureNotifier
 {
     Task NotifyStaffAsync(Guid orderId, string reason, CancellationToken cancellationToken = default);
+
+    /// <summary>Báo cho TOÀN BỘ Staff bằng 1 template bất kỳ (đã lấy / đã ráp xong / ...).</summary>
+    Task NotifyAllStaffAsync(
+        string templateKey,
+        Guid orderId,
+        IReadOnlyDictionary<string, string> tokens,
+        object? data = null,
+        CancellationToken cancellationToken = default);
 }
