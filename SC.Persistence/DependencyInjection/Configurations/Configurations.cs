@@ -21,6 +21,7 @@ public static class Configurations
         services.AddScoped<IRefundAutoCreditService, RefundAutoCreditService>();
         services.AddScoped<IFinalizeSessionService, FinalizeSessionService>();
         services.AddScoped<IChangeProposalExpirationService, ChangeProposalExpirationService>();
+        services.AddScoped<IOrderExpirationService, OrderExpirationService>();
         services.AddScoped<IServingJobWatchdogService, ServingJobWatchdogService>();
     }
 }

@@ -121,6 +121,13 @@ public sealed class CartValidationService(
                     "One or more sessions are not available.");
             }
 
+            if (session.IsFinalized)
+            {
+                return Result.Failure<ValidatedCart>(
+                    Error.InvalidValue,
+                    "One or more sessions have already been finalized and are no longer accepting orders.");
+            }
+
             if (now < session.AvailableForOrder)
             {
                 return Result.Failure<ValidatedCart>(
