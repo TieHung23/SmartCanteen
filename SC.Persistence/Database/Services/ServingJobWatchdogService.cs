@@ -3,8 +3,11 @@ using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.RobotArm.Enum;
+using SC.Domain.Domain.RobotEventLog.Enum;
 using SC.Domain.Domain.ServingJob.Enum;
+using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using RobotArmEntity = SC.Domain.Domain.RobotArm.Entity.RobotArm;
+using RobotEventLogEntity = SC.Domain.Domain.RobotEventLog.Entity.RobotEventLog;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 
 namespace SC.Persistence.Database.Services;
@@ -12,6 +15,8 @@ namespace SC.Persistence.Database.Services;
 public sealed class ServingJobWatchdogService(
     IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
     IGenericRepository<RobotArmEntity, Guid> robotArmRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
+    IGenericRepository<RobotEventLogEntity, Guid> robotEventLogRepository,
     IServingFailureNotifier servingFailureNotifier,
     IUnitOfWork unitOfWork,
     ILogger<ServingJobWatchdogService> logger) : IServingJobWatchdogService
@@ -45,9 +50,20 @@ public sealed class ServingJobWatchdogService(
 
         var failedOrderIds = new List<Guid>();   // job đánh Failed -> báo staff SAU commit
         var requeued = 0;
+        var skippedAssembled = 0;
 
         foreach (var job in stuckJobs)
         {
+            // Assembling mà ĐÃ RÁP XONG HẾT MÓN (tất cả item đã PlaceCompleted) = đang CHỜ STAFF quét lên kệ,
+            //   KHÔNG phải treo -> BỎ QUA (fail oan đơn đã ráp xong sẽ phá luồng; việc staff không lên kệ
+            //   do cơ chế hết-hạn-pickup lo, không phải watchdog).
+            if (job.Status == ServingJobStatus.Assembling
+                && await IsAssemblyCompleteAsync(job, cancellationToken))
+            {
+                skippedAssembled++;
+                continue;
+            }
+
             if (job.RequeueCount >= MaxRequeue)
             {
                 job.MarkFailed(
@@ -99,8 +115,28 @@ public sealed class ServingJobWatchdogService(
         if (changed)
         {
             logger.LogInformation(
-                "ServingJobWatchdog: {Requeued} requeued, {Failed} failed / {Total} treo; {Arms} arm -> Offline.",
-                requeued, failedOrderIds.Count, stuckJobs.Count, staleArms.Count);
+                "ServingJobWatchdog: {Requeued} requeued, {Failed} failed, {Skipped} đã-ráp-xong bỏ qua / {Total} nghi treo; {Arms} arm -> Offline.",
+                requeued, failedOrderIds.Count, skippedAssembled, stuckJobs.Count, staleArms.Count);
         }
+    }
+
+    // Job Assembling ĐÃ RÁP XONG HẾT MÓN (tất cả DishId của đơn đều có log PlaceCompleted) = đang CHỜ STAFF
+    //   quét lên kệ, KHÔNG phải treo. Watchdog BỎ QUA để tránh fail oan đơn đã ráp xong mà staff chưa kịp quét.
+    private async Task<bool> IsAssemblyCompleteAsync(ServingJobEntity job, CancellationToken ct)
+    {
+        var order = await orderRepository.GetByIdAsync(job.OrderId, ct, o => o.OrderItems);
+        if (order is null) return false;   // order mất -> để requeue/fail xử lý bình thường
+
+        var neededDishIds = order.OrderItems.Select(i => i.DishId).Distinct().ToHashSet();
+        if (neededDishIds.Count == 0) return false;
+
+        var placedLogs = await robotEventLogRepository.FindListAsync(
+            x => x.ServingJobId == job.Id
+                 && x.EventType == RobotEventType.PlaceCompleted
+                 && x.DishId != null,
+            ct);
+        var placedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+
+        return neededDishIds.IsSubsetOf(placedDishIds);   // tất cả món cần đều đã đặt -> ráp xong
     }
 }
