@@ -28,6 +28,7 @@ internal sealed class ReportServingStatusCommandHandler(
     ICurrentUserService currentUserService,
     IServingVisualizer servingVisualizer,
     IServingFailureNotifier servingFailureNotifier,
+    IBusinessNotificationService businessNotificationService,
     ILogger<ReportServingStatusCommandHandler> logger
 ) : ICommandHandler<ReportServingStatusCommand, ReportServingStatusResponse>
 {
@@ -123,6 +124,26 @@ internal sealed class ReportServingStatusCommandHandler(
                     request.OrderId,
                     request.Message ?? "Serving lỗi (executor báo).",
                     cancellationToken);
+
+                // Báo Học Sinh (chủ đơn): đơn đang được xử lý lại. Best-effort — notify lỗi KHÔNG làm hỏng report.
+                try
+                {
+                    var failedOrder = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
+                    if (failedOrder is not null)
+                    {
+                        await businessNotificationService.NotifyAsync(
+                            NotificationTemplateKeys.OrderServingIssue,
+                            failedOrder.CreatedBy,
+                            failedOrder.Id,
+                            new Dictionary<string, string> { ["referenceId"] = failedOrder.Id.ToString() },
+                            new { OrderId = failedOrder.Id },
+                            cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to notify student of serving issue for order {OrderId}", request.OrderId);
+                }
             }
 
             // Forward xuống Unity (digital twin): demo = echo lại report của chính Unity;
