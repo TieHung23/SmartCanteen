@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Notification;
 using SC.Contract.Services.Robot;
 using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
@@ -21,6 +22,7 @@ internal sealed class CreateServingJobCommandHandler(
     ICurrentUserService currentUserService,
     IServingJobNotifier servingJobNotifier,
     IServingVisualizer servingVisualizer,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<CreateServingJobCommandHandler> logger
 ) : ICommandHandler<CreateServingJobCommand, CreateServingJobResponse>
 {
@@ -62,6 +64,7 @@ internal sealed class CreateServingJobCommandHandler(
 
             // Order -> Preparing + ghi lịch sử
             var fromStatus = order.Status;
+            var becamePreparing = false;
             if (order.Status != OrderStatus.Preparing)
             {
                 order.UpdateStatus(OrderStatus.Preparing, currentUserId);
@@ -69,9 +72,15 @@ internal sealed class CreateServingJobCommandHandler(
                 await orderStatusHistoryRepository.AddAsync(
                     OrderStatusHistoryEntity.Create(order.Id, fromStatus, OrderStatus.Preparing, currentUserId, "ServingJobCreated"),
                     cancellationToken);
+                becamePreparing = true;
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+            if (becamePreparing)
+                await orderStatusNotifier.BroadcastAsync(
+                    order.Id, order.CreatedBy, (int)OrderStatus.Preparing, "Preparing", cancellationToken);
 
             // HYBRID: chỉ PING đánh thức robot (không kèm data) -> robot tự pull next-job.
             // best-effort: ping lỗi KHÔNG rollback job đã lưu.

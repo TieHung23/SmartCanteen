@@ -28,6 +28,7 @@ internal sealed class AssignPickupSlotCommandHandler(
     IServingJobNotifier servingJobNotifier,
     IServingVisualizer servingVisualizer,
     IBusinessNotificationService businessNotificationService,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<AssignPickupSlotCommandHandler> logger
 ) : ICommandHandler<AssignPickupSlotCommand, AssignPickupSlotResponse>
 {
@@ -119,6 +120,10 @@ internal sealed class AssignPickupSlotCommandHandler(
                 {
                     logger.LogError(ex, "Failed to notify student of ready-for-pickup for order {OrderId}", request.OrderId);
                 }
+
+                // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+                await orderStatusNotifier.BroadcastAsync(
+                    request.OrderId, order.CreatedBy, (int)OrderStatus.ReadyForPickup, "ReadyForPickup", cancellationToken);
             }
 
             // Khay vừa Release về pool -> ping đánh thức robot phục vụ đơn đang chờ khay (best-effort).
