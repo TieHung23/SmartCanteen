@@ -16,6 +16,7 @@ internal class UpdateOrderCommandHandler(
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<UpdateOrderCommandHandler> logger
 ) : ICommandHandler<UpdateOrderCommand, UpdateOrderResponse>
 {
@@ -94,6 +95,10 @@ internal class UpdateOrderCommandHandler(
                     Status = newStatus.ToString()
                 },
                 cancellationToken);
+
+            // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+            await orderStatusNotifier.BroadcastAsync(
+                order.Id, order.CreatedBy, (int)newStatus, newStatus.ToString(), cancellationToken);
 
             var response = new UpdateOrderResponse
             {

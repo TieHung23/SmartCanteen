@@ -29,6 +29,7 @@ internal sealed class ReportServingStatusCommandHandler(
     IServingVisualizer servingVisualizer,
     IServingFailureNotifier servingFailureNotifier,
     IBusinessNotificationService businessNotificationService,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<ReportServingStatusCommandHandler> logger
 ) : ICommandHandler<ReportServingStatusCommand, ReportServingStatusResponse>
 {
@@ -135,6 +136,10 @@ internal sealed class ReportServingStatusCommandHandler(
                 {
                     logger.LogError(ex, "Failed to notify student of preparing for order {OrderId}", request.OrderId);
                 }
+
+                // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+                await orderStatusNotifier.BroadcastAsync(
+                    request.OrderId, studentId, (int)OrderStatus.Preparing, "Preparing", cancellationToken);
             }
 
             // Báo Staff: robot vừa đặt xong MÓN CUỐI (khay đã ráp đủ) -> sẵn sàng để staff quét lên kệ. Best-effort.

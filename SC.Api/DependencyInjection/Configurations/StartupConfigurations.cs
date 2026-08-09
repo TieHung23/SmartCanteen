@@ -61,6 +61,9 @@ public static class StartupConfigurations
             INotificationRealtimePublisher,
             SC.Api.Services.SignalRNotificationRealtimePublisher>();
         builder.Services.AddScoped<
+            IOrderStatusRealtimePublisher,
+            SC.Api.Services.SignalROrderStatusRealtimePublisher>();
+        builder.Services.AddScoped<
             SC.Contract.Services.Robot.IServingJobNotifier,
             SC.Api.Services.SignalRServingJobNotifier>();
         builder.Services.AddScoped<
