@@ -101,12 +101,9 @@ public class CategoriesController(IMediator mediator, ICloundinaryUpload cloudin
 
         var result = await mediator.Send(command);
 
-        if (result.IsFailure)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
+            : Ok(result);
     }
 
     [HttpDelete("{id:guid}")]
@@ -115,11 +112,8 @@ public class CategoriesController(IMediator mediator, ICloundinaryUpload cloudin
         var command = new DeleteCategoryCommand(id);
         var result = await mediator.Send(command);
 
-        if (result.IsFailure)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
+            : Ok(result);
     }
 }

@@ -7,6 +7,7 @@ using SC.Application.MediatR.Session.DeleteSession;
 using SC.Application.MediatR.Session.GetAllSessions;
 using SC.Application.MediatR.Session.GetSessionById;
 using SC.Application.MediatR.Session.GetSessionCalendar;
+using SC.Application.MediatR.Session.GetSessionDishQuantities;
 using SC.Application.MediatR.Session.UpdateSession;
 using SC.Application.MediatR.Session.FinalizeSession;
 using SC.Application.MediatR.Session.FinalizeSessionNow;
@@ -138,6 +139,27 @@ public class SessionsController(IMediator mediator) : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Manager view of how much of each dish is currently on order for a session.
+    /// Returns one row per dish (session menu plus any dish ordered before it was
+    /// removed from the menu) with the quantity still to be served — cancelled and
+    /// expired orders and refunded line items are excluded.
+    /// </summary>
+    /// <param name="id">Session ID</param>
+    /// <returns>Dish IDs with their current ordered quantity</returns>
+    [HttpGet("{id:guid}/dish-quantities")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetSessionDishQuantities(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSessionDishQuantitiesQuery(id), cancellationToken);
+
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
+            : Ok(result);
     }
 
     /// <summary>

@@ -113,12 +113,9 @@ public class DishesController(IMediator mediator, ICloundinaryUpload cloudinaryU
 
         var result = await mediator.Send(command);
 
-        if (result.IsFailure)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
+            : Ok(result);
     }
 
     [HttpDelete("{id:guid}")]
@@ -126,11 +123,8 @@ public class DishesController(IMediator mediator, ICloundinaryUpload cloudinaryU
     {
         var result = await mediator.Send(new DeleteDishCommand(id));
 
-        if (result.IsFailure)
-        {
-            return NotFound(result);
-        }
-
-        return Ok(result);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status404NotFound, result)
+            : Ok(result);
     }
 }

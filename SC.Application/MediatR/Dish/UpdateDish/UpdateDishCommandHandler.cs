@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using SC.Application.MediatR.Session;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
@@ -7,12 +8,14 @@ using SC.Domain.Domain.Dish.AggregateRoot;
 using SC.Domain.SharedKernel.ValueObjects;
 using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
+using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
 namespace SC.Application.MediatR.Dish.UpdateDish;
 
 internal class UpdateDishCommandHandler(
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<UpdateDishCommandHandler> logger
@@ -34,6 +37,16 @@ internal class UpdateDishCommandHandler(
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<UpdateDishResponse>(Error.NullValue, "Category not found.");
+            }
+
+            var blockingSessions = await CurrentSessionUsage.FindSessionNamesUsingDishAsync(
+                sessionRepository, request.Id, cancellationToken);
+            if (blockingSessions.Count > 0)
+            {
+                return Result.Failure<UpdateDishResponse>(
+                    Error.ResourceBusy,
+                    "Cannot update a dish that belongs to a current session.",
+                    CurrentSessionUsage.Describe(blockingSessions));
             }
 
             dish.Update(
