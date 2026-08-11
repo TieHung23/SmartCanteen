@@ -27,10 +27,12 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
             : Ok(result);
     }
 
+    /// <param name="sessionId">Lọc lane theo ca; bỏ trống thì trả lane của mọi ca.</param>
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
+    public async Task<IActionResult> GetById(
+        [FromRoute] Guid id, [FromQuery] Guid? sessionId, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetRobotArmDetailQuery(id), ct);
+        var result = await mediator.Send(new GetRobotArmDetailQuery(id, sessionId), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);
