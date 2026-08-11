@@ -29,9 +29,12 @@ internal sealed class GetRobotArmDetailQueryHandler(
                     Error.RobotArmNotFound, "Robot arm was not found.");
             }
 
-            // Các lane tay này phục vụ (mọi ca), kèm tên món cho FE đọc thay vì Guid.
+            // Các lane tay này phục vụ (lọc theo ca nếu có SessionId), kèm tên món cho FE đọc thay vì Guid.
+            var sessionId = request.SessionId;
             var configs = await slotConfigurationRepository.FindListAsync(
-                x => x.RobotArmId == arm.Id && !x.IsDeleted, cancellationToken);
+                x => x.RobotArmId == arm.Id && !x.IsDeleted
+                     && (sessionId == null || x.SessionId == sessionId),
+                cancellationToken);
 
             var dishIds = configs.Select(x => x.DishId).Distinct().ToList();
             var dishes = dishIds.Count == 0

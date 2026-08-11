@@ -2,8 +2,9 @@ using SC.Contract.Abstraction.Message;
 
 namespace SC.Application.MediatR.RobotArm.GetRobotArmDetail;
 
-/// <summary>Chi tiết 1 tay máy: thông tin + các lane (món↔lane) mà tay này phục vụ (mọi ca).</summary>
-public sealed record GetRobotArmDetailQuery(Guid Id) : IQuery<GetRobotArmDetailResponse>;
+/// <summary>Chi tiết 1 tay máy: thông tin + các lane (món↔lane) mà tay này phục vụ.
+/// Mặc định lấy mọi ca; truyền SessionId để chỉ lấy lane của ca đó.</summary>
+public sealed record GetRobotArmDetailQuery(Guid Id, Guid? SessionId = null) : IQuery<GetRobotArmDetailResponse>;
 
 public sealed record ArmLaneDto(
     Guid SlotConfigurationId,
