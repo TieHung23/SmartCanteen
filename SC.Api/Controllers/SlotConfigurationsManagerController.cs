@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.SlotConfigurationAdmin.CreateSlotConfiguration;
 using SC.Application.MediatR.SlotConfigurationAdmin.DeleteSlotConfiguration;
 using SC.Application.MediatR.SlotConfigurationAdmin.GetSlotConfigurations;
+using SC.Application.MediatR.SlotConfigurationAdmin.GetSlotConfigurationDetail;
 using SC.Application.MediatR.SlotConfigurationAdmin.UpdateSlotConfiguration;
 
 namespace SC.Api.Controllers;
@@ -20,6 +21,15 @@ public class SlotConfigurationsManagerController(IMediator mediator) : Controlle
     public async Task<IActionResult> GetBySession([FromQuery] Guid sessionId, CancellationToken ct)
     {
         var result = await mediator.Send(new GetSlotConfigurationsQuery(sessionId), ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetSlotConfigurationDetailQuery(id), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);

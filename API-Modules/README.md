@@ -12,6 +12,7 @@ Currency: **Point**
 | Category | [`category-api.md`](category-api.md) | `/api/categories` |
 | Dish | [`dish-api.md`](dish-api.md) | `/api/dishes` |
 | Session | [`session-api.md`](session-api.md) | `/api/sessions` |
+| Finalize Session (Start Serving Now) — demo | [`finalize-session-now-api.md`](finalize-session-now-api.md) | `/api/sessions/{id}/finalize-now` |
 | Order | [`order-api.md`](order-api.md) | `/api/orders` |
 | Payment / Wallet | [`payment-api.md`](payment-api.md) | `/api/payments` |
 | Wallet Transactions | — (in `payment-api.md` above) | `/api/wallet-transactions` |

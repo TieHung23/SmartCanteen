@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Notification;
 using SC.Contract.Services.Robot;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -24,6 +26,9 @@ internal sealed class AssignPickupSlotCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     IServingJobNotifier servingJobNotifier,
+    IServingVisualizer servingVisualizer,
+    IBusinessNotificationService businessNotificationService,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<AssignPickupSlotCommandHandler> logger
 ) : ICommandHandler<AssignPickupSlotCommand, AssignPickupSlotResponse>
 {
@@ -80,6 +85,7 @@ internal sealed class AssignPickupSlotCommandHandler(
             servingJobRepository.Update(job);
 
             var order = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
+            bool becameReady = false;
             if (order is not null && order.Status != OrderStatus.ReadyForPickup)
             {
                 var from = order.Status;
@@ -88,9 +94,37 @@ internal sealed class AssignPickupSlotCommandHandler(
                 await orderStatusHistoryRepository.AddAsync(
                     OrderStatusHistoryEntity.Create(order.Id, from, OrderStatus.ReadyForPickup, actorId, "AssignedToPickupSlot"),
                     cancellationToken);
+                becameReady = true;
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Báo Học Sinh (chủ đơn): món đã lên kệ, mời tới lấy. Best-effort — notify lỗi KHÔNG làm hỏng assign.
+            if (becameReady && order is not null)
+            {
+                try
+                {
+                    await businessNotificationService.NotifyAsync(
+                        NotificationTemplateKeys.OrderReadyForPickup,
+                        order.CreatedBy,
+                        order.Id,
+                        new Dictionary<string, string>
+                        {
+                            ["referenceId"] = order.Id.ToString(),
+                            ["slotCode"] = slot.Code
+                        },
+                        new { OrderId = order.Id, SlotCode = slot.Code },
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to notify student of ready-for-pickup for order {OrderId}", request.OrderId);
+                }
+
+                // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+                await orderStatusNotifier.BroadcastAsync(
+                    request.OrderId, order.CreatedBy, (int)OrderStatus.ReadyForPickup, "ReadyForPickup", cancellationToken);
+            }
 
             // Khay vừa Release về pool -> ping đánh thức robot phục vụ đơn đang chờ khay (best-effort).
             try
@@ -101,6 +135,15 @@ internal sealed class AssignPickupSlotCommandHandler(
             {
                 logger.LogError(ex, "Failed to ping robots after freeing tray (slot {SlotCode})", request.SlotCode);
             }
+
+            // Unity: khay đã lên ô kệ -> animate khay chạy ra ô nhận. Best-effort.
+            await servingVisualizer.PublishAsync(
+                new ServingVisualEvent(
+                    "pickupAssigned", request.OrderId,
+                    JobId: job.Id,
+                    PickupSlotCode: slot.Code,
+                    TrayCode: tray.Code),
+                cancellationToken);
 
             return Result.Success(
                 new AssignPickupSlotResponse(slot.Id, slot.Code, request.OrderId, tray.Id),

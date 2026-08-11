@@ -105,6 +105,33 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
         FinalizedAtUtc = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>
+    /// Demo/ops helper: pulls the serving window's start forward to now so queued
+    /// serving jobs become eligible for robot pickup immediately instead of waiting
+    /// for the originally scheduled AvailableFrom. No-op if serving already started.
+    /// </summary>
+    public void StartServingNow(Guid updatedBy)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (AvailableFrom > now)
+        {
+            AvailableFrom = now;
+            Touch(updatedBy);
+        }
+    }
+
+    /// <summary>
+    /// Marks the session inactive once its serving window has closed, so it stops showing up as an
+    /// operating session (listings, "is this session still running" checks) even though the time
+    /// window alone already blocks new orders/robot pulls. No-op if already inactive.
+    /// </summary>
+    public void MarkInactive(Guid updatedBy)
+    {
+        if (!IsActive) return;
+        IsActive = false;
+        Touch(updatedBy);
+    }
+
     public void AddSessionDish(SessionDish sessionDish)
     {
         _sessionDishes.Add(sessionDish);

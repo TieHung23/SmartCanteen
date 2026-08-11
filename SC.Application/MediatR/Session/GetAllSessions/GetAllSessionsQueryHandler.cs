@@ -49,7 +49,7 @@ internal class GetAllSessionsQueryHandler(
 
             var skipCount = request.GetSkipCount();
             var paginatedSessions = filteredList
-                .OrderBy(x => x.Name)
+                .OrderByDescending(x => x.CreatedAtUtc)
                 .Skip(skipCount)
                 .Take(request.PageSize)
                 .ToList();
@@ -116,6 +116,7 @@ internal class GetAllSessionsQueryHandler(
                             }).ToList()
                     }).ToList(),
                 Dishes = m.SessionDishes
+                    .Where(x => dishMap.ContainsKey(x.DishId))
                     .Select(dm =>
                     {
                         var dish = dishMap.GetValueOrDefault(dm.DishId);

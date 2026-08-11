@@ -27,6 +27,9 @@ public class FinalizeSessionService(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
+    IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
+    IRefundAutoCreditService refundAutoCreditService,
     IBusinessNotificationService businessNotificationService,
     ILogger<FinalizeSessionService> logger) : IFinalizeSessionService
 {
@@ -37,9 +40,12 @@ public class FinalizeSessionService(
     private const string RefundPolicyRequiresImageCode = "REQUIRES_IMAGE";
     private const string ChangeProposalGroup = "CHANGE_PROPOSAL";
     private const string ChangeProposalRefundScope = "REFUND";
+    private const string ChangeProposalResponseScope = "RESPONSE";
     private const string ChangeProposalOrderRefundPolicyCode = "ORDER_REFUND_POLICY_CODE";
+    private const string ChangeProposalResponseWindowMinutesCode = "RESPONSE_WINDOW_MINUTES";
+    private const int DefaultChangeProposalResponseWindowMinutes = 30;
 
-    public async Task<Result> FinalizeAsync(Guid sessionId, List<(Guid DishId, int PreparedQuantity, Guid? SuggestedDishId)> preparedDishes, Guid managerId, CancellationToken cancellationToken = default)
+    public async Task<Result> FinalizeAsync(Guid sessionId, List<(Guid DishId, int PreparedQuantity, Guid? SuggestedDishId)> preparedDishes, Guid managerId, CancellationToken cancellationToken = default, bool startServingNow = false)
     {
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == sessionId && !s.IsDeleted,
@@ -65,6 +71,28 @@ public class FinalizeSessionService(
         catch (InvalidOperationException ex)
         {
             return Result.Failure(Error.InvalidValue, ex.Message);
+        }
+
+        if (startServingNow)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            if (session.AvailableTo <= now)
+                return Result.Failure(Error.InvalidValue, "Session's available window has already ended; cannot start serving now.");
+
+            // Pulling AvailableFrom to now widens this session's window to [now, session.AvailableTo].
+            // Check that widened window against every other session's *full* window (not just "is it
+            // active right now") - otherwise a session that hasn't started yet but falls inside the
+            // widened window would slip through and end up overlapping once it does start.
+            var hasOverlappingSession = await sessionRepository.ExistsAsync(
+                x => !x.IsDeleted
+                     && x.Id != session.Id
+                     && x.AvailableFrom < session.AvailableTo
+                     && now < x.AvailableTo,
+                cancellationToken);
+
+            if (hasOverlappingSession)
+                return Result.Failure(Error.InvalidValue, "This session's serving window would overlap with another session; sessions are not allowed to overlap.");
         }
 
         foreach (var input in preparedDishes)
@@ -107,6 +135,8 @@ public class FinalizeSessionService(
         var dishMap = dishes.ToDictionary(d => d.Id);
         var dishCategoryByDish = dishMap.ToDictionary(d => d.Key, d => d.Value.CategoryId);
         var pendingNotifications = new List<ChangeProposalNotification>();
+        var proposalExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(
+            await GetChangeProposalResponseWindowMinutesAsync(cancellationToken));
 
         var suggestedDishValidation = ValidateSuggestedDishes(
             session,
@@ -144,17 +174,42 @@ public class FinalizeSessionService(
                         item.DishId,
                         suggestedDishByDish.GetValueOrDefault(item.DishId),
                         requiredCategoryId.HasValue,
-                        requiredCategoryId);
+                        requiredCategoryId,
+                        proposalExpiresAtUtc);
 
                     await proposalRepository.AddAsync(proposal, cancellationToken);
                     pendingNotifications.Add(CreateNotification(order, item.DishId, proposal, dishMap));
                 }
             }
 
+            // Same safety net as AutoConfirmAll: Order.Status is normally driven by the robot/pickup
+            // pipeline (set to Preparing by CreateServingJob right when the order is created), not by
+            // finalize. That call is best-effort - if it silently failed, the order would be stuck at
+            // Pending forever with no serving job and no other path back, even though its items just
+            // got confirmed/change-pending here. Applies regardless of the per-item outcome, since the
+            // order is now actively being handled either way.
+            if (order.Status == OrderStatus.Pending)
+            {
+                var fromStatus = order.Status;
+                order.UpdateStatus(OrderStatus.Preparing, managerId);
+                await orderStatusHistoryRepository.AddAsync(
+                    OrderStatusHistoryEntity.Create(
+                        order.Id,
+                        fromStatus,
+                        OrderStatus.Preparing,
+                        managerId,
+                        "FinalizeConfirm",
+                        "Session finalized; order was still Pending so it was moved to Preparing."),
+                    cancellationToken);
+            }
+
             orderRepository.Update(order);
         }
 
         session.Finalize(managerId);
+
+        if (startServingNow)
+            session.StartServingNow(managerId);
 
         await context.SaveChangesAsync(cancellationToken);
 
@@ -330,6 +385,27 @@ public class FinalizeSessionService(
         return setting is { IsRequired: true } ? categoryId : null;
     }
 
+    private async Task<int> GetChangeProposalResponseWindowMinutesAsync(
+        CancellationToken cancellationToken)
+    {
+        var setting = await settingRepository.FindSingleAsync(
+            setting =>
+                !setting.IsDeleted
+                && setting.Group.ToUpper() == ChangeProposalGroup
+                && setting.Scope.ToUpper() == ChangeProposalResponseScope
+                && setting.Code.ToUpper() == ChangeProposalResponseWindowMinutesCode,
+            cancellationToken);
+
+        if (setting is null
+            || !int.TryParse(setting.Value, out var minutes)
+            || minutes <= 0)
+        {
+            return DefaultChangeProposalResponseWindowMinutes;
+        }
+
+        return minutes;
+    }
+
     public async Task AutoFinalizeOverdueSessionsAsync(CancellationToken cancellationToken = default)
     {
         var overdueSessions = await sessionRepository.FindListAsync(
@@ -357,7 +433,7 @@ public class FinalizeSessionService(
                 }
                 else if (session.AutoFinalizePolicy == AutoFinalizePolicy.AutoConfirmAll)
                 {
-                    AutoConfirmAllSession(session, orders, pendingNotifications);
+                    await AutoConfirmAllSession(session, orders, pendingNotifications, cancellationToken);
                 }
 
                 session.AutoFinalize();
@@ -401,48 +477,76 @@ public class FinalizeSessionService(
     {
         foreach (var order in orders)
         {
-            foreach (var item in order.OrderItems)
+            try
             {
-                if (item.ItemStatus is OrderItemStatus.Pending or OrderItemStatus.ChangePending)
-                {
-                    item.RefundItem();
-                }
+                await AutoRejectOrderAsync(order, session.Id, refundPolicy, pendingNotifications, cancellationToken);
             }
-
-            var fromStatus = order.Status;
-            if (fromStatus != OrderStatus.Cancelled)
+            catch (Exception ex)
             {
-                order.UpdateStatus(OrderStatus.Cancelled, order.CreatedBy);
-                await orderStatusHistoryRepository.AddAsync(
-                    OrderStatusHistoryEntity.Create(
-                        order.Id,
-                        fromStatus,
-                        OrderStatus.Cancelled,
-                        order.CreatedBy,
-                        "AutoFinalizeReject",
-                        "Session finalization deadline passed."),
-                    cancellationToken);
+                await unitOfWork.RollbackAsync(cancellationToken);
+                logger.LogError(
+                    ex,
+                    "Failed to auto-reject order {OrderId} for session {SessionId}",
+                    order.Id,
+                    session.Id);
             }
-
-            if (order.WalletTransactionId.HasValue)
-            {
-                await CreateAutoRejectRefundRequestIfNeededAsync(
-                    order,
-                    session.Id,
-                    refundPolicy,
-                    pendingNotifications,
-                    cancellationToken);
-            }
-            else
-            {
-                pendingNotifications.Add(CreateAutoRejectCancelledNotification(order, session.Id));
-            }
-
-            orderRepository.Update(order);
         }
     }
 
-    private async Task CreateAutoRejectRefundRequestIfNeededAsync(
+    private async Task AutoRejectOrderAsync(
+        Order order,
+        Guid sessionId,
+        AutoOrderRefundPolicy refundPolicy,
+        ICollection<AutoFinalizeNotification> pendingNotifications,
+        CancellationToken cancellationToken)
+    {
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
+
+        foreach (var item in order.OrderItems)
+        {
+            if (item.ItemStatus is OrderItemStatus.Pending or OrderItemStatus.ChangePending)
+            {
+                item.RefundItem();
+            }
+        }
+
+        var fromStatus = order.Status;
+        if (fromStatus != OrderStatus.Cancelled)
+        {
+            order.UpdateStatus(OrderStatus.Cancelled, order.CreatedBy);
+            await orderStatusHistoryRepository.AddAsync(
+                OrderStatusHistoryEntity.Create(
+                    order.Id,
+                    fromStatus,
+                    OrderStatus.Cancelled,
+                    order.CreatedBy,
+                    "AutoFinalizeReject",
+                    "Session finalization deadline passed."),
+                cancellationToken);
+        }
+
+        orderRepository.Update(order);
+
+        if (order.WalletTransactionId.HasValue)
+        {
+            await CreateAndCreditAutoRejectRefundIfNeededAsync(
+                order,
+                sessionId,
+                refundPolicy,
+                pendingNotifications,
+                cancellationToken);
+        }
+        else
+        {
+            pendingNotifications.Add(CreateAutoRejectCancelledNotification(order, sessionId));
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.CommitAsync(cancellationToken);
+    }
+
+    private async Task CreateAndCreditAutoRejectRefundIfNeededAsync(
         Order order,
         Guid sessionId,
         AutoOrderRefundPolicy refundPolicy,
@@ -480,13 +584,22 @@ public class FinalizeSessionService(
             $"Automatic full order refund because session {sessionId} was not finalized before deadline.");
 
         await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+        var creditResult = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+        if (creditResult.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"Failed to auto-credit refund for order {order.Id}: {creditResult.Message}");
+        }
+
         pendingNotifications.Add(CreateAutoRejectRefundNotification(order, sessionId, refundRequest));
     }
 
-    private static void AutoConfirmAllSession(
+    private async Task AutoConfirmAllSession(
         Session session,
         IReadOnlyCollection<Order> orders,
-        ICollection<AutoFinalizeNotification> pendingNotifications)
+        ICollection<AutoFinalizeNotification> pendingNotifications,
+        CancellationToken cancellationToken)
     {
         var totalOrderedByDish = orders
             .SelectMany(order => order.OrderItems)
@@ -508,6 +621,28 @@ public class FinalizeSessionService(
                 }
             }
 
+            // Order.Status is normally driven by the robot/pickup pipeline (set to Preparing by
+            // CreateServingJob right when the order is created), not by finalize. But that call is
+            // best-effort - if it silently failed, the order would be stuck at Pending forever with
+            // no serving job and no other path back. Auto-confirming its items without ever moving it
+            // out of Pending here would leave it permanently invisible to robots despite being paid
+            // for, so bring it into Preparing as a fallback whenever it's still Pending at this point.
+            if (order.Status == OrderStatus.Pending)
+            {
+                var fromStatus = order.Status;
+                order.UpdateStatus(OrderStatus.Preparing, order.CreatedBy);
+                await orderStatusHistoryRepository.AddAsync(
+                    OrderStatusHistoryEntity.Create(
+                        order.Id,
+                        fromStatus,
+                        OrderStatus.Preparing,
+                        order.CreatedBy,
+                        "AutoFinalizeConfirm",
+                        "Session auto-finalized with AutoConfirmAll; order was still Pending so it was moved to Preparing."),
+                    cancellationToken);
+            }
+
+            orderRepository.Update(order);
             pendingNotifications.Add(CreateAutoConfirmAllNotification(order, session.Id));
         }
     }

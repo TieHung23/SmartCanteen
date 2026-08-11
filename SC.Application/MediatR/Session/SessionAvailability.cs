@@ -8,6 +8,7 @@ internal static class SessionAvailability
     {
         return !session.IsDeleted
                && session.IsActive
+               && !session.IsFinalized
                && now >= session.AvailableForOrder
                && now <= session.AvailableTo;
     }

@@ -1,34 +1,34 @@
 # Frontend Integration: Session Finalization & Change Proposals
 
-> Hướng dẫn tích hợp tính năng Manager chốt đơn và user xử lý đề xuất đổi/refund món.
+> Integration guide for the Manager order-finalization feature and how users handle dish swap/refund proposals.
 
 ---
 
-## 1. Luồng tổng quan
+## 1. Overall Flow
 
 ```
-User đặt món tự do (không giới hạn số lượng)
+User orders freely (no quantity limit)
       │
       ▼
-Manager chốt số lượng (trước FinalizationDeadline)
+Manager finalizes quantities (before FinalizationDeadline)
       │
-      ├── Món đủ PreparedQuantity ≥ ordered → Item.Confirmed ✅
-      └── Món không đủ / không nấu → Item.ChangePending + Proposal (WaitingResponse)
+      ├── Dish has enough: PreparedQuantity ≥ ordered → Item.Confirmed ✅
+      └── Dish short / not cooked → Item.ChangePending + Proposal (WaitingResponse)
               │
               ▼
-          User nhận notification (SignalR)
+          User receives a notification (SignalR)
               │
-              ├── Chọn món khác → POST /api/changeproposals/{id}/accept
+              ├── Picks another dish → POST /api/changeproposals/{id}/accept
               │         → Item.Swapped, Proposal.Accepted
               │
-              └── Yêu cầu refund → POST /api/changeproposals/{id}/request-refund
+              └── Requests a refund → POST /api/changeproposals/{id}/request-refund
                         → Item.Refunded, Proposal.RefundRequested
-                        → User tự submit RefundRequest (luồng cũ)
+                        → User submits a RefundRequest themselves (existing flow)
 ```
 
 ---
 
-## 2. API endpoints mới
+## 2. New API endpoints
 
 ### 2.1 Manager: Finalize session
 
@@ -47,7 +47,7 @@ Auth: Manager
 }
 ```
 
-Gửi danh sách tất cả dishId trong session kèm số lượng sẽ nấu (0 nếu không nấu món đó).
+Send the list of every dishId in the session with the quantity that will be cooked (0 if the dish will not be cooked).
 
 ### 2.2 User: Accept change proposal
 
@@ -63,7 +63,7 @@ Auth: User (must own proposal)
 }
 ```
 
-**Lưu ý:** Frontend cần fetch danh sách món của session (khác với món hiện tại) để cho user chọn món thay thế.
+**Note:** The frontend must fetch the session's dish list (excluding the current dish) so the user can pick a replacement.
 
 ### 2.3 User: Request refund from proposal
 
@@ -76,11 +76,11 @@ Auth: User (must own proposal)
 
 ---
 
-## 3. Thay đổi ở response hiện tại
+## 3. Changes to existing responses
 
 ### GET /api/orders/{id}
 
-Mỗi item trong order response trả thêm `itemStatus`:
+Each item in the order response now includes `itemStatus`:
 
 ```json
 {
@@ -98,34 +98,34 @@ Mỗi item trong order response trả thêm `itemStatus`:
 
 ### GET /api/sessions/{id}
 
-Mỗi dish trong session trả thêm `preparedQuantity`:
+Each dish in the session now includes `preparedQuantity`:
 
 ```json
 {
   "dishes": [
     { "dishId": "guid", "quantity": 1, "preparedQuantity": null }
-    // preparedQuantity: null = chưa chốt, số = số lượng sẽ nấu
+    // preparedQuantity: null = not finalized yet, number = quantity to be cooked
   ]
 }
 ```
 
-Tương tự cho `GET /api/sessions` (list), dish cũng trả `preparedQuantity`.
+The same applies to `GET /api/sessions` (list): each dish also returns `preparedQuantity`.
 
 ---
 
 ## 4. SignalR Notification
 
-Khi Manager finalize session và có proposal mới, user nhận realtime event qua SignalR hub:
+When the Manager finalizes a session and new proposals are created, the user receives a real-time event via the SignalR hub:
 
-**Event name:** (configured, mặc định `ReceiveNotification`)
+**Event name:** (configured, default `ReceiveNotification`)
 
-**Payload khi có proposal mới:**
+**Payload when a new proposal is created:**
 ```json
 {
   "id": "guid",
   "type": "change_proposal",
-  "title": "Món đã chọn không còn khả dụng",
-  "message": "Món 'Cơm gà' trong đơn #12345 không đủ số lượng. Vui lòng chọn món khác hoặc yêu cầu hoàn tiền.",
+  "title": "Selected dish is no longer available",
+  "message": "The dish 'Chicken rice' in order #12345 is under-supplied. Please pick another dish or request a refund.",
   "referenceType": "ChangeProposal",
   "referenceId": "proposal-guid",
   "actionUrl": "/orders/order-guid/change-proposal/proposal-guid",
@@ -133,7 +133,7 @@ Khi Manager finalize session và có proposal mới, user nhận realtime event 
     "orderId": "guid",
     "proposalId": "guid",
     "currentDishId": "guid",
-    "currentDishName": "Cơm gà",
+    "currentDishName": "Chicken rice",
     "suggestedDishId": null
   },
   "createdAtUtc": "2024-01-01T00:00:00Z"
@@ -142,100 +142,101 @@ Khi Manager finalize session và có proposal mới, user nhận realtime event 
 
 ---
 
-## 5. UI/UX gợi ý
+## 5. Suggested UI/UX
 
-### Màn hình Manager (chốt đơn)
+### Manager screen (finalize orders)
 
-Trong form edit session hoặc màn hình chi tiết session, thêm section:
+In the session edit form or session detail screen, add a section:
 
 ```
 ┌─────────────────────────────────────────┐
-│  📋 Chốt số lượng món cho phiên ăn      │
+│  📋 Finalize dish quantities            │
 │  Deadline: 30/06/2026 10:00             │
 │                                         │
-│  Món                    SL đặt │ SL nấu │
+│  Dish                Ordered │ To cook  │
 │  ─────────────────────────────────────  │
-│  🥘 Cơm gà                  45 │ [50]  │
-│  🥘 Cơm sườn                30 │ [30]  │
-│  🥘 Canh chua                20 │ [0]   │ ❗không nấu
+│  🥘 Chicken rice          45 │ [50]    │
+│  🥘 Pork-chop rice        30 │ [30]    │
+│  🥘 Sour soup             20 │ [0]     │ ❗not cooked
 │                                         │
-│  [  Xác nhận chốt đơn  ]               │
+│  [  Confirm finalization  ]             │
 │                                         │
-│  ⚠ Còn 10s để chốt                     │
+│  ⚠ 10s left to finalize                │
 └─────────────────────────────────────────┘
 ```
 
-- Ô "SL nấu" mặc định điền = SL đặt (có thể sửa)
-- Nếu set = 0: món đó không được nấu, tất cả user đặt món này sẽ nhận proposal
-- Nếu set < SL đặt nhưng > 0: user nào đặt món này cũng nhận proposal
+- The "To cook" field defaults to the ordered quantity (editable)
+- If set to 0: the dish will not be cooked and every user who ordered it receives a proposal
+- If set below the ordered quantity but above 0: users who ordered this dish also receive proposals
 
-### Màn hình User (xử lý proposal)
+### User screen (handle proposal)
 
-Popup hoặc page khi user nhận notification:
+Popup or page when the user receives the notification:
 
 ```
 ┌─────────────────────────────────────┐
-│  ⚠ Món không đủ số lượng            │
+│  ⚠ Dish is under-supplied           │
 │                                     │
-│  Món "Cơm gà" trong đơn #12345     │
-│  không đủ số lượng cho hôm nay.    │
+│  The dish "Chicken rice" in order   │
+│  #12345 is short for today.         │
 │                                     │
-│  Bạn muốn:                         │
+│  You can:                           │
 │                                     │
-│  [🔄 Đổi món khác]                  │
-│     → Chọn từ danh sách món        │
-│       (Cơm sườn, Cơm chiên, ...)   │
+│  [🔄 Swap to another dish]          │
+│     → Pick from the dish list       │
+│       (Pork-chop rice, Fried rice)  │
 │                                     │
-│  [💰 Hoàn tiền món này]             │
-│     → Số tiền sẽ được hoàn vào ví   │
+│  [💰 Refund this item]              │
+│     → The amount is refunded to     │
+│       your wallet                   │
 │                                     │
-│  [❌ Bỏ qua] (nhắc sau)             │
+│  [❌ Dismiss] (remind later)        │
 └─────────────────────────────────────┘
 ```
 
-### Badge trên OrderItem
+### Badge on OrderItem
 
-Trong danh sách đơn hàng của user, mỗi item có thể hiển thị trạng thái:
+In the user's order list, each item can show its status:
 
-| ItemStatus | Hiển thị |
-|-----------|----------|
-| 0 Pending | ✅ Đang xử lý |
-| 1 Confirmed | ✅ Xác nhận |
-| 2 ChangePending | ⚠️ Cần xử lý (màu vàng, kèm nút) |
-| 3 Swapped | 🔄 Đã đổi món |
-| 4 Refunded | 💰 Đã hoàn tiền |
+| ItemStatus | Display |
+|-----------|---------|
+| 0 Pending | ✅ Processing |
+| 1 Confirmed | ✅ Confirmed |
+| 2 ChangePending | ⚠️ Action needed (yellow, with a button) |
+| 3 Swapped | 🔄 Swapped |
+| 4 Refunded | 💰 Refunded |
 
 ---
 
-## 6. Sequence cho FE
+## 6. FE sequence
 
 ```
-1. User vào trang order detail
+1. User opens the order detail page
    → GET /api/orders/{id}
-   → Kiểm tra items[].itemStatus
-   → Nếu có ChangePending → hiển thị warning + nút action
+   → Check items[].itemStatus
+   → If any ChangePending → show a warning + action button
 
-2. User nhận SignalR notification type "change_proposal"
-   → Fetch proposal detail (hoặc đọc từ metadata)
-   → Hiển thị popup/dialog
+2. User receives a SignalR notification of type "change_proposal"
+   → Fetch the proposal detail (or read from metadata)
+   → Show a popup/dialog
 
-3. User chọn "Đổi món"
-   → GET /api/sessions/{sessionId} (lấy danh sách món)
-   → User chọn món thay thế
+3. User picks "Swap dish"
+   → GET /api/sessions/{sessionId} (get the dish list)
+   → User picks a replacement dish
    → POST /api/changeproposals/{proposalId}/accept { newDishId }
    → Refresh order detail → itemStatus = 3 (Swapped)
 
-4. User chọn "Hoàn tiền"
+4. User picks "Refund"
    → POST /api/changeproposals/{proposalId}/request-refund
    → Refresh order detail → itemStatus = 4 (Refunded)
-   → User vào Refund page → submit RefundRequest (luồng cũ)
+   → User goes to the Refund page → submits a RefundRequest (existing flow)
 ```
 
 ---
 
-## 7. Session fields mới
+## 7. New session fields
 
-Khi tạo/update session, có thể thêm `finalizationDeadline` và `autoFinalizePolicy`:
+When creating/updating a session, `finalizationDeadline` and `autoFinalizePolicy` can be provided:
 
 ```json
 {
@@ -253,7 +254,7 @@ Khi tạo/update session, có thể thêm `finalizationDeadline` và `autoFinali
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `finalizationDeadline` | DateTimeOffset (nullable) | Hạn chót Manager phải chốt đơn |
-| `autoFinalizePolicy` | int | `0` = AutoReject (hủy hết), `1` = AutoConfirmAll (xác nhận tất cả, tạo proposals) |
+| `finalizationDeadline` | DateTimeOffset (nullable) | Deadline by which the Manager must finalize orders |
+| `autoFinalizePolicy` | int | `0` = AutoReject (cancel everything), `1` = AutoConfirmAll (confirm all, create proposals) |
 
-Nếu không set deadline thì session không có finalization (giữ nguyên luồng cũ).
+If no deadline is set, the session has no finalization step (the previous flow applies unchanged).

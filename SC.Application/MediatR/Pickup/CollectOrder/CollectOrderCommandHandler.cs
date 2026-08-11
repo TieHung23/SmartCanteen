@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Notification;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -20,6 +22,9 @@ internal sealed class CollectOrderCommandHandler(
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IServingVisualizer servingVisualizer,
+    IServingFailureNotifier servingFailureNotifier,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<CollectOrderCommandHandler> logger
 ) : ICommandHandler<CollectOrderCommand, CollectOrderResponse>
 {
@@ -71,6 +76,39 @@ internal sealed class CollectOrderCommandHandler(
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Báo Staff: học sinh đã lấy món, ô kệ đã trống. Best-effort.
+            try
+            {
+                await servingFailureNotifier.NotifyAllStaffAsync(
+                    NotificationTemplateKeys.OrderCollectedStaff,
+                    request.OrderId,
+                    new Dictionary<string, string>
+                    {
+                        ["referenceId"] = request.OrderId.ToString(),
+                        ["orderId"] = request.OrderId.ToString(),
+                        ["slotCode"] = slotCode ?? "?"
+                    },
+                    new { OrderId = request.OrderId, SlotCode = slotCode },
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to notify staff of collected order {OrderId}", request.OrderId);
+            }
+
+            // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+            if (order is not null)
+                await orderStatusNotifier.BroadcastAsync(
+                    request.OrderId, order.CreatedBy, (int)OrderStatus.Completed, "Completed", cancellationToken);
+
+            // Unity: khách đã lấy -> avatar học sinh nhận đồ, ô nhận mở/dọn. Best-effort.
+            await servingVisualizer.PublishAsync(
+                new ServingVisualEvent(
+                    "collected", request.OrderId,
+                    JobId: job.Id,
+                    PickupSlotCode: slotCode),
+                cancellationToken);
 
             return Result.Success(
                 new CollectOrderResponse(request.OrderId, slotCode),

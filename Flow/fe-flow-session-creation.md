@@ -1,15 +1,15 @@
-# Flow: Manager tạo Session
+# Flow: Manager Creates a Session
 
-> Hướng dẫn FE tích hợp luồng Manager tạo phiên ăn mới.
+> FE integration guide for the flow where a Manager creates a new meal session.
 
 ---
 
-## 1. Tổng quan
+## 1. Overview
 
-Manager tạo một session (phiên ăn) gồm:
-- Thông tin cơ bản: tên, mô tả, thời gian
-- Danh sách món ăn (Dish) có trong phiên
-- Các MealTemplate (mẫu suất ăn) với cấu hình danh mục
+The Manager creates a session consisting of:
+- Basic info: name, description, time window
+- The list of dishes available in the session
+- MealTemplates (meal plate templates) with per-category configuration
 
 ---
 
@@ -22,23 +22,24 @@ Manager (FE)                    Backend                      DB
     │  GET /api/dishes               │                        │
     │───────────────────────────────>│                        │
     │<───────────────────────────────│                        │
-    │  Danh sách món + categories    │                        │
+    │  Dish list + categories        │                        │
     │                               │                        │
     │  2. Fetch categories           │                        │
     │  GET /api/categories           │                        │
     │───────────────────────────────>│                        │
     │<───────────────────────────────│                        │
     │                               │                        │
-    │  3. Manager nhập form          │                        │
+    │  3. Manager fills the form     │                        │
   │  ┌──────────────────────────┐    │                        │
-  │  │ Tên: "Buổi trưa T2"      │    │                        │
-  │  │ Giờ mở: 10:00           │    │                        │
-  │  │ Giờ đóng: 13:00         │    │                        │
-  │  │ Món: Cơm gà, Cơm sườn   │    │                        │
-  │  │ Template: Mặc định       │    │                        │
+  │  │ Name: "Monday Lunch"     │    │                        │
+  │  │ Opens: 10:00            │    │                        │
+  │  │ Closes: 13:00           │    │                        │
+  │  │ Dishes: Chicken rice,   │    │                        │
+  │  │         Pork-chop rice  │    │                        │
+  │  │ Template: Default        │    │                        │
   │  └──────────────────────────┘    │                        │
     │                               │                        │
-    │  4. Tạo session                │                        │
+    │  4. Create session             │                        │
     │  POST /api/sessions            │                        │
     │───────────────────────────────>│                        │
     │                               │                        │
@@ -66,14 +67,14 @@ Auth: Authorize
   "items": [
     {
       "id": "guid",
-      "name": "Cơm gà",
-      "description": "Cơm trắng + gà kho",
+      "name": "Chicken rice",
+      "description": "Steamed rice + braised chicken",
       "priceAmount": 25.0,
       "priceCurrency": "Point",
       "isActive": true,
       "imgUrl": "https://res.cloudinary.com/...",
       "categoryId": "guid",
-      "categoryName": "Món chính"
+      "categoryName": "Main dish"
     }
   ]
 }
@@ -92,8 +93,8 @@ Auth: Authorize
   "items": [
     {
       "id": "guid",
-      "name": "Món chính",
-      "description": "Các món ăn chính"
+      "name": "Main dish",
+      "description": "Main dishes"
     }
   ]
 }
@@ -109,8 +110,8 @@ Auth: Authorize (Manager)
 **Request body:**
 ```json
 {
-  "name": "Buổi trưa thứ 2",
-  "description": "Phục vụ sinh viên IT",
+  "name": "Monday Lunch",
+  "description": "Serving IT students",
   "availableFrom": "2026-07-01T10:00:00+07:00",
   "availableTo": "2026-07-01T13:00:00+07:00",
   "availableForOrder": "2026-06-30T22:00:00+07:00",
@@ -118,18 +119,18 @@ Auth: Authorize (Manager)
   "autoFinalizePolicy": 0,
   "mealTemplates": [
     {
-      "name": "Suất chuẩn",
+      "name": "Standard plate",
       "settings": [
-        { "categoryId": "guid-món-chính", "minQuantity": 1, "maxQuantity": 1, "isRequired": true },
-        { "categoryId": "guid-món-phụ", "minQuantity": 0, "maxQuantity": 2, "isRequired": false },
-        { "categoryId": "guid-canhh", "minQuantity": 0, "maxQuantity": 1, "isRequired": false }
+        { "categoryId": "guid-main-dish", "minQuantity": 1, "maxQuantity": 1, "isRequired": true },
+        { "categoryId": "guid-side-dish", "minQuantity": 0, "maxQuantity": 2, "isRequired": false },
+        { "categoryId": "guid-soup", "minQuantity": 0, "maxQuantity": 1, "isRequired": false }
       ]
     }
   ],
   "dishes": [
-    { "dishId": "guid-cơm-gà" },
-    { "dishId": "guid-cơm-sườn" },
-    { "dishId": "guid-canh-chua" }
+    { "dishId": "guid-chicken-rice" },
+    { "dishId": "guid-porkchop-rice" },
+    { "dishId": "guid-sour-soup" }
   ]
 }
 ```
@@ -139,7 +140,7 @@ Auth: Authorize (Manager)
 {
   "value": {
     "id": "guid",
-    "name": "Buổi trưa thứ 2",
+    "name": "Monday Lunch",
     "message": "Session created successfully."
   },
   "isSuccess": true,
@@ -149,73 +150,73 @@ Auth: Authorize (Manager)
 
 ---
 
-## 4. UI/UX gợi ý
+## 4. Suggested UI/UX
 
-### Step 1: Chọn món cho session
+### Step 1: Pick dishes for the session
 
 ```
-┌─── Thêm món vào phiên ──────────────────────────────────┐
-│  Tìm món: [________________]                             │
+┌─── Add dishes to the session ───────────────────────────┐
+│  Search dish: [________________]                         │
 │                                                         │
-│  Danh sách món (từ /api/dishes)                         │
+│  Dish list (from /api/dishes)                           │
 │  ┌────────────────────────────────────────────────┐    │
-│  │ ☐ Cơm gà     25 Point                         │    │
-│  │ ☐ Cơm sườn   30 Point                         │    │
-│  │ ☐ Canh chua  10 Point                         │    │
-│  │ ☐ Rau muống  15 Point                         │    │
+│  │ ☐ Chicken rice    25 Point                     │    │
+│  │ ☐ Pork-chop rice  30 Point                     │    │
+│  │ ☐ Sour soup       10 Point                     │    │
+│  │ ☐ Water spinach   15 Point                     │    │
 │  └────────────────────────────────────────────────┘    │
 │                                                         │
-│  [Thêm món đã chọn vào session]                         │
+│  [Add selected dishes to session]                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Step 2: Cấu hình thông tin cơ bản
+### Step 2: Configure basic info
 
 ```
-┌─── Tạo phiên ăn mới ────────────────────────────────────┐
+┌─── Create a new meal session ───────────────────────────┐
 │                                                         │
-│  Tên phiên:    [Buổi trưa thứ 2            ]            │
-│  Mô tả:        [Phục vụ sinh viên IT       ]            │
+│  Session name: [Monday Lunch               ]            │
+│  Description:  [Serving IT students        ]            │
 │                                                         │
-│  Giờ bắt đầu:  [01/07/2026 10:00]                       │
-│  Giờ kết thúc: [01/07/2026 13:00]                       │
-│  Giờ mở đặt:   [30/06/2026 22:00]                       │
+│  Start time:   [01/07/2026 10:00]                       │
+│  End time:     [01/07/2026 13:00]                       │
+│  Orders open:  [30/06/2026 22:00]                       │
 │                                                         │
-│  ⚙️ Cài đặt chốt đơn (tùy chọn):                        │
-│  Hạn chốt:     [01/07/2026 09:30]                       │
-│  Nếu quá hạn:  ▼ Hủy đơn (AutoReject)                   │
-│                    Xác nhận tất cả (AutoConfirmAll)      │
+│  ⚙️ Finalization settings (optional):                   │
+│  Deadline:     [01/07/2026 09:30]                       │
+│  If missed:    ▼ Cancel orders (AutoReject)             │
+│                    Confirm all (AutoConfirmAll)          │
 │                                                         │
-  │  ──── Các món trong phiên ────                          │
-  │  🥘 Cơm gà                                             │
-  │  🥘 Cơm sườn                                           │
-  │  🥘 Canh chua                                          │
+  │  ──── Dishes in the session ────                        │
+  │  🥘 Chicken rice                                       │
+  │  🥘 Pork-chop rice                                     │
+  │  🥘 Sour soup                                          │
   │                                                         │
-│  ──── Mẫu suất ăn ────                                  │
-│  [+ Thêm mẫu]                                            │
-│  📋 Suất chuẩn:                                          │
-│     Món chính: 1-1 (bắt buộc)                           │
-│     Món phụ: 0-2 (không bắt buộc)                       │
-│     Canh: 0-1 (không bắt buộc)                          │
+│  ──── Meal templates ────                               │
+│  [+ Add template]                                        │
+│  📋 Standard plate:                                      │
+│     Main dish: 1-1 (required)                           │
+│     Side dish: 0-2 (optional)                           │
+│     Soup: 0-1 (optional)                                │
 │                                                         │
-│  [Hủy]                              [Tạo phiên]         │
+│  [Cancel]                        [Create session]       │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Step 3: Sau khi tạo thành công
+### Step 3: After successful creation
 
-- Chuyển hướng đến màn hình chi tiết session vừa tạo
-- Hoặc hiển thị thông báo + nút "Xem session" / "Quản lý phiên"
+- Redirect to the detail screen of the newly created session
+- Or show a toast + "View session" / "Manage sessions" buttons
 
 ```
 ┌─────────────────────────────────────────┐
-│  ✅ Tạo phiên thành công!                │
+│  ✅ Session created successfully!        │
 │                                         │
-│  Tên: Buổi trưa thứ 2                   │
-│  Mã phiên: abc-def-123                  │
-│  Trạng thái: Đang hoạt động             │
+│  Name: Monday Lunch                     │
+│  Session ID: abc-def-123                │
+│  Status: Active                         │
 │                                         │
-│  [Xem chi tiết]  [Quay lại danh sách]   │
+│  [View details]  [Back to list]         │
 └─────────────────────────────────────────┘
 ```
 
@@ -225,15 +226,15 @@ Auth: Authorize (Manager)
 
 | Field | Validation |
 |-------|-----------|
-| `name` | Required, max 200 ký tự |
-| `description` | Required, max 500 ký tự |
-| `availableFrom` | Phải trước `availableTo` |
-| `availableTo` | Phải sau `availableFrom` |
-| `availableForOrder` | Phải trước `availableFrom` (cho phép user đặt trước) |
-| `finalizationDeadline` | Optional; nếu có phải > thời điểm hiện tại |
-| `autoFinalizePolicy` | `0` = AutoReject (hủy đơn), `1` = AutoConfirmAll (xác nhận tất cả) |
-| `dishes` | Phải có ít nhất 1 món |
-| `dishId` | Phải tồn tại và đang active |
+| `name` | Required, max 200 characters |
+| `description` | Required, max 500 characters |
+| `availableFrom` | Must be before `availableTo` |
+| `availableTo` | Must be after `availableFrom` |
+| `availableForOrder` | Must be before `availableFrom` (lets users pre-order) |
+| `finalizationDeadline` | Optional; if provided, must be later than the current time |
+| `autoFinalizePolicy` | `0` = AutoReject (cancel orders), `1` = AutoConfirmAll (confirm all) |
+| `dishes` | Must contain at least 1 dish |
+| `dishId` | Must exist and be active |
 | `mealTemplates[].settings` | `maxQuantity` >= `minQuantity`, `minQuantity` >= 0 |
 
 ---

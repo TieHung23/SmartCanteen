@@ -23,6 +23,8 @@ public static class Configurations
         services.AddScoped<ICartValidationService, CartValidationService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IBusinessNotificationService, BusinessNotificationService>();
+        services.AddScoped<IServingFailureNotifier, ServingFailureNotifier>();
+        services.AddScoped<IOrderStatusNotifier, OrderStatusNotifier>();
 
         return services;
     }

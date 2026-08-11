@@ -1,16 +1,16 @@
-# Flow: Manager duyệt Verification Request
+# Flow: Manager Reviews a Verification Request
 
-> Hướng dẫn FE tích hợp luồng Manager xem xét và duyệt/từ chối yêu cầu xác thực danh tính của User.
+> FE integration guide for the flow where a Manager reviews and approves/rejects a User's identity verification request.
 
 ---
 
-## 1. Tổng quan
+## 1. Overview
 
-User gửi yêu cầu xác thực danh tính (VerificationRequest) kèm ảnh giấy tờ. Manager xem xét và:
-- **Approve:** Xác nhận user là sinh viên hợp lệ
-- **Reject:** Từ chối kèm lý do
+A User submits an identity verification request (VerificationRequest) with document photos. The Manager reviews it and either:
+- **Approve:** Confirms the user is a valid student
+- **Reject:** Declines with a reason
 
-Khi được duyệt, user được gắn claim `verified=true` và có thể sử dụng các tính năng yêu cầu xác thực.
+Once approved, the user is granted the `verified=true` claim and can use features that require verification.
 
 ---
 
@@ -33,13 +33,13 @@ User (FE)                    Manager (FE)                  Backend
     │                              │  GET /api/admin/verif      │
     │                              │───────────────────────────>│
     │                              │<───────────────────────────│
-    │                              │  Danh sách đang chờ       │
+    │                              │  Pending request list     │
     │                              │                            │
-    │                              │  2. Xem chi tiết          │
+    │                              │  2. View details          │
     │                              │  GET /api/admin/verif/{id} │
     │                              │───────────────────────────>│
     │                              │<───────────────────────────│
-    │                              │  Thông tin + documents    │
+    │                              │  Info + documents         │
     │                              │                            │
     │                              │  3a. Approve              │
     │                              │  POST .../approve         │
@@ -49,7 +49,7 @@ User (FE)                    Manager (FE)                  Backend
     │                              │<───────────────────────────│
     │                              │  200 OK                   │
     │                              │                            │
-    │  (User nhận notification)    │                            │
+    │  (User receives notification)│                            │
     │<─────────────────────────────│                            │
     │                              │  3b. Reject               │
     │                              │  POST .../reject          │
@@ -58,7 +58,7 @@ User (FE)                    Manager (FE)                  Backend
     │                              │<───────────────────────────│
     │                              │  200 OK                   │
     │                              │                            │
-    │  (User nhận notification)    │                            │
+    │  (User receives notification)│                            │
     │<─────────────────────────────│                            │
 ```
 
@@ -81,8 +81,8 @@ Query: ?pageNumber=1&pageSize=10
     {
       "id": "guid",
       "userId": "guid",
-      "userEmail": "sinhvien@example.com",
-      "userName": "Nguyễn Văn A",
+      "userEmail": "student@example.com",
+      "userName": "Nguyen Van A",
       "submittedAt": "2026-06-19T14:30:00Z",
       "documentCount": 2
     }
@@ -103,10 +103,10 @@ Auth: Manager
   "value": {
     "id": "guid",
     "userId": "guid",
-    "userEmail": "sinhvien@example.com",
-    "userName": "Nguyễn Văn A",
+    "userEmail": "student@example.com",
+    "userName": "Nguyen Van A",
     "studentId": "SE123456",
-    "majorOrClass": "Khoa học máy tính",
+    "majorOrClass": "Computer Science",
     "dateOfBirth": "2000-01-15",
     "status": 0,
     "submittedAt": "2026-06-19T14:30:00Z",
@@ -119,7 +119,7 @@ Auth: Manager
         "id": "guid",
         "documentType": 0,
         "cloudinaryUrl": "https://res.cloudinary.com/...",
-        "fileName": "the_sinh_vien.jpg",
+        "fileName": "student_card.jpg",
         "fileSize": 245000,
         "mimeType": "image/jpeg",
         "uploadedAt": "2026-06-19T14:30:00Z"
@@ -159,7 +159,7 @@ Auth: Manager
 **Request body:**
 ```json
 {
-  "reason": "Hình ảnh không rõ ràng, vui lòng chụp lại."
+  "reason": "The photo is unclear, please retake it."
 }
 ```
 
@@ -176,85 +176,85 @@ Auth: Manager
 
 ---
 
-## 4. UI/UX gợi ý
+## 4. Suggested UI/UX
 
-### Màn hình danh sách
+### List screen
 
 ```
-┌─── ✅ Duyệt xác thực danh tính ────────────────────────────────────────┐
+┌─── ✅ Identity Verification Review ───────────────────────────────────┐
 │                                                                        │
-│  Bộ lọc: [Tất cả ▼]  Tìm: [______________]                            │
+│  Filter: [All ▼]  Search: [______________]                            │
 │                                                                        │
 │  ┌──────┬──────────────┬──────────────────┬────────────┬──────────────┐│
-│  │      │ User         │ Email            │ Ngày gửi   │ Documents    ││
+│  │      │ User         │ Email            │ Submitted  │ Documents    ││
 │  ├──────┼──────────────┼──────────────────┼────────────┼──────────────┤│
-│  │ 🔴   │ Nguyễn Văn A │ sv1@example.com  │ 19/06/2026 │ 2 ảnh        ││
-│  │ 🔴   │ Trần Thị B   │ sv2@example.com  │ 19/06/2026 │ 1 ảnh        ││
-│  │ 🟢   │ Lê Văn C     │ sv3@example.com  │ 18/06/2026 │ 3 ảnh        ││
+│  │ 🔴   │ Nguyen Van A │ sv1@example.com  │ 19/06/2026 │ 2 photos     ││
+│  │ 🔴   │ Tran Thi B   │ sv2@example.com  │ 19/06/2026 │ 1 photo      ││
+│  │ 🟢   │ Le Van C     │ sv3@example.com  │ 18/06/2026 │ 3 photos     ││
 │  └──────┴──────────────┴──────────────────┴────────────┴──────────────┘│
 │                                                          << < 1 > >>  │
-│  🔴 = Chờ duyệt      🟢 = Đã duyệt       ⚫ = Từ chối                 │
+│  🔴 = Pending        🟢 = Approved       ⚫ = Rejected                │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Màn hình chi tiết + action
+### Detail screen + actions
 
-Khi click vào một item đang chờ:
+When clicking a pending item:
 
 ```
-┌─── 📋 Chi tiết yêu cầu xác thực ─────────────────────────────────────┐
+┌─── 📋 Verification Request Details ──────────────────────────────────┐
 │                                                                       │
-│  Thông tin user                                                       │
+│  User info                                                            │
 │  ─────────────────────────────────────────────────────────────        │
-│  Họ tên:      Nguyễn Văn A                                           │
-│  Email:       sinhvien@example.com                                    │
-│  MSSV:        SE123456                                                │
-│  Lớp:         Khoa học máy tính                                       │
-│  Ngày sinh:   15/01/2000                                              │
-│  Gửi lúc:     19/06/2026 14:30                                        │
-│  Hết hạn:     19/07/2026 14:30                                        │
+│  Full name:   Nguyen Van A                                            │
+│  Email:       student@example.com                                     │
+│  Student ID:  SE123456                                                │
+│  Class:       Computer Science                                        │
+│  Birth date:  15/01/2000                                              │
+│  Submitted:   19/06/2026 14:30                                        │
+│  Expires:     19/07/2026 14:30                                        │
 │                                                                       │
 │  Documents                                                            │
 │  ─────────────────────────────────────────────────────────────        │
 │  ┌────────────────────┐   ┌────────────────────┐                      │
 │  │                    │   │                    │                      │
-│  │  📷 Thẻ sinh viên  │   │  📷 CMND           │                      │
+│  │  📷 Student card   │   │  📷 ID card        │                      │
 │  │                    │   │                    │                      │
-│  │  [Xem toàn màn hình]│   │  [Xem toàn màn hình]│                    │
+│  │  [View fullscreen] │   │  [View fullscreen] │                      │
 │  └────────────────────┘   └────────────────────┘                      │
 │                                                                       │
 │  ─────────────────────────────────────────────────────────────        │
 │                                                                       │
-│  [✅ Duyệt]                    [❌ Từ chối]                           │
+│  [✅ Approve]                  [❌ Reject]                            │
 │                                                                       │
-│  (Khi click Từ chối → hiện modal nhập lý do)                         │
+│  (Clicking Reject → show a modal to enter the reason)                 │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-### Modal từ chối
+### Reject modal
 
 ```
-┌─── Từ chối xác thực ─────────────────────────────────┐
+┌─── Reject verification ──────────────────────────────┐
 │                                                       │
-│  Lý do từ chối:                                       │
+│  Rejection reason:                                    │
 │  ┌─────────────────────────────────────────────────┐ │
-│  │ Hình ảnh không rõ ràng, vui lòng chụp lại.      │ │
+│  │ The photo is unclear, please retake it.         │ │
 │  └─────────────────────────────────────────────────┘ │
 │                                                       │
-│  [Hủy]                            [Xác nhận từ chối] │
+│  [Cancel]                          [Confirm reject]  │
 └───────────────────────────────────────────────────────┘
 ```
 
-### Modal xác nhận duyệt
+### Approve confirmation modal
 
 ```
-┌─── Xác nhận duyệt ────────────────────────────────────┐
+┌─── Confirm approval ──────────────────────────────────┐
 │                                                       │
-│  ✅ Duyệt yêu cầu xác thực của Nguyễn Văn A?          │
+│  ✅ Approve the verification request of Nguyen Van A? │
 │                                                       │
-│  User sẽ được gắn trạng thái "Đã xác thực"            │
+│  The user will be marked as "Verified"                │
 │                                                       │
-│  [Hủy]                              [Xác nhận duyệt] │
+│  [Cancel]                          [Confirm approve] │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -262,46 +262,46 @@ Khi click vào một item đang chờ:
 
 ## 5. Document Types
 
-| Value | Type | Mô tả |
-|-------|------|-------|
-| 0 | `StudentCard` | Thẻ sinh viên |
-| 1 | `Transcript` | Bảng điểm |
-| 2 | `Other` | Giấy tờ khác |
+| Value | Type | Description |
+|-------|------|-------------|
+| 0 | `StudentCard` | Student card |
+| 1 | `Transcript` | Transcript |
+| 2 | `Other` | Other documents |
 
 ---
 
 ## 6. Verification Status
 
-| Value | Status | Màu sắc |
-|-------|--------|---------|
-| 0 | `Pending` | 🔴 Đỏ (chờ duyệt) |
-| 1 | `Approved` | 🟢 Xanh (đã duyệt) |
-| 2 | `Rejected` | ⚫ Đen (từ chối) |
-| 3 | `Expired` | ⚪ Xám (hết hạn) |
+| Value | Status | Color |
+|-------|--------|-------|
+| 0 | `Pending` | 🔴 Red (awaiting review) |
+| 1 | `Approved` | 🟢 Green (approved) |
+| 2 | `Rejected` | ⚫ Black (rejected) |
+| 3 | `Expired` | ⚪ Gray (expired) |
 
 ---
 
-## 7. Notification cho User
+## 7. Notification to the User
 
-Khi manager duyệt hoặc từ chối, user nhận notification:
+When the manager approves or rejects, the user receives a notification:
 
-**Payload approve:**
+**Approve payload:**
 ```json
 {
   "type": "verification_approved",
-  "title": "Xác thực thành công",
-  "message": "Yêu cầu xác thực danh tính của bạn đã được duyệt.",
+  "title": "Verification successful",
+  "message": "Your identity verification request has been approved.",
   "referenceType": "VerificationRequest",
   "referenceId": "guid"
 }
 ```
 
-**Payload reject:**
+**Reject payload:**
 ```json
 {
   "type": "verification_rejected",
-  "title": "Xác thực bị từ chối",
-  "message": "Lý do: Hình ảnh không rõ ràng, vui lòng chụp lại.",
+  "title": "Verification rejected",
+  "message": "Reason: The photo is unclear, please retake it.",
   "referenceType": "VerificationRequest",
   "referenceId": "guid"
 }
@@ -311,11 +311,11 @@ Khi manager duyệt hoặc từ chối, user nhận notification:
 
 ## 8. FE integration checklist
 
-| Bước | Mô tả | API |
-|------|-------|-----|
-| 1 | Hiển thị badge/icon trạng thái verification trên profile user | Thông tin có trong `GET /api/verification/me` |
-| 2 | Manager list tất cả yêu cầu | `GET /api/admin/verifications` |
-| 3 | Manager xem chi tiết + ảnh documents | `GET /api/admin/verifications/{id}` |
-| 4 | Manager duyệt | `POST .../approve` |
-| 5 | Manager từ chối kèm lý do | `POST .../reject` |
-| 6 | User nhận notification kết quả | SignalR event `ReceiveNotification` |
+| Step | Description | API |
+|------|-------------|-----|
+| 1 | Show a verification status badge/icon on the user profile | Data available in `GET /api/verification/me` |
+| 2 | Manager lists all requests | `GET /api/admin/verifications` |
+| 3 | Manager views details + document photos | `GET /api/admin/verifications/{id}` |
+| 4 | Manager approves | `POST .../approve` |
+| 5 | Manager rejects with a reason | `POST .../reject` |
+| 6 | User receives the result notification | SignalR event `ReceiveNotification` |

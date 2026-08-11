@@ -5,6 +5,7 @@ using SC.Application.MediatR.RefundPolicy;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Order.AggregateRoot;
+using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
@@ -21,6 +22,8 @@ internal class RequestRefundFromProposalCommandHandler(
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
+    IRefundLockService refundLockService,
+    IRefundAutoCreditService refundAutoCreditService,
     IBusinessNotificationService businessNotificationService) : ICommandHandler<RequestRefundFromProposalCommand, RequestRefundFromProposalResponse>
 {
     public async Task<Result<RequestRefundFromProposalResponse>> Handle(RequestRefundFromProposalCommand request, CancellationToken cancellationToken)
@@ -35,6 +38,13 @@ internal class RequestRefundFromProposalCommandHandler(
         if (proposal.UserId != currentUserService.UserId)
             return Result.Failure<RequestRefundFromProposalResponse>(Error.InvalidValue, "This proposal does not belong to you.");
 
+        if (proposal.IsExpired(DateTimeOffset.UtcNow))
+        {
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                Error.InvalidValue,
+                "Change proposal has expired.");
+        }
+
         if (proposal.IsRequiredItem)
         {
             return Result.Failure<RequestRefundFromProposalResponse>(
@@ -43,11 +53,18 @@ internal class RequestRefundFromProposalCommandHandler(
         }
 
         var order = await orderRepository.FindSingleAsync(
-            o => o.Id == proposal.OrderId,
+            o => o.Id == proposal.OrderId && !o.IsDeleted,
             cancellationToken);
 
         if (order is null)
             return Result.Failure<RequestRefundFromProposalResponse>(Error.NullValue, "Order not found.");
+
+        if (order.Status != OrderStatus.Preparing)
+        {
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                Error.InvalidValue,
+                "Order is no longer available for change proposal actions.");
+        }
 
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == order.SessionId && !s.IsDeleted,
@@ -59,24 +76,6 @@ internal class RequestRefundFromProposalCommandHandler(
         var item = order.OrderItems.FirstOrDefault(i => i.DishId == proposal.CurrentDishId);
         if (item is null)
             return Result.Failure<RequestRefundFromProposalResponse>(Error.NullValue, "Order item not found.");
-
-        var activeRequestExists = await refundRepository.ExistsAsync(
-            refund =>
-                !refund.IsDeleted
-                && refund.OrderId == order.Id
-                && (refund.Status == RefundRequestStatus.Pending
-                    || refund.Status == RefundRequestStatus.Approved)
-                && (!refund.OrderItemId.HasValue
-                    || refund.OrderItemId == item.Id
-                    || refund.ChangeProposalId == proposal.Id),
-            cancellationToken);
-
-        if (activeRequestExists)
-        {
-            return Result.Failure<RequestRefundFromProposalResponse>(
-                Error.InvalidValue,
-                "This order item already has a pending or approved refund request.");
-        }
 
         var policyResult = await GetConfiguredPolicyAsync(cancellationToken);
         if (policyResult.IsFailure)
@@ -112,11 +111,45 @@ internal class RequestRefundFromProposalCommandHandler(
             item.DishId);
 
         await unitOfWork.BeginTransactionAsync(cancellationToken);
+        await refundLockService.LockOrderRefundRequestsAsync(order.Id, cancellationToken);
+
+        var activeRequestExists = await refundRepository.ExistsAsync(
+            refund =>
+                !refund.IsDeleted
+                && refund.OrderId == order.Id
+                && (refund.Status == RefundRequestStatus.Pending
+                    || refund.Status == RefundRequestStatus.Approved)
+                && (!refund.OrderItemId.HasValue
+                    || refund.OrderItemId == item.Id
+                    || refund.ChangeProposalId == proposal.Id),
+            cancellationToken);
+
+        if (activeRequestExists)
+        {
+            await unitOfWork.RollbackAsync(cancellationToken);
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                Error.InvalidValue,
+                "This order item already has a pending or approved refund request.");
+        }
 
         proposal.RequestRefund(currentUserService.UserId);
         item.MarkRefundPending();
 
         await refundRepository.AddAsync(refundRequest, cancellationToken);
+
+        var creditResult = await refundAutoCreditService.CreditAsync(refundRequest, cancellationToken);
+        if (creditResult.IsFailure)
+        {
+            await unitOfWork.RollbackAsync(cancellationToken);
+            return Result.Failure<RequestRefundFromProposalResponse>(
+                creditResult.Error ?? Error.ServerError,
+                creditResult.Message);
+        }
+
+        var credit = creditResult.Value!;
+
+        item.CompleteRefund();
+
         proposalRepository.Update(proposal);
         orderRepository.Update(order);
 
@@ -124,7 +157,7 @@ internal class RequestRefundFromProposalCommandHandler(
         await unitOfWork.CommitAsync(cancellationToken);
 
         await businessNotificationService.NotifyAsync(
-            NotificationTemplateKeys.RefundSubmitted,
+            NotificationTemplateKeys.RefundApproved,
             currentUserService.UserId,
             refundRequest.Id,
             new Dictionary<string, string>
@@ -140,6 +173,8 @@ internal class RequestRefundFromProposalCommandHandler(
                 refundRequest.ChangeProposalId,
                 refundRequest.DishId,
                 refundRequest.RefundAmount,
+                BalanceAfter = credit.BalanceAfter,
+                WalletTransactionId = credit.WalletTransactionId,
                 Status = refundRequest.Status.ToString()
             },
             cancellationToken);
@@ -161,7 +196,7 @@ internal class RequestRefundFromProposalCommandHandler(
             PolicyCode = refundRequest.PolicyCode,
             RefundAmount = refundRequest.RefundAmount,
             Status = refundRequest.Status.ToString(),
-            Message = "Item refund request submitted successfully."
+            Message = "Item refund approved and credited automatically."
         };
 
         return Result.Success(response, response.Message);

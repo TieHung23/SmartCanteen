@@ -6,8 +6,11 @@ using SC.Application.MediatR.Session.CreateSession;
 using SC.Application.MediatR.Session.DeleteSession;
 using SC.Application.MediatR.Session.GetAllSessions;
 using SC.Application.MediatR.Session.GetSessionById;
+using SC.Application.MediatR.Session.GetSessionCalendar;
+using SC.Application.MediatR.Session.GetSessionDishQuantities;
 using SC.Application.MediatR.Session.UpdateSession;
 using SC.Application.MediatR.Session.FinalizeSession;
+using SC.Application.MediatR.Session.FinalizeSessionNow;
 using SC.Contract.Shared;
 
 namespace SC.Api.Controllers;
@@ -26,6 +29,25 @@ public class SessionsController(IMediator mediator) : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetAllSessions([FromQuery] GetAllSessionsQuery request)
+    {
+        var result = await mediator.Send(request);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get a session calendar for a year — every day of the year with its session count
+    /// </summary>
+    /// <param name="request">Year to build the calendar for</param>
+    /// <returns>365 (or 366) days, each with the number of sessions on that day</returns>
+    [HttpGet("calendar")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSessionCalendar([FromQuery] GetSessionCalendarQuery request)
     {
         var result = await mediator.Send(request);
 
@@ -120,11 +142,53 @@ public class SessionsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Manager view of how much of each dish is currently on order for a session.
+    /// Returns one row per dish (session menu plus any dish ordered before it was
+    /// removed from the menu) with the quantity still to be served — cancelled and
+    /// expired orders and refunded line items are excluded.
+    /// </summary>
+    /// <param name="id">Session ID</param>
+    /// <returns>Dish IDs with their current ordered quantity</returns>
+    [HttpGet("{id:guid}/dish-quantities")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetSessionDishQuantities(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSessionDishQuantitiesQuery(id), cancellationToken);
+
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result)
+            : Ok(result);
+    }
+
+    /// <summary>
     /// Finalize a session — manager confirms prepared quantities.
     /// </summary>
     [HttpPost("{id:guid}/finalize")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> FinalizeSession([FromRoute] Guid id, [FromBody] FinalizeSessionCommand command)
+    {
+        command.SessionId = id;
+        var result = await mediator.Send(command);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Demo/ops helper: finalize a session AND start serving immediately —
+    /// pulls the session's serving window (AvailableFrom) forward to now so
+    /// already-queued serving jobs become eligible for robot pickup right away,
+    /// instead of waiting for the originally scheduled time.
+    /// </summary>
+    [HttpPost("{id:guid}/finalize-now")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> FinalizeSessionNow([FromRoute] Guid id, [FromBody] FinalizeSessionNowCommand command)
     {
         command.SessionId = id;
         var result = await mediator.Send(command);

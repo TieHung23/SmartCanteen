@@ -20,6 +20,8 @@ internal static class ChangeProposalMapping
         if (proposal.SelectedDishId.HasValue)
             dishes.TryGetValue(proposal.SelectedDishId.Value, out selectedDish);
 
+        var nowUtc = DateTimeOffset.UtcNow;
+
         return new ChangeProposalResponse
         {
             Id = proposal.Id,
@@ -33,16 +35,23 @@ internal static class ChangeProposalMapping
             IsRequiredItem = proposal.IsRequiredItem,
             RequiredCategoryId = proposal.RequiredCategoryId,
             ProposalStatus = (int)proposal.ProposalStatus,
-            AllowedActions = GetAllowedActions(proposal),
+            AllowedActions = GetAllowedActions(proposal, nowUtc),
+            ExpiresAtUtc = proposal.ExpiresAtUtc,
+            IsExpired = proposal.IsExpired(nowUtc),
             RespondedAtUtc = proposal.RespondedAtUtc,
             CreatedAtUtc = proposal.CreatedAtUtc
         };
     }
 
-    private static List<string> GetAllowedActions(OrderItemChangeProposal proposal)
+    private static List<string> GetAllowedActions(
+        OrderItemChangeProposal proposal,
+        DateTimeOffset nowUtc)
     {
-        if (proposal.ProposalStatus != ChangeProposalStatus.WaitingResponse)
+        if (proposal.ProposalStatus != ChangeProposalStatus.WaitingResponse
+            || proposal.IsExpired(nowUtc))
+        {
             return [];
+        }
 
         return proposal.IsRequiredItem
             ? ["SwapItem", "RefundOrder"]

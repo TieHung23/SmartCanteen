@@ -6,11 +6,20 @@ Currency: **Point**
 
 RefundRequestStatus: `1=Pending, 2=Approved, 3=Rejected`
 
+**Auto-approval for proposal-driven refunds:** any refund with `changeProposalId != null` (created via `POST /api/ChangeProposals/{id}/request-refund`, `request-order-refund`, or automatic proposal expiration — see `change-proposal-refund-flow.md`) is auto-approved and wallet-credited immediately, skipping `Pending`. Its `reviewedBy` stays `null` forever (no manager reviewed it). Only refunds submitted manually via `POST /api/refunds` (photo evidence, `changeProposalId = null`) go through the `Pending` → manager `approve`/`reject` flow described below.
+
 Proposal refund context fields:
 
 - `orderItemId`: set only for item-level proposal refunds.
 - `changeProposalId`: set for proposal-driven refunds.
 - `dishId`: current dish that caused the proposal refund.
+- `dishName`: name of `dishId`.
+- `currentDishId`: original under-supplied dish ID from the proposal.
+- `currentDishName`: original under-supplied dish from the proposal.
+- `suggestedDishId`: replacement dish ID suggested by the manager, if any.
+- `suggestedDishName`: replacement dish suggested by the manager, if any.
+- `selectedDishId`: replacement dish ID selected by the customer, if any.
+- `selectedDishName`: replacement dish selected by the customer, if any.
 
 ---
 
@@ -70,6 +79,13 @@ Scoped to current user.
         "orderItemId": null,
         "changeProposalId": null,
         "dishId": null,
+        "dishName": null,
+        "currentDishId": null,
+        "currentDishName": null,
+        "suggestedDishId": null,
+        "suggestedDishName": null,
+        "selectedDishId": null,
+        "selectedDishName": null,
         "policyName": "string",
         "refundPercent": 25.0,
         "orderAmount": 100000.0,
@@ -106,6 +122,13 @@ Auth: `[Authorize]`
     "orderItemId": null,
     "changeProposalId": null,
     "dishId": null,
+    "dishName": null,
+    "currentDishId": null,
+    "currentDishName": null,
+    "suggestedDishId": null,
+    "suggestedDishName": null,
+    "selectedDishId": null,
+    "selectedDishName": null,
     "policyCode": "string",
     "policyName": "string",
     "refundPercent": 25.0,
@@ -123,7 +146,7 @@ Auth: `[Authorize]`
     "userName": "string",
     "userEmail": "string",
     "studentId": "string | null",
-    "reviewedBy": "guid",
+    "reviewedBy": "guid | null",
     "reviewedAtUtc": "...",
     "rejectionReason": null,
     "walletTransactionId": "guid",

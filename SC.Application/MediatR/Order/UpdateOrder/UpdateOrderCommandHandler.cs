@@ -16,6 +16,7 @@ internal class UpdateOrderCommandHandler(
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IBusinessNotificationService businessNotificationService,
+    IOrderStatusNotifier orderStatusNotifier,
     ILogger<UpdateOrderCommandHandler> logger
 ) : ICommandHandler<UpdateOrderCommand, UpdateOrderResponse>
 {
@@ -57,6 +58,18 @@ internal class UpdateOrderCommandHandler(
                     "Order status was unchanged.");
             }
 
+            // CHOT DONG BO: 2 trang thai nay do LUONG PHUC VU tu cap nhat (robot rap -> Preparing;
+            //   staff quet khay+o assign -> ReadyForPickup). KHONG cho set THU CONG qua UpdateOrder
+            //   -> tranh lech voi ServingJob (vd don b488feee: set ReadyForPickup tay khi ke con trong).
+            //   (Completed van cho: staff phuc vu thu cong khi robot loi. Cancelled/Expired: admin xu ly.)
+            if (newStatus is OrderStatus.ReadyForPickup or OrderStatus.Preparing)
+            {
+                return Result.Failure<UpdateOrderResponse>(
+                    Error.InvalidValue,
+                    $"Trạng thái '{newStatus}' do luồng phục vụ tự cập nhật (robot ráp / staff quét khay lên kệ), " +
+                    "không được set thủ công. Muốn đưa đơn lên kệ hãy dùng quét khay + ô (assign).");
+            }
+
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             var fromStatus = order.Status;
             order.UpdateStatus(newStatus, currentUserId);
@@ -82,6 +95,10 @@ internal class UpdateOrderCommandHandler(
                     Status = newStatus.ToString()
                 },
                 cancellationToken);
+
+            // Bắn real-time đổi status cho Học Sinh + Staff (FE cập nhật badge live).
+            await orderStatusNotifier.BroadcastAsync(
+                order.Id, order.CreatedBy, (int)newStatus, newStatus.ToString(), cancellationToken);
 
             var response = new UpdateOrderResponse
             {

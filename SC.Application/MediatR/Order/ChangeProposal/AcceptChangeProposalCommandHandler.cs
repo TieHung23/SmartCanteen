@@ -34,6 +34,13 @@ internal class AcceptChangeProposalCommandHandler(
         if (proposal.UserId != currentUserService.UserId)
             return Result.Failure<AcceptChangeProposalResponse>(Error.InvalidValue, "This proposal does not belong to you.");
 
+        if (proposal.IsExpired(DateTimeOffset.UtcNow))
+        {
+            return Result.Failure<AcceptChangeProposalResponse>(
+                Error.InvalidValue,
+                "Change proposal has expired.");
+        }
+
         var newDish = await dishRepository.GetByIdAsync(request.NewDishId, cancellationToken);
         if (newDish is null || newDish.IsDeleted || !newDish.IsActive)
             return Result.Failure<AcceptChangeProposalResponse>(Error.NullValue, "New dish not found or inactive.");
@@ -59,11 +66,18 @@ internal class AcceptChangeProposalCommandHandler(
         }
 
         var order = await orderRepository.FindSingleAsync(
-            o => o.Id == proposal.OrderId,
+            o => o.Id == proposal.OrderId && !o.IsDeleted,
             cancellationToken);
 
         if (order is null)
             return Result.Failure<AcceptChangeProposalResponse>(Error.NullValue, "Order not found.");
+
+        if (order.Status != OrderStatus.Preparing)
+        {
+            return Result.Failure<AcceptChangeProposalResponse>(
+                Error.InvalidValue,
+                "Order is no longer available for change proposal actions.");
+        }
 
         var session = await sessionRepository.FindSingleAsync(
             s => s.Id == order.SessionId && !s.IsDeleted,

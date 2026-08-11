@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
+using SC.Contract.Services.Visualization;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
@@ -11,6 +12,7 @@ internal sealed class RefillShelfStockCommandHandler(
     IGenericRepository<ShelfStockEntity, Guid> shelfStockRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
+    IServingVisualizer servingVisualizer,
     ILogger<RefillShelfStockCommandHandler> logger
 ) : ICommandHandler<RefillShelfStockCommand, RefillShelfStockResponse>
 {
@@ -37,6 +39,16 @@ internal sealed class RefillShelfStockCommandHandler(
             stock.Refill(request.Quantity, currentUserService.UserId);
             shelfStockRepository.Update(stock);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Unity: staff bê hộp lên kệ -> avatar staff chất thêm hộp vào lane của món.
+            // Không gắn đơn nào -> OrderId=Empty; Unity map DishId -> lane từ config. Best-effort.
+            await servingVisualizer.PublishAsync(
+                new ServingVisualEvent(
+                    "shelfRefilled", Guid.Empty,
+                    DishId: stock.DishId,
+                    Quantity: request.Quantity,
+                    Message: $"Tồn kệ hiện tại: {stock.Quantity}"),
+                cancellationToken);
 
             return Result.Success(
                 new RefillShelfStockResponse(stock.Id, stock.DishId, stock.Quantity),

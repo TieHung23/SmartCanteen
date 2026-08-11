@@ -94,6 +94,9 @@ public static class Configurations
 
         services.AddHostedService<DailyLogUploadBackgroundService>();
         services.AddHostedService<SessionFinalizationJob>();
+        services.AddHostedService<ChangeProposalExpirationJob>();
+        services.AddHostedService<OrderExpirationJob>();
+        services.AddHostedService<ServingJobWatchdogJob>();
         
         services.AddScoped<SC.Infrastructure.Services.ApiLog.IApiLogService, SC.Infrastructure.Services.ApiLog.ApiLogService>();
 

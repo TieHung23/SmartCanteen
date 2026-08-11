@@ -18,6 +18,10 @@ public static class Configurations
         services.AddScoped<IWalletDomainService, WalletDomainService>();
         services.AddScoped<ISessionDishReservationService, SessionDishReservationService>();
         services.AddScoped<IRefundLockService, RefundLockService>();
+        services.AddScoped<IRefundAutoCreditService, RefundAutoCreditService>();
         services.AddScoped<IFinalizeSessionService, FinalizeSessionService>();
+        services.AddScoped<IChangeProposalExpirationService, ChangeProposalExpirationService>();
+        services.AddScoped<IOrderExpirationService, OrderExpirationService>();
+        services.AddScoped<IServingJobWatchdogService, ServingJobWatchdogService>();
     }
 }

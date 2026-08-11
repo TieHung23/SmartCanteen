@@ -3,12 +3,16 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Refund.AggregateRoot;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 
 namespace SC.Application.MediatR.Refund.GetRefundRequestById;
 
 internal sealed class GetRefundRequestByIdQueryHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
+    IGenericRepository<OrderItemChangeProposal, Guid> proposalRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     ICurrentUserService currentUserService,
     ILogger<GetRefundRequestByIdQueryHandler> logger)
     : IQueryHandler<GetRefundRequestByIdQuery, GetRefundRequestByIdResponse>
@@ -35,6 +39,27 @@ internal sealed class GetRefundRequestByIdQueryHandler(
                     "Refund request not found.");
             }
 
+            var proposal = refund.ChangeProposalId.HasValue
+                ? await proposalRepository.GetByIdAsync(refund.ChangeProposalId.Value, cancellationToken)
+                : null;
+            var dishIds = new[]
+                {
+                    refund.DishId,
+                    proposal?.CurrentDishId,
+                    proposal?.SuggestedDishId,
+                    proposal?.SelectedDishId
+                }
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+            List<DishAggregateRoot> dishes = dishIds.Count == 0
+                ? []
+                : await dishRepository.FindListAsync(
+                    dish => dishIds.Contains(dish.Id),
+                    cancellationToken);
+            var dishMap = dishes.ToDictionary(dish => dish.Id);
+
             var response = new GetRefundRequestByIdResponse
             {
                 Id = refund.Id,
@@ -42,6 +67,13 @@ internal sealed class GetRefundRequestByIdQueryHandler(
                 OrderItemId = refund.OrderItemId,
                 ChangeProposalId = refund.ChangeProposalId,
                 DishId = refund.DishId,
+                DishName = GetDishName(refund.DishId, dishMap),
+                CurrentDishId = proposal?.CurrentDishId,
+                CurrentDishName = GetDishName(proposal?.CurrentDishId, dishMap),
+                SuggestedDishId = proposal?.SuggestedDishId,
+                SuggestedDishName = GetDishName(proposal?.SuggestedDishId, dishMap),
+                SelectedDishId = proposal?.SelectedDishId,
+                SelectedDishName = GetDishName(proposal?.SelectedDishId, dishMap),
                 PolicyCode = refund.PolicyCode,
                 PolicyName = refund.PolicyNameSnapshot,
                 RefundPercent = refund.RefundPercentSnapshot,
@@ -77,5 +109,17 @@ internal sealed class GetRefundRequestByIdQueryHandler(
                 Error.ServerError,
                 "An error occurred while retrieving the refund request.");
         }
+    }
+
+    private static string? GetDishName(
+        Guid? dishId,
+        IReadOnlyDictionary<Guid, DishAggregateRoot> dishes)
+    {
+        if (!dishId.HasValue || !dishes.TryGetValue(dishId.Value, out var dish))
+        {
+            return null;
+        }
+
+        return dish.Name;
     }
 }

@@ -10,7 +10,7 @@ AutoFinalizePolicy: `0=AutoReject, 1=AutoConfirmAll`
 
 When a session passes `finalizationDeadline` without manual finalization:
 
-- `AutoReject`: cancels affected orders, marks pending/change-pending items as refunded, creates a full-order `RefundRequest` for paid orders using `CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE`, and sends realtime notifications.
+- `AutoReject`: cancels affected orders, marks pending/change-pending items as refunded, creates a full-order `RefundRequest` for paid orders using `CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE`, **auto-approves and credits it to the customer's wallet immediately** (no manager review — same auto-approval rule as `ChangeProposal`-driven refunds, see `refund-api.md`/`change-proposal-refund-flow.md`; `reviewedBy = null`), and sends realtime notifications.
 - `AutoConfirmAll`: sets each dish `preparedQuantity` to the total ordered quantity, confirms pending order items, and sends realtime notifications.
 
 `isActive` in session responses is the manager-controlled active flag.
@@ -78,6 +78,42 @@ Paginated items include full dish details and meal template settings:
 AllowAnonymous.
 
 Same shape as list item. `404` if not found.
+
+---
+
+## `GET /api/sessions/calendar`
+AllowAnonymous.
+
+**Query:** `?year=2026`
+
+Returns every day of the given year with the number of sessions on that day.
+`days` always contains one entry per calendar day — `365`, or `366` in a leap year — including days with `sessionCount: 0`.
+
+Notes:
+
+- Timezone is `Asia/Ho_Chi_Minh`; a session is counted on each local date its `availableFrom`–`availableTo` window covers.
+- A session ending exactly at local midnight counts for the previous day only.
+- `totalSessions` counts distinct sessions overlapping the year, not the sum of `sessionCount` (a multi-day session is counted once).
+- Soft-deleted sessions are excluded.
+- `year` must be between `2000` and `2100`, otherwise `400 InvalidValue`.
+
+```json
+{
+  "value": {
+    "year": 2026,
+    "timezone": "Asia/Ho_Chi_Minh",
+    "totalDays": 365,
+    "totalSessions": 42,
+    "days": [
+      { "date": "2026-01-01", "sessionCount": 0 },
+      { "date": "2026-01-02", "sessionCount": 2 },
+      { "date": "2026-01-03", "sessionCount": 1 }
+    ]
+  },
+  "isSuccess": true,
+  "message": "Session calendar retrieved successfully."
+}
+```
 
 ---
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.ShelfStockAdmin.CreateShelfStock;
 using SC.Application.MediatR.ShelfStockAdmin.GetShelfStocks;
+using SC.Application.MediatR.ShelfStockAdmin.GetShelfStockDetail;
 using SC.Application.MediatR.ShelfStockAdmin.RefillShelfStock;
 
 namespace SC.Api.Controllers;
@@ -22,6 +23,15 @@ public class ShelfStocksController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetBySession([FromQuery] Guid sessionId, CancellationToken ct)
     {
         var result = await mediator.Send(new GetShelfStocksQuery(sessionId), ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetShelfStockDetailQuery(id), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);

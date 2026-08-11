@@ -495,6 +495,9 @@ namespace SC.Persistence.Database.Migrations
                     b.Property<Guid>("CurrentDishId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsRequiredItem")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -711,6 +714,9 @@ namespace SC.Persistence.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ChangeProposalId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -724,9 +730,6 @@ namespace SC.Persistence.Database.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid?>("ChangeProposalId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("DishId")
                         .HasColumnType("uuid");
@@ -1001,6 +1004,9 @@ namespace SC.Persistence.Database.Migrations
 
                     b.Property<DateTimeOffset?>("PushedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RequeueCount")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

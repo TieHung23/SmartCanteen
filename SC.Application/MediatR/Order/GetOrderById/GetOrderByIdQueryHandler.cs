@@ -6,12 +6,14 @@ using SC.Domain.Abstraction.Services;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
+using UserAggregateRoot = SC.Domain.Domain.User.User;
 
 namespace SC.Application.MediatR.Order.GetOrderById;
 
 internal class GetOrderByIdQueryHandler(
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<UserAggregateRoot, Guid> userRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
     ICurrentUserService currentUserService,
     ILogger<GetOrderByIdQueryHandler> logger
@@ -44,6 +46,8 @@ internal class GetOrderByIdQueryHandler(
                 .FindListAsync(d => dishIds.Contains(d.Id), cancellationToken);
             var dishMap = dishes.ToDictionary(d => d.Id);
 
+            var user = await userRepository.GetByIdAsync(order.CreatedBy, cancellationToken);
+
             var statusHistories = await orderStatusHistoryRepository
                 .FindListAsync(x => x.OrderId == order.Id && !x.IsDeleted, cancellationToken);
 
@@ -56,6 +60,8 @@ internal class GetOrderByIdQueryHandler(
                 MealTemplateId = order.MealTemplateId,
                 TransactionId = order.WalletTransactionId,
                 UserId = order.CreatedBy,
+                Name = user?.Name ?? string.Empty,
+                ImgUrl = user?.ImgUrl,
                 Status = (int)order.Status,
                 TotalPrice = totalPrice,
                 Items = order.OrderItems.Select(item =>

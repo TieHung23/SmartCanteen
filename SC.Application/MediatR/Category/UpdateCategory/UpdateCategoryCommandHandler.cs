@@ -1,14 +1,19 @@
 using Microsoft.Extensions.Logging;
+using SC.Application.MediatR.Session;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
+using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
+using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 
 namespace SC.Application.MediatR.Category.UpdateCategory;
 
 internal class UpdateCategoryCommandHandler(
     IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
+    IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     ILogger<UpdateCategoryCommandHandler> logger
@@ -24,6 +29,16 @@ internal class UpdateCategoryCommandHandler(
             if (category is null || category.IsDeleted)
             {
                 return Result.Failure<UpdateCategoryResponse>(Error.NullValue, "Category not found.");
+            }
+
+            var blockingSessions = await CurrentSessionUsage.FindSessionNamesUsingCategoryAsync(
+                sessionRepository, dishRepository, request.Id, cancellationToken);
+            if (blockingSessions.Count > 0)
+            {
+                return Result.Failure<UpdateCategoryResponse>(
+                    Error.ResourceBusy,
+                    "Cannot update a category that is used by a current session.",
+                    CurrentSessionUsage.Describe(blockingSessions));
             }
 
             category.Update(

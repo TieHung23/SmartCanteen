@@ -108,6 +108,7 @@ internal sealed class GetCartQueryHandler(
                 sessionIds.Contains(x.Id)
                 && !x.IsDeleted
                 && x.IsActive
+                && !x.IsFinalized
                 && now >= x.AvailableForOrder
                 && now <= x.AvailableTo,
                 cancellationToken);

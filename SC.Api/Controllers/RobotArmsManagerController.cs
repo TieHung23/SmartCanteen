@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.RobotArm.CreateRobotArm;
 using SC.Application.MediatR.RobotArm.DeleteRobotArm;
 using SC.Application.MediatR.RobotArm.GetAllRobotArms;
+using SC.Application.MediatR.RobotArm.GetRobotArmDetail;
 using SC.Application.MediatR.RobotArm.SetRobotArmMaintenance;
 using SC.Application.MediatR.RobotArm.UpdateRobotArm;
 
@@ -21,6 +22,17 @@ public class RobotArmsManagerController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await mediator.Send(new GetAllRobotArmsQuery(), ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    /// <param name="sessionId">Lọc lane theo ca; bỏ trống thì trả lane của mọi ca.</param>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(
+        [FromRoute] Guid id, [FromQuery] Guid? sessionId, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetRobotArmDetailQuery(id, sessionId), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);
