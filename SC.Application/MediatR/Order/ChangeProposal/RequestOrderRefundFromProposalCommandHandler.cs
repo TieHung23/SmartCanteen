@@ -9,10 +9,13 @@ using SC.Domain.Domain.Order.AggregateRoot;
 using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Enum;
+using SC.Domain.Domain.ServingJob.Enum;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
+using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
+using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 
 namespace SC.Application.MediatR.Order.ChangeProposal;
 
@@ -23,6 +26,8 @@ internal class RequestOrderRefundFromProposalCommandHandler(
     IGenericRepository<RefundRequest, Guid> refundRepository,
     IGenericRepository<SettingAggregate, Guid> settingRepository,
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
+    IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
+    IGenericRepository<TrayEntity, Guid> trayRepository,
     ICurrentUserService currentUserService,
     IUnitOfWork unitOfWork,
     IRefundLockService refundLockService,
@@ -66,6 +71,22 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                 return Result.Failure<RequestOrderRefundFromProposalResponse>(
                     Error.InvalidValue,
                     "Order is no longer available for change proposal actions.");
+            }
+
+            // B3: chỉ cho hủy/hoàn tiền khi robot CHƯA nhận đơn (ServingJob còn Queued).
+            // Job đã Pushed/Assembling = món đang được chuẩn bị -> từ chối (như quán đã nhận đơn).
+            // Lưu ý race hẹp Queued->Pushed giữa check này và lúc hủy: chấp nhận cho capstone
+            // (PullNextJob bước 1c là lưới an toàn quét job của đơn đã hủy); hardening sau: rowversion.
+            var servingJob = await servingJobRepository.FindSingleAsync(
+                j => j.OrderId == order.Id
+                     && j.Status != ServingJobStatus.Cancelled
+                     && j.Status != ServingJobStatus.Collected,
+                cancellationToken);
+            if (servingJob is not null && servingJob.Status != ServingJobStatus.Queued)
+            {
+                return Result.Failure<RequestOrderRefundFromProposalResponse>(
+                    Error.InvalidValue,
+                    "Order is already being prepared and can no longer be cancelled or refunded.");
             }
 
             var session = await sessionRepository.FindSingleAsync(
@@ -158,6 +179,24 @@ internal class RequestOrderRefundFromProposalCommandHandler(
                         currentUserService.UserId,
                         "ChangeProposalOrderRefund"),
                     cancellationToken);
+            }
+
+            // B3: hủy luôn ServingJob (đang Queued) trong CÙNG transaction — robot không bao giờ
+            // phục vụ đơn đã hoàn tiền. Khay job đang giữ (trường hợp requeue) trả về pool.
+            if (servingJob is not null)
+            {
+                if (servingJob.TrayId is Guid heldTrayId)
+                {
+                    var heldTray = await trayRepository.GetByIdAsync(heldTrayId, cancellationToken);
+                    if (heldTray is not null)
+                    {
+                        heldTray.Release(currentUserService.UserId);
+                        trayRepository.Update(heldTray);
+                    }
+                    servingJob.ClearTray(currentUserService.UserId);
+                }
+                servingJob.Cancel(currentUserService.UserId);
+                servingJobRepository.Update(servingJob);
             }
 
             await refundRepository.AddAsync(refundRequest, cancellationToken);
