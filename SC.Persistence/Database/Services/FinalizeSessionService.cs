@@ -105,12 +105,21 @@ public class FinalizeSessionService(
             sd.SetPreparedQuantity(input.PreparedQuantity);
         }
 
+        // Cancelled and expired orders no longer have to be served, so they must not consume any
+        // prepared quantity - counting them would make a category look short and block finalize
+        // over food nobody is waiting for. Same filter as GetSessionDishQuantitiesQueryHandler,
+        // which is what the manager sees on screen; the two have to agree or the numbers the
+        // manager is shown will not match the ones the gate below rejects them on.
         var orders = await orderRepository.FindListAsync(
-            o => o.SessionId == sessionId,
+            o => o.SessionId == sessionId
+                 && !o.IsDeleted
+                 && o.Status != OrderStatus.Cancelled
+                 && o.Status != OrderStatus.Expired,
             cancellationToken);
 
         var totalOrderedByDish = orders
             .SelectMany(o => o.OrderItems)
+            .Where(i => i.ItemStatus != OrderItemStatus.Refunded)
             .GroupBy(i => i.DishId)
             .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
@@ -197,6 +206,7 @@ public class FinalizeSessionService(
 
         foreach (var categoryGroup in orders
                      .SelectMany(order => order.OrderItems.Select(item => (order, item)))
+                     .Where(x => x.item.ItemStatus == OrderItemStatus.Pending)
                      .Where(x => dishCategoryByDish.ContainsKey(x.item.DishId))
                      .GroupBy(x => dishCategoryByDish[x.item.DishId]))
         {
@@ -236,6 +246,11 @@ public class FinalizeSessionService(
         {
             foreach (var item in order.OrderItems)
             {
+                // Anything already settled - refunded, swapped, awaiting its own refund - is not
+                // part of this pass, and Confirm()/MarkChangePending() would reject it anyway.
+                if (item.ItemStatus != OrderItemStatus.Pending)
+                    continue;
+
                 var (shouldConfirm, autoSuggestedDishId) = decisions.TryGetValue(item, out var decision)
                     ? decision
                     : (Confirm: true, AutoSuggestedDishId: (Guid?)null);
