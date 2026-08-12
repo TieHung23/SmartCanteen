@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using SC.Application.MediatR.Robot.AutoBindTray;
 using SC.Application.MediatR.Robot.BindTray;
+using SC.Application.MediatR.Robot.CheckTray;
 using SC.Application.MediatR.Robot.ClaimServingJob;
 using SC.Application.MediatR.Robot.GetServingMap;
 using SC.Application.MediatR.Robot.PullNextJob;
@@ -54,6 +55,17 @@ public sealed class VisualizationHub(ISender mediator, IConfiguration config) : 
     {
         var result = await mediator.Send(new BindTrayCommand(jobId, trayCode));
         return result.IsSuccess;
+    }
+
+    /// <summary>
+    /// Unity (tray-first) -&gt; server: kiểm mã khay VẬT LÝ vừa quét có HỢP LỆ không
+    /// (đăng ký + Available) TRƯỚC KHI pull job. Read-only, KHÔNG reserve.
+    /// Bind atomic (reserve) vẫn do <see cref="BindTray"/> làm sau pull.
+    /// </summary>
+    public async Task<CheckTrayResponse?> CheckTray(string trayCode)
+    {
+        var result = await mediator.Send(new CheckTrayQuery(trayCode));
+        return result.IsSuccess ? result.Value : null;
     }
 
     /// <summary>
