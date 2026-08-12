@@ -4,6 +4,7 @@ using SC.Contract.Services.Robot;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.ServingJob.Enum;
 using SC.Domain.Domain.Tray.Enum;
 using SC.Domain.Domain.RobotEventLog.Enum;
@@ -56,6 +57,37 @@ internal sealed class PullNextJobCommandHandler(
             var queuedOrderIds = orderedQueued.Select(x => x.OrderId).Distinct().ToList();
             var queuedOrders = await orderRepository.FindListAsync(
                 x => queuedOrderIds.Contains(x.Id), cancellationToken);
+
+            // 1c) Đơn đã HỦY/HẾT HẠN mà job còn Queued (luồng hủy/refund không đụng ServingJob)
+            //     -> HỦY job + trả khay đang giữ (requeue) về pool. Tuyệt đối không phục vụ đơn chết.
+            var deadOrderIds = queuedOrders
+                .Where(x => x.Status is OrderStatus.Cancelled or OrderStatus.Expired)
+                .Select(x => x.Id)
+                .ToHashSet();
+            if (deadOrderIds.Count > 0)
+            {
+                foreach (var deadJob in orderedQueued.Where(j => deadOrderIds.Contains(j.OrderId)))
+                {
+                    if (deadJob.TrayId is Guid heldId)
+                    {
+                        var heldTray = await trayRepository.GetByIdAsync(heldId, cancellationToken);
+                        if (heldTray is not null)
+                        {
+                            heldTray.Release(actorId);
+                            trayRepository.Update(heldTray);
+                        }
+                        deadJob.ClearTray(actorId);
+                    }
+                    deadJob.Cancel(actorId);
+                    servingJobRepository.Update(deadJob);
+                    logger.LogInformation(
+                        "Cancelled queued serving job {JobId}: order {OrderId} is cancelled/expired.",
+                        deadJob.Id, deadJob.OrderId);
+                }
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                orderedQueued = orderedQueued.Where(j => !deadOrderIds.Contains(j.OrderId)).ToList();
+            }
+
             var sessionIdByOrder = queuedOrders.ToDictionary(x => x.Id, x => x.SessionId);
 
             var sessionIds = sessionIdByOrder.Values.Distinct().ToList();
