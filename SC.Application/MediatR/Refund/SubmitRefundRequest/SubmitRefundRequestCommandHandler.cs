@@ -8,6 +8,7 @@ using SC.Contract.Shared;
 using SC.Contract.Services.Notification;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
+using SC.Domain.Domain.Order.Enum;
 using SC.Domain.Domain.Refund.AggregateRoot;
 using SC.Domain.Domain.Refund.Entity;
 using SC.Domain.Domain.Refund.Enum;
@@ -54,6 +55,15 @@ internal sealed class SubmitRefundRequestCommandHandler(
                 return Result.Failure<SubmitRefundRequestResponse>(
                     Error.NullValue,
                     "Order not found or does not belong to the current user.");
+            }
+
+            // A cancelled or expired order is already closed out - whatever refund it was owed was
+            // settled by the flow that closed it, so it cannot take a fresh request.
+            if (order.Status is OrderStatus.Cancelled or OrderStatus.Expired)
+            {
+                return Result.Failure<SubmitRefundRequestResponse>(
+                    Error.InvalidValue,
+                    "A cancelled or expired order cannot be refunded.");
             }
 
             var activeRequestExists = await refundRepository
