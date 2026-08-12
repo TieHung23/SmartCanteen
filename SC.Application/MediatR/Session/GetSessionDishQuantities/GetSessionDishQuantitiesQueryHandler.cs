@@ -4,6 +4,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Domain.Order.Enum;
+using CategoryAggregateRoot = SC.Domain.Domain.Category.AggregateRoot.Category;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
@@ -14,6 +15,7 @@ internal sealed class GetSessionDishQuantitiesQueryHandler(
     IGenericRepository<SessionAggregateRoot, Guid> sessionRepository,
     IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<CategoryAggregateRoot, Guid> categoryRepository,
     ILogger<GetSessionDishQuantitiesQueryHandler> logger)
     : IQueryHandler<GetSessionDishQuantitiesQuery, GetSessionDishQuantitiesResponse>
 {
@@ -73,15 +75,62 @@ internal sealed class GetSessionDishQuantitiesQueryHandler(
                     cancellationToken);
             var dishMap = dishes.ToDictionary(dish => dish.Id);
 
+            var categoryIds = dishes
+                .Select(dish => dish.CategoryId)
+                .Distinct()
+                .ToList();
+
+            List<CategoryAggregateRoot> categories = categoryIds.Count == 0
+                ? []
+                : await categoryRepository.FindListAsync(
+                    category => categoryIds.Contains(category.Id),
+                    cancellationToken);
+            var categoryNames = categories.ToDictionary(
+                category => category.Id,
+                category => category.Name);
+
+            // Prepared quantity only exists once the manager has finalized; before that every
+            // dish reports null and the category totals come out as 0.
+            var preparedQuantities = session.SessionDishes
+                .ToDictionary(
+                    sessionDish => sessionDish.DishId,
+                    sessionDish => sessionDish.PreparedQuantity);
+
             var items = dishIds
-                .Select(dishId => new SessionDishQuantityDto
+                .Select(dishId =>
                 {
-                    DishId = dishId,
-                    DishName = dishMap.GetValueOrDefault(dishId)?.Name ?? string.Empty,
-                    OrderedQuantity = orderedQuantities.GetValueOrDefault(dishId)
+                    var dish = dishMap.GetValueOrDefault(dishId);
+                    var categoryId = dish?.CategoryId ?? Guid.Empty;
+
+                    return new SessionDishQuantityDto
+                    {
+                        DishId = dishId,
+                        DishName = dish?.Name ?? string.Empty,
+                        CategoryId = categoryId,
+                        CategoryName = categoryNames.GetValueOrDefault(categoryId) ?? string.Empty,
+                        OrderedQuantity = orderedQuantities.GetValueOrDefault(dishId),
+                        PreparedQuantity = preparedQuantities.GetValueOrDefault(dishId)
+                    };
                 })
                 .OrderByDescending(item => item.OrderedQuantity)
                 .ThenBy(item => item.DishName)
+                .ToList();
+
+            // Grouped the same way the finalize budget is enforced: per category, prepared must
+            // cover ordered. Dishes dropped from the menu still land in their own category here,
+            // because their portions are just as owed as any other.
+            var categoryGroups = items
+                .GroupBy(item => item.CategoryId)
+                .Select(group => new SessionCategoryQuantityDto
+                {
+                    CategoryId = group.Key,
+                    CategoryName = categoryNames.GetValueOrDefault(group.Key) ?? string.Empty,
+                    OrderedQuantity = group.Sum(item => item.OrderedQuantity),
+                    PreparedQuantity = group.Sum(item => item.PreparedQuantity ?? 0),
+                    Dishes = group.ToList()
+                })
+                .OrderByDescending(category => category.OrderedQuantity)
+                .ThenBy(category => category.CategoryName)
                 .ToList();
 
             var response = new GetSessionDishQuantitiesResponse
@@ -89,6 +138,7 @@ internal sealed class GetSessionDishQuantitiesQueryHandler(
                 SessionId = session.Id,
                 SessionName = session.Name,
                 TotalOrderedQuantity = items.Sum(item => item.OrderedQuantity),
+                Categories = categoryGroups,
                 Dishes = items
             };
 

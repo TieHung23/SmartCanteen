@@ -12,8 +12,13 @@ User orders freely (no quantity limit)
       ▼
 Manager finalizes quantities (before FinalizationDeadline)
       │
+      ├── Category budget short → whole call rejected (HTTP 400), nothing saved ❌
+      │     Σ PreparedQuantity of a category must cover Σ ordered of that category
+      │
       ├── Dish has enough: PreparedQuantity ≥ ordered → Item.Confirmed ✅
       └── Dish short / not cooked → Item.ChangePending + Proposal (WaitingResponse)
+              │     earliest orders keep the dish; the overflow is auto-matched to a
+              │     category mate that still has spare PreparedQuantity
               │
               ▼
           User receives a notification (SignalR)
@@ -48,6 +53,64 @@ Auth: Manager
 ```
 
 Send the list of every dishId in the session with the quantity that will be cooked (0 if the dish will not be cooked).
+
+`suggestedDishId` is optional per entry. Leave it out and the backend picks the replacement dish
+automatically (the category mate with the most spare quantity); send it to override that choice.
+
+**Category budget (HTTP 400):** prepared quantity is budgeted per **category**, not per dish. For
+every category that was ordered from, the sum of `preparedQuantity` across all of its dishes must be
+greater than or equal to the total ordered for that category — dishes nobody ordered still count
+toward the budget, and dishes left out of `preparedDishes` count as 0. If any category falls short
+the entire call is rejected and nothing is saved:
+
+```json
+{
+  "isSuccess": false,
+  "message": "Prepared quantity for category 3fa85f64-5717-4562-b3fc-2c963f66afa6 (5) is less than the total ordered quantity (6); finalize is blocked."
+}
+```
+
+Use `GET /api/sessions/{id}/dish-quantities` (below) to show the manager these totals per category
+and block the button client-side before it gets that far.
+
+### 2.1b Manager: Dish quantities grouped by category
+
+```
+GET /api/sessions/{sessionId}/dish-quantities
+Auth: Manager
+```
+
+Drives the finalize screen. `categories[]` is grouped exactly the way the finalize budget is
+enforced, so a shortfall is visible before the call is made. `dishes[]` is the same rows ungrouped,
+kept for older callers.
+
+```json
+{
+  "sessionId": "guid",
+  "sessionName": "Buổi Tối vui vẻ",
+  "totalOrderedQuantity": 18,
+  "categories": [
+    {
+      "categoryId": "guid",
+      "categoryName": "Đạm",
+      "orderedQuantity": 10,
+      "preparedQuantity": 10,
+      "dishes": [
+        { "dishId": "guid", "dishName": "Cá",   "categoryId": "guid", "categoryName": "Đạm", "orderedQuantity": 6, "preparedQuantity": 4 },
+        { "dishId": "guid", "dishName": "Thịt", "categoryId": "guid", "categoryName": "Đạm", "orderedQuantity": 4, "preparedQuantity": 6 }
+      ]
+    }
+  ],
+  "dishes": [ /* same rows, flat */ ]
+}
+```
+
+- `orderedQuantity` excludes cancelled and expired orders and refunded line items.
+- `preparedQuantity` is `null` per dish (and `0` per category) until the session is finalized — before
+  that, the manager is still typing those numbers in, so compute the live category total client-side
+  from the inputs.
+- A dish ordered before it was removed from the menu still appears, under its own category, with
+  `preparedQuantity: null`.
 
 ### 2.2 User: Accept change proposal
 

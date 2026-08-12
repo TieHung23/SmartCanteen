@@ -13,6 +13,7 @@ using SC.Domain.Domain.Refund.Enum;
 using SC.Domain.Domain.Session.AggregateRoot;
 using SC.Domain.Domain.Session.Enum;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
+using OrderItemEntity = SC.Domain.Domain.Order.Entity.OrderItem;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 using SettingAggregate = SC.Domain.Domain.Setting.AggregateRoot.Setting;
 
@@ -113,9 +114,6 @@ public class FinalizeSessionService(
             .GroupBy(i => i.DishId)
             .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
-        var preparedQuantityByDish = session.SessionDishes
-            .ToDictionary(sd => sd.DishId, sd => sd.PreparedQuantity);
-
         var suggestedDishByDish = preparedDishes
             .Where(d => d.SuggestedDishId.HasValue)
             .ToDictionary(d => d.DishId, d => d.SuggestedDishId);
@@ -126,6 +124,7 @@ public class FinalizeSessionService(
             .Select(id => id!.Value);
         var referencedDishIds = orderedDishIds
             .Concat(suggestedDishIds)
+            .Concat(session.SessionDishes.Select(sd => sd.DishId))
             .Distinct()
             .ToList();
 
@@ -148,14 +147,100 @@ public class FinalizeSessionService(
         if (suggestedDishValidation.IsFailure)
             return suggestedDishValidation;
 
+        // Category-level prepared-quantity gate: a category's total CB (summed across every dish
+        // in that category, including dishes nobody ordered - they can still donate spare CB) must
+        // cover that category's total ordered quantity. Only categories that were actually ordered
+        // are checked. This blocks the whole finalize call before anything is mutated/persisted -
+        // the manager must adjust CB and retry, rather than silently letting some orders through.
+        // Runs after the suggested-dish validation so malformed manager input is still reported as
+        // such rather than being masked by a quantity complaint.
+        var orderedByCategory = totalOrderedByDish
+            .Where(kv => dishCategoryByDish.ContainsKey(kv.Key))
+            .GroupBy(kv => dishCategoryByDish[kv.Key])
+            .ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
+
+        var preparedByCategory = session.SessionDishes
+            .Where(sd => dishCategoryByDish.ContainsKey(sd.DishId))
+            .GroupBy(sd => dishCategoryByDish[sd.DishId])
+            .ToDictionary(g => g.Key, g => g.Sum(sd => sd.PreparedQuantity ?? 0));
+
+        foreach (var (categoryId, orderedQty) in orderedByCategory)
+        {
+            if (orderedQty <= 0)
+                continue;
+
+            var preparedQty = preparedByCategory.GetValueOrDefault(categoryId);
+            if (preparedQty < orderedQty)
+            {
+                return Result.Failure(
+                    Error.InvalidValue,
+                    $"Prepared quantity for category {categoryId} ({preparedQty}) is less than the total ordered quantity ({orderedQty}); finalize is blocked.");
+            }
+        }
+
+        // Per-category FIFO allocation: within each category, order items are honored against
+        // their own dish's CB in order-creation sequence (earliest orders first). An item that
+        // doesn't fit its own dish's remaining CB is entirely change-pending (an OrderItem cannot
+        // be partially confirmed) and gets auto-matched to whichever category-mate dish still has
+        // the most spare CB, so the manager only has to budget per category rather than pick a swap
+        // target dish by dish.
+        //
+        // An item that swaps away consumes the donor's CB, never its own dish's - so the portions
+        // left under its own dish stay available for later orders of that same dish. Combined with
+        // the category gate, that keeps a donor available for every shortfall: before any item is
+        // processed the category's total remaining CB is at least that item's quantity, so if the
+        // item's own dish is short then some other dish must still hold a positive remainder.
+        //
+        // The donor is a suggestion, not a reservation - a customer is free to pick a different
+        // dish when accepting - so a donor may be suggested to more portions than it has spare.
+        var decisions = new Dictionary<OrderItemEntity, (bool Confirm, Guid? AutoSuggestedDishId)>();
+
+        foreach (var categoryGroup in orders
+                     .SelectMany(order => order.OrderItems.Select(item => (order, item)))
+                     .Where(x => dishCategoryByDish.ContainsKey(x.item.DishId))
+                     .GroupBy(x => dishCategoryByDish[x.item.DishId]))
+        {
+            var remainingByDish = session.SessionDishes
+                .Where(sd => dishCategoryByDish.GetValueOrDefault(sd.DishId) == categoryGroup.Key)
+                .ToDictionary(sd => sd.DishId, sd => sd.PreparedQuantity ?? 0);
+
+            foreach (var (order, item) in categoryGroup
+                         .OrderBy(x => x.order.CreatedAtUtc)
+                         .ThenBy(x => x.order.Id))
+            {
+                var ownRemaining = remainingByDish.GetValueOrDefault(item.DishId);
+                if (ownRemaining >= item.Quantity)
+                {
+                    remainingByDish[item.DishId] = ownRemaining - item.Quantity;
+                    decisions[item] = (true, null);
+                }
+                else
+                {
+                    var donor = remainingByDish
+                        .Where(kv => kv.Key != item.DishId && kv.Value > 0)
+                        .OrderByDescending(kv => kv.Value)
+                        .ThenBy(kv => dishMap.GetValueOrDefault(kv.Key)?.Name)
+                        .ThenBy(kv => kv.Key)
+                        .Select(kv => (Guid?)kv.Key)
+                        .FirstOrDefault();
+
+                    if (donor.HasValue)
+                        remainingByDish[donor.Value] -= item.Quantity;
+
+                    decisions[item] = (false, donor);
+                }
+            }
+        }
+
         foreach (var order in orders)
         {
             foreach (var item in order.OrderItems)
             {
-                var preparedQuantity = preparedQuantityByDish.GetValueOrDefault(item.DishId);
-                var totalOrderedQuantity = totalOrderedByDish.GetValueOrDefault(item.DishId);
+                var (shouldConfirm, autoSuggestedDishId) = decisions.TryGetValue(item, out var decision)
+                    ? decision
+                    : (Confirm: true, AutoSuggestedDishId: (Guid?)null);
 
-                if (preparedQuantity.HasValue && preparedQuantity.Value >= totalOrderedQuantity)
+                if (shouldConfirm)
                 {
                     item.Confirm();
                 }
@@ -168,11 +253,18 @@ public class FinalizeSessionService(
                         item.DishId,
                         dishCategoryByDish);
 
+                    // Manager-supplied suggestion (validated above) always wins; the auto-computed
+                    // category-mate donor only fills in when the manager left it unset.
+                    var suggestedDishId =
+                        suggestedDishByDish.TryGetValue(item.DishId, out var managerSuggested) && managerSuggested.HasValue
+                            ? managerSuggested
+                            : autoSuggestedDishId;
+
                     var proposal = OrderItemChangeProposal.Create(
                         order.Id,
                         order.CreatedBy,
                         item.DishId,
-                        suggestedDishByDish.GetValueOrDefault(item.DishId),
+                        suggestedDishId,
                         requiredCategoryId.HasValue,
                         requiredCategoryId,
                         proposalExpiresAtUtc);
