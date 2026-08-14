@@ -35,7 +35,7 @@ internal sealed class ClaimServingJobCommandHandler(
             if (job is null)
             {
                 return Result.Failure<ClaimServingJobResponse>(
-                    Error.ServingJobNotFound, "No queued serving job for this order.");
+                    Error.ServingJobNotFound, "Không có công việc phục vụ đang chờ cho đơn này.");
             }
 
             // Queued -> Pushed (bỏ qua bước pull có khóa giờ ca). KHÔNG gán khay ở đây.
@@ -45,13 +45,13 @@ internal sealed class ClaimServingJobCommandHandler(
 
             return Result.Success(
                 new ClaimServingJobResponse(job.Id, job.OrderId, job.Status.ToString()),
-                "Job claimed (Queued -> Pushed).");
+                "Đã nhận công việc (Queued → Pushed).");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error claiming serving job for order {OrderId}", request.OrderId);
             return Result.Failure<ClaimServingJobResponse>(
-                Error.ServerError, "An error occurred while claiming the serving job.");
+                Error.ServerError, "Đã xảy ra lỗi khi nhận công việc phục vụ.");
         }
     }
 }

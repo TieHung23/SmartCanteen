@@ -27,7 +27,7 @@ internal sealed class RobotHeartbeatCommandHandler(
                 .ToList();
             if (codes.Count == 0)
             {
-                return Result.Success(new RobotHeartbeatResponse(0), "No stations.");
+                return Result.Success(new RobotHeartbeatResponse(0), "Không có trạm nào.");
             }
 
             // Tram chua dang ky trong RobotArms -> bo qua im lang (edge co the quan ly nhieu tram hon BE)
@@ -44,13 +44,13 @@ internal sealed class RobotHeartbeatCommandHandler(
             if (arms.Count > 0)
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Result.Success(new RobotHeartbeatResponse(arms.Count), "Heartbeat recorded.");
+            return Result.Success(new RobotHeartbeatResponse(arms.Count), "Đã ghi nhận nhịp tim.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error recording robot heartbeat");
             return Result.Failure<RobotHeartbeatResponse>(
-                Error.ServerError, "An error occurred while recording the heartbeat.");
+                Error.ServerError, "Đã xảy ra lỗi khi ghi nhận nhịp tim.");
         }
     }
 }

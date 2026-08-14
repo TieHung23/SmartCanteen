@@ -52,7 +52,7 @@ internal sealed class ReportServingStatusCommandHandler(
             {
                 logger.LogWarning("ReportStatus for order {OrderId} but no active serving job found", request.OrderId);
                 return Result.Failure<ReportServingStatusResponse>(
-                    Error.ServingJobNotFound, "No active serving job for this order.");
+                    Error.ServingJobNotFound, "Không có công việc phục vụ đang chạy cho đơn này.");
             }
 
             var state = (request.State ?? string.Empty).Trim();
@@ -220,14 +220,14 @@ internal sealed class ReportServingStatusCommandHandler(
 
             return Result.Success(
                 new ReportServingStatusResponse(request.OrderId, state, job.Status.ToString()),
-                "Status recorded.");
+                "Đã ghi nhận trạng thái.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error recording robot status for order {OrderId}", request.OrderId);
             return Result.Failure<ReportServingStatusResponse>(
                 Error.ServerError,
-                "An error occurred while recording the robot status.");
+                "Đã xảy ra lỗi khi ghi nhận trạng thái robot.");
         }
     }
 

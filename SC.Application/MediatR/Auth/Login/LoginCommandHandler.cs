@@ -31,7 +31,7 @@ internal class LoginCommandHandler(
 
             if (user is null)
             {
-                return Result.Failure<AuthTokensDto>(Error.InvalidCredentials, "Invalid email or password.");
+                return Result.Failure<AuthTokensDto>(Error.InvalidCredentials, "Email hoặc mật khẩu không đúng.");
             }
 
             // Accounts created via Google sign-in have no password hash — password
@@ -40,24 +40,24 @@ internal class LoginCommandHandler(
             {
                 return Result.Failure<AuthTokensDto>(
                     Error.InvalidCredentials,
-                    "This account uses Google sign-in. Please continue with Google.");
+                    "Tài khoản này đăng nhập bằng Google. Vui lòng tiếp tục với Google.");
             }
 
             if (!passwordHasher.Verify(request.Password, user.PasswordHash))
             {
-                return Result.Failure<AuthTokensDto>(Error.InvalidCredentials, "Invalid email or password.");
+                return Result.Failure<AuthTokensDto>(Error.InvalidCredentials, "Email hoặc mật khẩu không đúng.");
             }
 
             if (!user.EmailVerified)
             {
-                return Result.Failure<AuthTokensDto>(Error.EmailNotVerified, "Please verify your email before logging in.");
+                return Result.Failure<AuthTokensDto>(Error.EmailNotVerified, "Vui lòng xác minh email trước khi đăng nhập.");
             }
 
             if (user.Status == AccountStatus.Banned)
             {
                 return Result.Failure<AuthTokensDto>(
                     Error.AccountBanned,
-                    "This account has been banned.",
+                    "Tài khoản này đã bị cấm.",
                     user.StatusReason);
             }
 
@@ -65,7 +65,7 @@ internal class LoginCommandHandler(
             {
                 return Result.Failure<AuthTokensDto>(
                     Error.AccountSuspended,
-                    "This account has been suspended.",
+                    "Tài khoản này đã bị tạm khóa.",
                     user.StatusReason);
             }
 
@@ -95,13 +95,13 @@ internal class LoginCommandHandler(
                     accessToken.ExpiresAt,
                     refreshOpaque.RawToken,
                     refreshToken.ExpiresAt),
-                "Login successful.");
+                "Đăng nhập thành công.");
         }
         catch (Exception ex)
         {
             await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error during login for {Email}", request.Email);
-            return Result.Failure<AuthTokensDto>(Error.ServerError, "An error occurred while signing in.");
+            return Result.Failure<AuthTokensDto>(Error.ServerError, "Đã xảy ra lỗi khi đăng nhập.");
         }
     }
 }

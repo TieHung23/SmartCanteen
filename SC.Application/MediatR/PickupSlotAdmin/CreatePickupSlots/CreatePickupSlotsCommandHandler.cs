@@ -62,13 +62,13 @@ internal sealed class CreatePickupSlotsCommandHandler(
 
             return Result.Success(
                 new CreatePickupSlotsResponse(created, skipped),
-                $"Created {created.Count} slot(s); skipped {skipped.Count} duplicate(s).");
+                $"Đã tạo {created.Count} ô kệ; bỏ qua {skipped.Count} ô trùng.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating pickup slots");
             return Result.Failure<CreatePickupSlotsResponse>(
-                Error.ServerError, "An error occurred while creating pickup slots.");
+                Error.ServerError, "Đã xảy ra lỗi khi tạo ô kệ.");
         }
     }
 }

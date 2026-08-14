@@ -38,14 +38,14 @@ internal sealed class ForceClearPickupSlotCommandHandler(
             if (slot is null)
             {
                 return Result.Failure<ForceClearPickupSlotResponse>(
-                    Error.PickupSlotNotFound, "Pickup slot was not found.");
+                    Error.PickupSlotNotFound, "Không tìm thấy ô kệ.");
             }
 
             if (slot.Status == PickupSlotStatus.Empty)
             {
                 return Result.Success(
                     new ForceClearPickupSlotResponse(slot.Id, slot.Code, null),
-                    "Slot is already empty.");
+                    "Ô kệ đã trống.");
             }
 
             var orderId = slot.OrderId;
@@ -91,21 +91,21 @@ internal sealed class ForceClearPickupSlotCommandHandler(
                     new ServingVisualEvent(
                         "expired", clearedOrderId,
                         PickupSlotCode: slot.Code,
-                        Message: expiredOrderId is null ? "Slot cleared." : "No-show; order expired."),
+                        Message: expiredOrderId is null ? "Đã dọn ô kệ." : "Khách không đến; đơn đã hết hạn."),
                     cancellationToken);
             }
 
             return Result.Success(
                 new ForceClearPickupSlotResponse(slot.Id, slot.Code, expiredOrderId),
                 expiredOrderId is null
-                    ? "Slot cleared."
-                    : "Slot cleared; order marked Expired (no-show).");
+                    ? "Đã dọn ô kệ."
+                    : "Đã dọn ô kệ; đơn bị đánh dấu Hết hạn (khách không đến).");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error force-clearing pickup slot {Id}", request.Id);
             return Result.Failure<ForceClearPickupSlotResponse>(
-                Error.ServerError, "An error occurred while clearing the pickup slot.");
+                Error.ServerError, "Đã xảy ra lỗi khi dọn ô kệ.");
         }
     }
 }

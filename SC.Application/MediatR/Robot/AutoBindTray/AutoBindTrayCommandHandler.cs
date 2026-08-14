@@ -31,14 +31,14 @@ internal sealed class AutoBindTrayCommandHandler(
             if (job is null)
             {
                 return Result.Failure<AutoBindTrayResponse>(
-                    Error.ServingJobNotFound, "Serving job was not found.");
+                    Error.ServingJobNotFound, "Không tìm thấy công việc phục vụ.");
             }
 
             // Chỉ bind khi robot đang làm job (Pushed/Assembling) — cùng ràng buộc với BindTray.
             if (job.Status is not (ServingJobStatus.Pushed or ServingJobStatus.Assembling))
             {
                 return Result.Failure<AutoBindTrayResponse>(
-                    Error.ServingJobNotReady, $"Cannot bind a tray to a {job.Status} job.");
+                    Error.ServingJobNotReady, $"Không thể gán khay cho công việc ở trạng thái {job.Status}.");
             }
 
             // Đã có khay (requeue) -> idempotent, trả về khay cũ, KHÔNG bind đè.
@@ -46,7 +46,7 @@ internal sealed class AutoBindTrayCommandHandler(
             {
                 return Result.Success(
                     new AutoBindTrayResponse(job.Id, existing, null),
-                    "Job already has a tray bound.");
+                    "Công việc đã được gán khay.");
             }
 
             // TỰ CHỌN khay Available cũ nhất (ổn định theo Code). Hết khay -> fail.
@@ -56,7 +56,7 @@ internal sealed class AutoBindTrayCommandHandler(
             if (tray is null)
             {
                 return Result.Failure<AutoBindTrayResponse>(
-                    Error.ResourceBusy, "No available tray to bind.");
+                    Error.ResourceBusy, "Không có khay trống để gán.");
             }
 
             // Available -> Reserved + gán vào job. 1 SaveChanges = atomic.
@@ -68,13 +68,13 @@ internal sealed class AutoBindTrayCommandHandler(
 
             return Result.Success(
                 new AutoBindTrayResponse(job.Id, tray.Id, tray.Code),
-                "Tray auto-bound to job.");
+                "Đã tự động gán khay cho công việc.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error auto-binding tray to job {JobId}", request.JobId);
             return Result.Failure<AutoBindTrayResponse>(
-                Error.ServerError, "An error occurred while auto-binding the tray.");
+                Error.ServerError, "Đã xảy ra lỗi khi tự động gán khay.");
         }
     }
 }

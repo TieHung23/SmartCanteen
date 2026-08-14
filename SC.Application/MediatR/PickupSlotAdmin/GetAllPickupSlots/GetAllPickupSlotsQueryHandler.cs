@@ -29,13 +29,13 @@ internal sealed class GetAllPickupSlotsQueryHandler(
             return Result.Success(new GetAllPickupSlotsResponse(
                 slots.Count(x => x.Status == PickupSlotStatus.Empty),
                 slots.Count(x => x.Status == PickupSlotStatus.Occupied),
-                dtos), "Pickup slots retrieved successfully.");
+                dtos), "Lấy danh sách ô kệ thành công.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error listing pickup slots");
             return Result.Failure<GetAllPickupSlotsResponse>(
-                Error.ServerError, "An error occurred while listing pickup slots.");
+                Error.ServerError, "Đã xảy ra lỗi khi lấy danh sách ô kệ.");
         }
     }
 }

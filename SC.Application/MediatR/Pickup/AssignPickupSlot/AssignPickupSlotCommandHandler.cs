@@ -43,14 +43,14 @@ internal sealed class AssignPickupSlotCommandHandler(
             var slot = await pickupSlotRepository
                 .FindSingleAsync(x => x.Code == request.SlotCode && !x.IsDeleted, cancellationToken);
             if (slot is null)
-                return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotFound, "Pickup slot was not found.");
+                return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotFound, "Không tìm thấy ô kệ.");
             if (slot.Status != PickupSlotStatus.Empty)
-                return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotAvailable, "Pickup slot is not empty.");
+                return Result.Failure<AssignPickupSlotResponse>(Error.PickupSlotNotAvailable, "Ô kệ không trống.");
 
             var tray = await trayRepository
                 .FindSingleAsync(x => x.Code == request.TrayCode && !x.IsDeleted, cancellationToken);
             if (tray is null)
-                return Result.Failure<AssignPickupSlotResponse>(Error.TrayNotFound, "Tray was not found.");
+                return Result.Failure<AssignPickupSlotResponse>(Error.TrayNotFound, "Không tìm thấy khay.");
 
             var jobs = await servingJobRepository
                 .FindListAsync(x => x.OrderId == request.OrderId
@@ -59,20 +59,20 @@ internal sealed class AssignPickupSlotCommandHandler(
                     cancellationToken);
             var job = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
             if (job is null)
-                return Result.Failure<AssignPickupSlotResponse>(Error.ServingJobNotFound, "No active serving job for this order.");
+                return Result.Failure<AssignPickupSlotResponse>(Error.ServingJobNotFound, "Không có công việc phục vụ đang chạy cho đơn này.");
 
             // Chỉ job ĐÃ RÁP XONG mới được lên kệ (Queued/Pushed = robot chưa làm; Failed = đang chờ xử lý)
             if (job.Status != ServingJobStatus.Assembling)
                 return Result.Failure<AssignPickupSlotResponse>(
                     Error.ServingJobNotReady,
-                    $"Serving job is '{job.Status}'; only assembled jobs can be shelved.");
+                    $"Công việc đang ở trạng thái '{job.Status}'; chỉ khay đã ráp xong mới được lên kệ.");
 
             // Khay quét phải ĐÚNG khay job này đang dùng (chặn quét nhầm khay A/khay B).
             // job lấy theo OrderId nên check này = "đơn này ↔ khay này" khớp cả 2 chiều.
             if (job.TrayId != tray.Id)
                 return Result.Failure<AssignPickupSlotResponse>(
                     Error.TrayMismatch,
-                    $"Tray '{tray.Code}' is not the tray assigned to this order.");
+                    $"Khay '{tray.Code}' không phải khay của đơn này.");
 
             slot.Assign(request.OrderId, actorId);
             pickupSlotRepository.Update(slot);
@@ -147,14 +147,14 @@ internal sealed class AssignPickupSlotCommandHandler(
 
             return Result.Success(
                 new AssignPickupSlotResponse(slot.Id, slot.Code, request.OrderId, tray.Id),
-                "Order assigned to pickup slot.");
+                "Đã gán đơn vào ô kệ.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error assigning pickup slot {SlotCode} for order {OrderId}", request.SlotCode, request.OrderId);
             return Result.Failure<AssignPickupSlotResponse>(
                 Error.ServerError,
-                "An error occurred while assigning the pickup slot.");
+                "Đã xảy ra lỗi khi gán ô kệ.");
         }
     }
 }

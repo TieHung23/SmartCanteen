@@ -31,7 +31,7 @@ internal sealed class GetServingMapQueryHandler(
             {
                 return Result.Success(
                     new GetServingMapResponse(Array.Empty<ServingMapLane>()),
-                    "No active session.");
+                    "Không có ca đang mở.");
             }
 
             var configs = await slotConfigurationRepository.FindListAsync(
@@ -51,13 +51,13 @@ internal sealed class GetServingMapQueryHandler(
                     dishNameById.TryGetValue(c.DishId, out var name) ? name : null))
                 .ToList();
 
-            return Result.Success(new GetServingMapResponse(lanes), "Serving map for active session(s).");
+            return Result.Success(new GetServingMapResponse(lanes), "Bản đồ phục vụ của ca đang mở.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error building serving map");
             return Result.Failure<GetServingMapResponse>(
-                Error.ServerError, "An error occurred while building the serving map.");
+                Error.ServerError, "Đã xảy ra lỗi khi dựng bản đồ phục vụ.");
         }
     }
 }
