@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SC.Application.MediatR.ServingJobAdmin.GetServingJobEvents;
 using SC.Application.MediatR.ServingJobAdmin.GetServingJobs;
 using SC.Application.MediatR.ServingJobAdmin.ManualCompleteServingJob;
 using SC.Application.MediatR.ServingJobAdmin.RequeueServingJob;
@@ -24,6 +25,17 @@ public class ServingJobsManagerController(IMediator mediator) : ControllerBase
         [FromQuery] string? status, [FromQuery] int take = 50, CancellationToken ct = default)
     {
         var result = await mediator.Send(new GetServingJobsQuery(status, take), ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    /// <summary>Lịch sử sự kiện robot của 1 job (PickStarted/PickCompleted/PlaceCompleted/Error…)
+    /// — xem lỗi xảy ra ở bước/lane nào, kèm tên món + trạm.</summary>
+    [HttpGet("{id:guid}/events")]
+    public async Task<IActionResult> GetEvents([FromRoute] Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetServingJobEventsQuery(id), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);
