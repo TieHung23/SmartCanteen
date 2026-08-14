@@ -28,13 +28,13 @@ internal class GoogleLoginCommandHandler(
             if (googleUser is null)
             {
                 return Result.Failure<AuthTokensDto>(
-                    Error.GoogleTokenInvalid, "Google sign-in token is invalid or expired.");
+                    Error.GoogleTokenInvalid, "Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.");
             }
 
             if (!googleUser.EmailVerified)
             {
                 return Result.Failure<AuthTokensDto>(
-                    Error.GoogleEmailNotVerified, "The Google account email address is not verified.");
+                    Error.GoogleEmailNotVerified, "Email của tài khoản Google chưa được xác minh.");
             }
 
             var email = googleUser.Email.Trim().ToLowerInvariant();
@@ -44,7 +44,7 @@ internal class GoogleLoginCommandHandler(
             {
                 return Result.Failure<AuthTokensDto>(
                     Error.NonFptGoogleAccount,
-                    "Google sign-in is only available for FPT University accounts.");
+                    "Đăng nhập bằng Google chỉ dành cho tài khoản FPT (@fpt.edu.vn, @fe.edu.vn).");
             }
 
             var user = await userRepository
@@ -62,7 +62,7 @@ internal class GoogleLoginCommandHandler(
                 {
                     return Result.Failure<AuthTokensDto>(
                         Error.AccountBanned,
-                        "This account has been banned.",
+                        "Tài khoản này đã bị cấm.",
                         user.StatusReason);
                 }
 
@@ -70,7 +70,7 @@ internal class GoogleLoginCommandHandler(
                 {
                     return Result.Failure<AuthTokensDto>(
                         Error.AccountSuspended,
-                        "This account has been suspended.",
+                        "Tài khoản này đã bị tạm khóa.",
                         user.StatusReason);
                 }
 
@@ -110,14 +110,14 @@ internal class GoogleLoginCommandHandler(
                     refreshOpaque.RawToken,
                     refreshToken.ExpiresAt,
                     user.Category),
-                "Google sign-in successful.");
+                "Đăng nhập Google thành công.");
         }
         catch (Exception ex)
         {
             await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error during Google sign-in");
             return Result.Failure<AuthTokensDto>(
-                Error.ServerError, "An error occurred while signing in with Google.");
+                Error.ServerError, "Đã xảy ra lỗi khi đăng nhập bằng Google.");
         }
     }
 

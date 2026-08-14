@@ -40,7 +40,7 @@ internal sealed class CreateServingJobCommandHandler(
             if (order is null)
             {
                 return Result.Failure<CreateServingJobResponse>(
-                    Error.OrderNotFound, "Order was not found.");
+                    Error.OrderNotFound, "Không tìm thấy đơn hàng.");
             }
 
             // Idempotent: order đã có job đang hoạt động -> trả lại
@@ -55,7 +55,7 @@ internal sealed class CreateServingJobCommandHandler(
             {
                 return Result.Success(
                     new CreateServingJobResponse(existing.Id, existing.OrderId, existing.TrayId, existing.Status.ToString()),
-                    "Serving job already exists for this order.");
+                    "Đơn này đã có công việc phục vụ.");
             }
 
             // HYBRID: KHÔNG gán khay ở đây. Tạo job Queued; khay gán LAZY khi robot pull next-job.
@@ -100,14 +100,14 @@ internal sealed class CreateServingJobCommandHandler(
 
             return Result.Success(
                 new CreateServingJobResponse(job.Id, job.OrderId, job.TrayId, job.Status.ToString()),
-                "Serving job queued; robots pinged.");
+                "Đã tạo công việc phục vụ; đã báo robot.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating serving job for order {OrderId}", request.OrderId);
             return Result.Failure<CreateServingJobResponse>(
                 Error.ServerError,
-                "An error occurred while creating the serving job.");
+                "Đã xảy ra lỗi khi tạo công việc phục vụ.");
         }
     }
 }

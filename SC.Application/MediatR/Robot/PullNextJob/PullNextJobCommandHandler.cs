@@ -48,7 +48,7 @@ internal sealed class PullNextJobCommandHandler(
             var orderedQueued = queuedJobs.OrderBy(x => x.CreatedAtUtc).ToList();
             if (orderedQueued.Count == 0)
             {
-                return Result.Success(new PullNextJobResponse(null), "No queued job.");
+                return Result.Success(new PullNextJobResponse(null), "Không có công việc đang chờ.");
             }
 
             // 1b) CHỈ phục vụ job của order thuộc CA đang MỞ (AvailableFrom <= now <= AvailableTo).
@@ -107,7 +107,7 @@ internal sealed class PullNextJobCommandHandler(
                 .ToList();
             if (candidates.Count == 0)
             {
-                return Result.Success(new PullNextJobResponse(null), "No queued job for an active session.");
+                return Result.Success(new PullNextJobResponse(null), "Không có công việc của ca đang mở.");
             }
 
             // #4 TRAY-FIRST: chọn job theo KHAY Unity quét được — GIỮ NGUYÊN FIFO:
@@ -173,7 +173,7 @@ internal sealed class PullNextJobCommandHandler(
                 job.Cancel(actorId);                      // order biến mất -> huỷ job, bỏ qua
                 servingJobRepository.Update(job);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
-                return Result.Success(new PullNextJobResponse(null), "Order missing; job cancelled.");
+                return Result.Success(new PullNextJobResponse(null), "Đơn không tồn tại; đã hủy công việc.");
             }
 
 
@@ -254,13 +254,13 @@ internal sealed class PullNextJobCommandHandler(
                     }).ToList()
             };
 
-            return Result.Success(new PullNextJobResponse(message), "Job dispatched.");
+            return Result.Success(new PullNextJobResponse(message), "Đã giao công việc.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error pulling next serving job");
             return Result.Failure<PullNextJobResponse>(
-                Error.ServerError, "An error occurred while pulling the next job.");
+                Error.ServerError, "Đã xảy ra lỗi khi lấy công việc kế tiếp.");
         }
     }
 }

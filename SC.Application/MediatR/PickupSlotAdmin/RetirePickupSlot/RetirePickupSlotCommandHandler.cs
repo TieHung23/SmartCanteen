@@ -24,13 +24,13 @@ internal sealed class RetirePickupSlotCommandHandler(
             if (slot is null)
             {
                 return Result.Failure<RetirePickupSlotResponse>(
-                    Error.PickupSlotNotFound, "Pickup slot was not found.");
+                    Error.PickupSlotNotFound, "Không tìm thấy ô kệ.");
             }
 
             if (slot.Status != PickupSlotStatus.Empty)
             {
                 return Result.Failure<RetirePickupSlotResponse>(
-                    Error.ResourceBusy, "Slot is occupied. Force-clear it first.");
+                    Error.ResourceBusy, "Ô kệ đang có đồ. Hãy dọn (force-clear) trước.");
             }
 
             slot.SoftDelete();
@@ -38,13 +38,13 @@ internal sealed class RetirePickupSlotCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result.Success(
-                new RetirePickupSlotResponse(slot.Id, slot.Code), "Pickup slot retired.");
+                new RetirePickupSlotResponse(slot.Id, slot.Code), "Đã ngừng dùng ô kệ.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error retiring pickup slot {Id}", request.Id);
             return Result.Failure<RetirePickupSlotResponse>(
-                Error.ServerError, "An error occurred while retiring the pickup slot.");
+                Error.ServerError, "Đã xảy ra lỗi khi ngừng dùng ô kệ.");
         }
     }
 }
