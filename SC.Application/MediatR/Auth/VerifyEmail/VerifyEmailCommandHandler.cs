@@ -27,7 +27,7 @@ internal class VerifyEmailCommandHandler(
             {
                 return Result.Failure<VerifyEmailResponse>(
                     Error.InvalidOrExpiredToken,
-                    "The verification code is invalid or expired.");
+                    "Mã xác minh không hợp lệ hoặc đã hết hạn.");
             }
 
             var tokenHash = tokenGenerator.HashVerificationCode(request.Code);
@@ -39,7 +39,7 @@ internal class VerifyEmailCommandHandler(
             {
                 return Result.Failure<VerifyEmailResponse>(
                     Error.InvalidOrExpiredToken,
-                    "The verification token is invalid or expired.");
+                    "Liên kết xác minh không hợp lệ hoặc đã hết hạn.");
             }
 
             user.ConfirmEmail();
@@ -53,7 +53,7 @@ internal class VerifyEmailCommandHandler(
 
             var response = new VerifyEmailResponse
             {
-                Message = "Email verified successfully."
+                Message = "Xác minh email thành công."
             };
 
             return Result.Success(response, response.Message);
@@ -64,7 +64,7 @@ internal class VerifyEmailCommandHandler(
             logger.LogError(ex, "Error verifying email token");
             return Result.Failure<VerifyEmailResponse>(
                 Error.ServerError,
-                "An error occurred while verifying the email.");
+                "Đã xảy ra lỗi khi xác minh email.");
         }
     }
 }

@@ -35,7 +35,7 @@ internal class RegisterUserCommandHandler(
             {
                 return Result.Failure<RegisterUserResponse>(
                     Error.EmailAlreadyExists,
-                    "Email is already in use.");
+                    "Email đã được sử dụng.");
             }
 
             if (!string.IsNullOrWhiteSpace(request.StudentId))
@@ -47,7 +47,7 @@ internal class RegisterUserCommandHandler(
                 {
                     return Result.Failure<RegisterUserResponse>(
                         Error.StudentIdAlreadyUsed,
-                        "Student ID is already linked to another account.");
+                        "Mã số sinh viên đã liên kết với tài khoản khác.");
                 }
             }
 
@@ -86,7 +86,7 @@ internal class RegisterUserCommandHandler(
                     user.Email);
             }
 
-            return Result.Success(new RegisterUserResponse(user.Id), "Registration successful. Please verify your email.");
+            return Result.Success(new RegisterUserResponse(user.Id), "Đăng ký thành công. Vui lòng xác minh email.");
         }
         catch (Exception ex)
         {
@@ -94,7 +94,7 @@ internal class RegisterUserCommandHandler(
             logger.LogError(ex, "Error during user registration for {Email}", request.Email);
             return Result.Failure<RegisterUserResponse>(
                 Error.ServerError,
-                "An error occurred while creating the account.");
+                "Đã xảy ra lỗi khi tạo tài khoản.");
         }
     }
 }

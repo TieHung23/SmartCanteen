@@ -26,7 +26,7 @@ internal class LogoutCommandHandler(
             {
                 var response = new LogoutResponse
                 {
-                    Message = "Logged out."
+                    Message = "Đã đăng xuất."
                 };
 
                 return Result.Success(response, response.Message);
@@ -40,7 +40,7 @@ internal class LogoutCommandHandler(
 
             var revokedResponse = new LogoutResponse
             {
-                Message = "Logged out."
+                Message = "Đã đăng xuất."
             };
 
             return Result.Success(revokedResponse, revokedResponse.Message);
@@ -51,7 +51,7 @@ internal class LogoutCommandHandler(
             logger.LogError(ex, "Error during logout");
             return Result.Failure<LogoutResponse>(
                 Error.ServerError,
-                "An error occurred while logging out.");
+                "Đã xảy ra lỗi khi đăng xuất.");
         }
     }
 }

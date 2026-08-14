@@ -34,7 +34,7 @@ internal class ResetPasswordCommandHandler(
             {
                 return Result.Failure<PasswordActionResponse>(
                     Error.InvalidOrExpiredToken,
-                    "The password reset token is invalid or expired.");
+                    "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
             }
 
             var user = await userRepository.GetByIdAsync(token.UserId, cancellationToken);
@@ -42,7 +42,7 @@ internal class ResetPasswordCommandHandler(
             {
                 return Result.Failure<PasswordActionResponse>(
                     Error.InvalidOrExpiredToken,
-                    "The password reset token is invalid or expired.");
+                    "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
             }
 
             var activeRefreshTokens = await refreshTokenRepository
@@ -61,7 +61,7 @@ internal class ResetPasswordCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 
-            const string message = "Password reset successfully. Please sign in again.";
+            const string message = "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.";
             return Result.Success(new PasswordActionResponse(message), message);
         }
         catch (Exception ex)
@@ -70,7 +70,7 @@ internal class ResetPasswordCommandHandler(
             logger.LogError(ex, "Error resetting password");
             return Result.Failure<PasswordActionResponse>(
                 Error.ServerError,
-                "An error occurred while resetting the password.");
+                "Đã xảy ra lỗi khi đặt lại mật khẩu.");
         }
     }
 }

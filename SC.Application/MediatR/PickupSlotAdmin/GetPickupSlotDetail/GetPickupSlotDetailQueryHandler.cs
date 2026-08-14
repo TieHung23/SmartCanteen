@@ -30,7 +30,7 @@ internal sealed class GetPickupSlotDetailQueryHandler(
             if (slot is null)
             {
                 return Result.Failure<GetPickupSlotDetailResponse>(
-                    Error.PickupSlotNotFound, "Pickup slot was not found.");
+                    Error.PickupSlotNotFound, "Không tìm thấy ô kệ.");
             }
 
             // Mọi job từng được đặt vào ô này
@@ -81,13 +81,13 @@ internal sealed class GetPickupSlotDetailQueryHandler(
                     heldMinutes,
                     current is null ? null : Map(current),
                     recent.Select(Map).ToList()),
-                "Pickup slot detail retrieved successfully.");
+                "Lấy chi tiết ô kệ thành công.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting pickup slot detail {Id}", request.Id);
             return Result.Failure<GetPickupSlotDetailResponse>(
-                Error.ServerError, "An error occurred while getting the pickup slot detail.");
+                Error.ServerError, "Đã xảy ra lỗi khi lấy chi tiết ô kệ.");
         }
     }
 }
