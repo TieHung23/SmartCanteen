@@ -8,6 +8,7 @@ public record UpdateProfileResponse(
     string Email,
     string? ImgUrl,
     Role Role,
+    UserCategory Category,
     AccountStatus Status,
     bool EmailVerified,
     string? StudentId,

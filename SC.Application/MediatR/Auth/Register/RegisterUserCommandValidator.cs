@@ -26,6 +26,12 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
         RuleFor(x => x.Password)
             .ApplyPasswordPolicy();
 
+        RuleFor(x => x.Category)
+            .Cascade(CascadeMode.Stop)
+            .IsInEnum().WithMessage("User category is not a known value.")
+            .Must(UserAggregate.CanSelfRegister)
+                .WithMessage("Registration is only available for Student and Lecturer accounts.");
+
         RuleFor(x => x.Gender!.Value)
             .IsInEnum()
             .When(x => x.Gender.HasValue);

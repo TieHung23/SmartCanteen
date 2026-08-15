@@ -34,6 +34,7 @@ internal class GetCurrentUserQueryHandler(
                 user.Email,
                 user.ImgUrl,
                 user.Role,
+                user.Category,
                 user.Status,
                 user.EmailVerified,
                 user.StudentId,
