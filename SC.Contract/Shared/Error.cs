@@ -23,6 +23,8 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
     public static readonly Error AccountBanned = new("AccountBanned", "Account has been banned.", 403);
     public static readonly Error UserNotFound = new("UserNotFound", "User was not found.", 404);
     public static readonly Error InvalidOrExpiredToken = new("InvalidOrExpiredToken", "The token is invalid or has expired.", 400);
+    public static readonly Error EmailAlreadyVerified = new("EmailAlreadyVerified", "This email address is already verified.", 409);
+    public static readonly Error VerificationCodeStillValid = new("VerificationCodeStillValid", "The previous verification code has not expired yet.", 409);
     public static readonly Error InvalidRefreshToken = new("InvalidRefreshToken", "The refresh token is invalid, revoked, or expired.", 401);
     public static readonly Error Forbidden = new("Forbidden", "You do not have permission to perform this action.", 403);
 

@@ -12,6 +12,7 @@ using SC.Application.MediatR.Auth.Login;
 using SC.Application.MediatR.Auth.Logout;
 using SC.Application.MediatR.Auth.Refresh;
 using SC.Application.MediatR.Auth.Register;
+using SC.Application.MediatR.Auth.ResendVerificationCode;
 using SC.Application.MediatR.Auth.ResetPassword;
 using SC.Application.MediatR.Auth.UpdateProfile;
 using SC.Application.MediatR.Auth.VerifyEmail;
@@ -46,6 +47,19 @@ public class AuthController(
     [HttpPost("verify-email")]
     [AllowAnonymous]
     public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailCommand command)
+    {
+        var result = await mediator.Send(command);
+        if (result.IsFailure)
+        {
+            return StatusCode(result.Error?.HttpStatusCode ?? StatusCodes.Status400BadRequest, result);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("resend-verification")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResendVerificationCode([FromBody] ResendVerificationCodeCommand command)
     {
         var result = await mediator.Send(command);
         if (result.IsFailure)
