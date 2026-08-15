@@ -7,6 +7,7 @@ public record RegisterUserCommand(
     string Name,
     string Email,
     string Password,
+    UserCategory Category,
     string? StudentId = null,
     DateOnly? DateOfBirth = null,
     string? MajorOrClass = null,

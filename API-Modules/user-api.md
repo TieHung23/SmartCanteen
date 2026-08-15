@@ -14,13 +14,14 @@ Auth notes:
 ---
 
 ## `POST /api/auth/register`
-AllowAnonymous. Creates a new user account. Sends email verification code.
+AllowAnonymous. Creates a new user account. Students are sent an email verification code; lecturers are not.
 
 ```json
 {
   "name": "string",
   "email": "string",
   "password": "string",
+  "category": 1,
   "studentId": "string | null",
   "dateOfBirth": "2024-01-15 | null",
   "majorOrClass": "string | null",
@@ -29,19 +30,32 @@ AllowAnonymous. Creates a new user account. Sends email verification code.
   "gender": 1
 }
 ```
-Gender: `1=Male, 2=Female, 3=Other`
+Gender: `1=Male, 2=Female, 3=Other`  
+UserCategory: `1=Student, 2=Lecturer, 3=Staff, 4=External` — self sign-up accepts `Student` and `Lecturer` only.
+
+**Category behaviour:**
+- `1` Student — account is created as `PendingEmailVerification`; a code is emailed and `POST /api/auth/verify-email` must be called before login.
+- `2` Lecturer — the email is confirmed on creation, so no code is sent and no verification call is needed. The account becomes `Active` for FPT mailboxes, or `PendingIdentityVerification` otherwise.
+- `3` Staff / `4` External — rejected; these accounts are provisioned by a manager.
 
 **201:**
 ```json
-{ "value": { "userId": "guid" }, "isSuccess": true, "message": "Registration successful. Please verify your email." }
+{
+  "value": { "userId": "guid", "category": 1, "requiresEmailVerification": true },
+  "isSuccess": true,
+  "message": "Registration successful. Please verify your email."
+}
 ```
+For a lecturer, `requiresEmailVerification` is `false` and the message is `"Registration successful. You can sign in now."`
 
-**Errors:** `400` — email taken, student ID taken, validation failure.
+**Errors:**
+- `400` `UnsupportedUserCategory` — category is Staff, External, or not a known value.
+- `400` — email taken, student ID taken, validation failure.
 
 ---
 
 ## `POST /api/auth/verify-email`
-AllowAnonymous.
+AllowAnonymous. Student accounts only — lecturer accounts are created already verified.
 
 ```json
 { "email": "string", "code": "string" }
@@ -70,11 +84,13 @@ AllowAnonymous.
     "accessToken": "string",
     "accessTokenExpiresAt": "...",
     "refreshToken": "string",
-    "refreshTokenExpiresAt": "..."
+    "refreshTokenExpiresAt": "...",
+    "category": 1
   },
   "isSuccess": true
 }
 ```
+UserCategory: `1=Student, 2=Lecturer, 3=Staff, 4=External`
 
 **Errors:**
 - `401` `EmailNotVerified` — email is not verified.
@@ -189,6 +205,7 @@ Authorize.
     "email": "string",
     "imgUrl": "string | null",
     "role": 3,
+    "category": 1,
     "status": 1,
     "emailVerified": true,
     "studentId": "string | null",
@@ -204,6 +221,7 @@ Authorize.
 }
 ```
 Role: `1=Admin, 2=Manager, 3=User, 4=Staff`  
+UserCategory: `1=Student, 2=Lecturer, 3=Staff, 4=External`  
 AccountStatus: `1=Active, 2=PendingEmailVerification, 3=PendingIdentityVerification, 4=Suspended, 5=Banned`
 
 **Authorized request blocked by account status middleware:**

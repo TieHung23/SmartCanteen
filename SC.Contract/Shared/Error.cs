@@ -17,6 +17,7 @@ public class Error(string code, string message, int httpStatusCode = 400) : IEqu
     public static readonly Error IncorrectCurrentPassword = new("IncorrectCurrentPassword", "Current password is incorrect.", 400);
     public static readonly Error PasswordLoginUnavailable = new("PasswordLoginUnavailable", "Password login is not available for this account.", 400);
     public static readonly Error EmailNotVerified = new("EmailNotVerified", "Please verify your email before logging in.", 401);
+    public static readonly Error UnsupportedUserCategory = new("UnsupportedUserCategory", "Self sign-up is only available for student and lecturer accounts.", 400);
     public static readonly Error AccountNotActive = new("AccountNotActive", "Account is not active.", 403);
     public static readonly Error AccountSuspended = new("AccountSuspended", "Account has been suspended.", 401);
     public static readonly Error AccountBanned = new("AccountBanned", "Account has been banned.", 403);

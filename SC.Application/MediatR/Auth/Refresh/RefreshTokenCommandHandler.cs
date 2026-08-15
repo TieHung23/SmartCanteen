@@ -91,7 +91,8 @@ internal class RefreshTokenCommandHandler(
                     access.Token,
                     access.ExpiresAt,
                     newOpaque.RawToken,
-                    newRefresh.ExpiresAt),
+                    newRefresh.ExpiresAt,
+                    user.Category),
                 "Token refreshed.");
         }
         catch (Exception ex)
