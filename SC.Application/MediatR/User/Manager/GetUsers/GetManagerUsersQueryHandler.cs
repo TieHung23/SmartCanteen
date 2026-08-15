@@ -40,6 +40,9 @@ internal class GetManagerUsersQueryHandler(
             if (request.Role.HasValue)
                 filtered = filtered.Where(user => user.Role == request.Role.Value);
 
+            if (request.Category.HasValue)
+                filtered = filtered.Where(user => user.Category == request.Category.Value);
+
             var filteredList = filtered.ToList();
             var totalCount = filteredList.Count;
             var page = filteredList
@@ -52,6 +55,7 @@ internal class GetManagerUsersQueryHandler(
                     user.Email,
                     user.ImgUrl,
                     user.Role,
+                    user.Category,
                     user.Status,
                     GetCurrentStatusReason(user.Status, user.StatusReason),
                     user.EmailVerified,

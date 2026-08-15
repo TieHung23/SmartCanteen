@@ -11,6 +11,7 @@ public record ManagerUserDetailResponse(
     string Email,
     string? ImgUrl,
     Role Role,
+    UserCategory Category,
     AccountStatus Status,
     string? StatusReason,
     bool EmailVerified,

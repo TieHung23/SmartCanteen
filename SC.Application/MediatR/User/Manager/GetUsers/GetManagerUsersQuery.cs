@@ -9,6 +9,7 @@ public class GetManagerUsersQuery : PaginationParams, IQuery<PaginatedList<Manag
     public string? Search { get; set; }
     public AccountStatus? Status { get; set; }
     public Role? Role { get; set; }
+    public UserCategory? Category { get; set; }
 }
 
 public record ManagerUserListItem(
@@ -17,6 +18,7 @@ public record ManagerUserListItem(
     string Email,
     string? ImgUrl,
     Role Role,
+    UserCategory Category,
     AccountStatus Status,
     string? StatusReason,
     bool EmailVerified,
