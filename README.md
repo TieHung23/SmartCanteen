@@ -137,7 +137,9 @@ dotnet test SC.Architecture.Test
 
 | Doc | Content |
 |-----|---------|
+| [`SETUP.md`](SETUP.md) | Full setup guide — local, Ubuntu server, Windows/IIS, config reference |
 | [`API-Modules/`](API-Modules/README.md) | Per-module API reference (requests, responses, routes) |
+| [`sequence-diagrams/`](sequence-diagrams/README.md) | Per-controller PlantUML sequence diagrams (controller → handler → database) |
 | [`Flow/`](Flow/) | Frontend integration flows with sequence diagrams |
 | [`AI/coding_convention.md`](AI/coding_convention.md) | Coding conventions and DDD patterns |
 | [`DDD_ANALYSIS.md`](DDD_ANALYSIS.md) | Architecture analysis |
