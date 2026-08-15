@@ -280,6 +280,7 @@ Auth notes:
 - Existing access tokens for the target user are blocked on the next authorized request by account status middleware.
 - Suspend/ban stores the current lock reason in `Users.StatusReason`.
 - Reactivate clears `Users.StatusReason`.
+- `category` (`1=Student, 2=Lecturer, 3=Staff, 4=External`) is returned on the list and detail endpoints and is read-only — no manager endpoint changes it.
 
 ---
 
@@ -292,6 +293,7 @@ Authorize: `Manager`.
 - `search` optional, matches name/email/student ID
 - `status` optional, `1=Active, 2=PendingEmailVerification, 3=PendingIdentityVerification, 4=Suspended, 5=Banned`
 - `role` optional, `1=Admin, 2=Manager, 3=User, 4=Staff`
+- `category` optional, `1=Student, 2=Lecturer, 3=Staff, 4=External`
 
 **200:**
 ```json
@@ -304,6 +306,7 @@ Authorize: `Manager`.
         "email": "string",
         "imgUrl": "string | null",
         "role": 3,
+        "category": 1,
         "status": 1,
         "statusReason": "string | null",
         "emailVerified": true,
@@ -341,6 +344,7 @@ Authorize: `Manager`.
     "email": "string",
     "imgUrl": "string | null",
     "role": 3,
+    "category": 1,
     "status": 1,
     "statusReason": "string | null",
     "emailVerified": true,

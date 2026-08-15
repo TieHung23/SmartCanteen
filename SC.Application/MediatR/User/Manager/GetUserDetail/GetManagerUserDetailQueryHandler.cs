@@ -32,6 +32,7 @@ internal class GetManagerUserDetailQueryHandler(
                 user.Email,
                 user.ImgUrl,
                 user.Role,
+                user.Category,
                 user.Status,
                 GetCurrentStatusReason(user.Status, user.StatusReason),
                 user.EmailVerified,

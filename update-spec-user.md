@@ -207,11 +207,17 @@ The migration adds the column with a default of `Student` and backfills every ex
 - [ ] Add `category` to the auth/session store from the login, refresh, and Google responses.
 - [ ] Add `category` to the user/profile model consumed from `GET /api/auth/me` and `PUT /api/auth/me`.
 - [ ] Keep the existing identity-verification prompt for `status: 3` — lecturers on non-FPT mailboxes land there too.
+- [ ] Show `category` in the manager user list/detail, and add a category filter to the list screen.
 
 ---
 
-## 9. Not part of this change
+## 9. Manager user endpoints
+
+`GET /api/manager/users` and `GET /api/manager/users/{id}` now return `category` (right after `role`), and the list accepts an optional `category` query parameter (`1..4`) alongside `status` and `role`. Like `role`, the category is **read-only** here — no manager endpoint changes it.
+
+---
+
+## 10. Not part of this change
 
 - The **access token claims** are unchanged: they still carry user id, email, role, and the verified flag. There is no `category` claim — read it from the response bodies above.
 - `studentId` is still **optional** for Student registrations; the backend does not require it.
-- Manager user endpoints (`/api/manager/users`) do not expose `category` yet.
