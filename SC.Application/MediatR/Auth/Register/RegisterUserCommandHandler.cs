@@ -26,6 +26,13 @@ internal class RegisterUserCommandHandler(
     {
         try
         {
+            if (!UserAggregate.CanSelfRegister(request.Category))
+            {
+                return Result.Failure<RegisterUserResponse>(
+                    Error.UnsupportedUserCategory,
+                    "Registration is only available for Student and Lecturer accounts.");
+            }
+
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
             var emailTaken = await userRepository
@@ -57,6 +64,7 @@ internal class RegisterUserCommandHandler(
                 name: request.Name.Trim(),
                 email: normalizedEmail,
                 passwordHash: passwordHash,
+                category: request.Category,
                 studentId: string.IsNullOrWhiteSpace(request.StudentId) ? null : request.StudentId.Trim(),
                 dateOfBirth: request.DateOfBirth,
                 majorOrClass: string.IsNullOrWhiteSpace(request.MajorOrClass) ? null : request.MajorOrClass.Trim(),
@@ -64,29 +72,54 @@ internal class RegisterUserCommandHandler(
                 address: string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
                 gender: request.Gender);
 
+            var requiresVerificationCode = UserAggregate.RequiresEmailVerificationCode(request.Category);
+
+            // Lecturer accounts skip the emailed code: the address is confirmed on creation,
+            // which also settles the account status (Active for FPT mailboxes, otherwise
+            // pending identity verification).
+            if (!requiresVerificationCode)
+            {
+                user.ConfirmEmail();
+            }
+
             await unitOfWork.BeginTransactionAsync(cancellationToken);
             await userRepository.AddAsync(user, cancellationToken);
 
-            var verificationCode = tokenGenerator.GenerateEmailVerificationCode();
-            var ttl = TimeSpan.FromMinutes(configuration.GetValue("Jwt:EmailVerificationCodeMinutes", 5));
-            var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, verificationCode.CodeHash, ttl);
+            VerificationCodeResult? verificationCode = null;
 
-            await tokenRepository.AddAsync(verificationToken, cancellationToken);
+            if (requiresVerificationCode)
+            {
+                verificationCode = tokenGenerator.GenerateEmailVerificationCode();
+                var ttl = TimeSpan.FromMinutes(configuration.GetValue("Jwt:EmailVerificationCodeMinutes", 5));
+                var verificationToken = EmailVerificationTokenAggregate.Issue(user.Id, verificationCode.CodeHash, ttl);
+
+                await tokenRepository.AddAsync(verificationToken, cancellationToken);
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 
-            try
+            if (verificationCode is not null)
             {
-                await emailSender.SendVerificationCodeAsync(user.Email, verificationCode.Code, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "Failed to send verification email to {Email}. User and token are still persisted.",
-                    user.Email);
+                try
+                {
+                    await emailSender.SendVerificationCodeAsync(user.Email, verificationCode.Code, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Failed to send verification email to {Email}. User and token are still persisted.",
+                        user.Email);
+                }
             }
 
-            return Result.Success(new RegisterUserResponse(user.Id), "Registration successful. Please verify your email.");
+            var response = new RegisterUserResponse(user.Id, user.Category, requiresVerificationCode);
+
+            return Result.Success(
+                response,
+                requiresVerificationCode
+                    ? "Registration successful. Please verify your email."
+                    : "Registration successful. You can sign in now.");
         }
         catch (Exception ex)
         {

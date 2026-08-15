@@ -94,7 +94,8 @@ internal class LoginCommandHandler(
                     accessToken.Token,
                     accessToken.ExpiresAt,
                     refreshOpaque.RawToken,
-                    refreshToken.ExpiresAt),
+                    refreshToken.ExpiresAt,
+                    user.Category),
                 "Login successful.");
         }
         catch (Exception ex)

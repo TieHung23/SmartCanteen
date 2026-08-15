@@ -108,7 +108,8 @@ internal class GoogleLoginCommandHandler(
                     accessToken.Token,
                     accessToken.ExpiresAt,
                     refreshOpaque.RawToken,
-                    refreshToken.ExpiresAt),
+                    refreshToken.ExpiresAt,
+                    user.Category),
                 "Google sign-in successful.");
         }
         catch (Exception ex)

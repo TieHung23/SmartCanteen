@@ -22,6 +22,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     public string? GoogleSubjectId { get; private set; }
     public string? ImgUrl { get; private set; }
     public Role Role { get; private set; } = Role.User;
+    public UserCategory Category { get; private set; } = UserCategory.Student;
     public AccountStatus Status { get; private set; } = AccountStatus.PendingEmailVerification;
     public string? StatusReason { get; private set; }
     public bool EmailVerified { get; private set; }
@@ -40,10 +41,25 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
     public Guid CreatedBy { get; private set; }
     public Guid UpdatedBy { get; private set; }
 
+    /// <summary>
+    /// Self sign-up is limited to the categories the canteen onboards itself. Staff and
+    /// external accounts are provisioned by a manager instead.
+    /// </summary>
+    public static bool CanSelfRegister(UserCategory category)
+        => category is UserCategory.Student or UserCategory.Lecturer;
+
+    /// <summary>
+    /// Only students confirm their address with an emailed code; lecturer accounts are
+    /// created with the email already confirmed.
+    /// </summary>
+    public static bool RequiresEmailVerificationCode(UserCategory category)
+        => category == UserCategory.Student;
+
     public static User Register(
         string name,
         string email,
         string passwordHash,
+        UserCategory category,
         string? studentId = null,
         DateOnly? dateOfBirth = null,
         string? majorOrClass = null,
@@ -59,6 +75,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
             Email = email,
             PasswordHash = passwordHash,
             Role = Role.User,
+            Category = category,
             Status = AccountStatus.PendingEmailVerification,
             StudentId = studentId,
             DateOfBirth = dateOfBirth,
@@ -143,6 +160,18 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
             && FptEmailDomains.Any(d => email.EndsWith(d, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Institutional mailboxes carry the category: staff addresses live on the lecturer
+    /// domain, every other FPT address belongs to a student.
+    /// </summary>
+    public static UserCategory ResolveCategoryFromEmail(string email)
+    {
+        return !string.IsNullOrWhiteSpace(email)
+            && email.EndsWith(LecturerEmailDomain, StringComparison.OrdinalIgnoreCase)
+                ? UserCategory.Lecturer
+                : UserCategory.Student;
+    }
+
     public static bool IsValidEmail(string email)
     {
         try { var addr = new MailAddress(email); return addr.Address == email; }
@@ -165,6 +194,7 @@ public class User : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletable
             GoogleSubjectId = googleSubjectId,
             ImgUrl = imgUrl,
             Role = Role.User,
+            Category = ResolveCategoryFromEmail(email),
             Status = AccountStatus.Active,
             EmailVerified = true,
             StudentId = studentId,
