@@ -124,6 +124,7 @@ TransactionType: `1=TopUp, 2=OrderPayment, 3=Refund`
         "transactionType": 1,
         "transactionTypeName": "TopUp",
         "paymentId": "guid | null",
+        "orderId": "guid | null",
         "createdAtUtc": "..."
       }
     ],
@@ -139,6 +140,22 @@ TransactionType: `1=TopUp, 2=OrderPayment, 3=Refund`
 }
 ```
 
+### Reference fields per transaction type
+
+Every row carries **two optional reference ids**. Which one is filled depends on `transactionType`:
+
+| `transactionType` | `orderId` | `paymentId` | Meaning |
+|---|---|---|---|
+| `1` TopUp | `null` | the top-up `Payment` id | Money came in from SePay, not tied to any order |
+| `2` OrderPayment | **the order that was paid for** | `null` | Wallet debited to place that order |
+| `3` Refund | **the order the refund was issued against** | `null` | Wallet credited back for that order (whole order or a single item) |
+
+Notes for FE:
+- `orderId` is safe to link straight to the order detail screen (`GET /api/orders/{id}`).
+- A refund row's `orderId` points at the order, **not** at the refund request. To show the refund itself, use the refund endpoints in [`refund-api.md`](refund-api.md).
+- `orderId` may still be `null` on an `OrderPayment` / `Refund` row in edge cases (order hard-deleted, or legacy data with a broken link). Render the row without the link instead of assuming it is present.
+- Works retroactively for all existing transactions — no backfill/migration was needed, so old rows return their `orderId` too.
+
 ---
 
 # WalletTransaction
@@ -152,4 +169,11 @@ No dedicated CRUD. Created as side effects:
 | Refund approved (`POST /api/manager/refunds/{id}/approve`) | `3=Refund` | Positive (credit) |
 
 Each **Order** links to a `WalletTransaction` via `transactionId`.  
-Each top-up **Payment** produces a `WalletTransaction` when SePay IPN confirms it.
+Each top-up **Payment** produces a `WalletTransaction` when SePay IPN confirms it.  
+Each approved **RefundRequest** links to the `WalletTransaction` that credited it back.
+
+`GET /api/wallet-transactions` resolves those links for you and returns the resulting `orderId` on each row — the wallet transaction table itself stores no order column, so there is nothing extra to send when creating transactions.
+
+Refunds reach the wallet through **two paths**, and both appear here identically as `3=Refund` with an `orderId`:
+- **Auto-credited** (no manager review): change-proposal refunds, change-proposal timeout, and session auto-finalize — see [`change-proposal-refund-flow.md`](change-proposal-refund-flow.md).
+- **Manager-approved**: `POST /api/manager/refunds/{id}/approve`.

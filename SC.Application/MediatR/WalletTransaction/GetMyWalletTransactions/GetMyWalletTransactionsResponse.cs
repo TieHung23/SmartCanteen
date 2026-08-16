@@ -9,5 +9,12 @@ public sealed class GetMyWalletTransactionsResponse
     public int TransactionType { get; set; }
     public string TransactionTypeName { get; set; } = string.Empty;
     public Guid? PaymentId { get; set; }
+
+    /// <summary>
+    /// Order this transaction belongs to: the order that was paid for (OrderPayment) or the order a
+    /// refund was issued against (Refund). Null for TopUp, which is not tied to any order.
+    /// </summary>
+    public Guid? OrderId { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }
