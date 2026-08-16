@@ -18,12 +18,16 @@ namespace SC.Api.Controllers;
 [Authorize(Roles = "Manager,Staff")]
 public class ServingJobsManagerController(IMediator mediator) : ControllerBase
 {
-    /// <summary>Lọc: ?status=Queued|Pushed|Assembling|OnShelf|Collected|Failed|Cancelled &amp; take=1..200</summary>
+    /// <summary>
+    /// Lọc: ?status=Queued|Pushed|Assembling|OnShelf|Collected|Failed|Cancelled
+    /// &amp; sessionId (chỉ job của order thuộc session) &amp; take=1..200
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
-        [FromQuery] string? status, [FromQuery] int take = 50, CancellationToken ct = default)
+        [FromQuery] string? status, [FromQuery] Guid? sessionId, [FromQuery] int take = 50,
+        CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetServingJobsQuery(status, take), ct);
+        var result = await mediator.Send(new GetServingJobsQuery(status, sessionId, take), ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);
