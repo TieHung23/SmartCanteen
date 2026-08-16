@@ -211,7 +211,8 @@ public static class StartupConfigurations
 
         app.UseHttpsRedirection();
         app.UseCors();
-        app.UseRateLimiter();
+        // Rate limiting disabled. Re-enable by uncommenting the line below.
+        // app.UseRateLimiter();
         app.UseAuthentication();
         app.UseMiddleware<AccountStatusMiddleware>();
         app.UseAuthorization();
