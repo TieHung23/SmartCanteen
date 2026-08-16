@@ -3,6 +3,7 @@ using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Domain.ServingJob.Enum;
+using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 
@@ -10,6 +11,7 @@ namespace SC.Application.MediatR.ServingJobAdmin.GetServingJobs;
 
 internal sealed class GetServingJobsQueryHandler(
     IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IGenericRepository<TrayEntity, Guid> trayRepository,
     ILogger<GetServingJobsQueryHandler> logger
 ) : IQueryHandler<GetServingJobsQuery, GetServingJobsResponse>
@@ -34,8 +36,29 @@ internal sealed class GetServingJobsQueryHandler(
 
             var take = Math.Clamp(request.Take, 1, 200);
 
-            var jobs = await servingJobRepository.FindListAsync(
-                x => !x.IsDeleted && (status == null || x.Status == status), cancellationToken);
+            // lọc theo session: lấy toàn bộ order của session rồi chỉ giữ job thuộc các order đó
+            List<Guid> orderIds = [];
+            if (request.SessionId.HasValue)
+            {
+                var sessionId = request.SessionId.Value;
+                var orders = await orderRepository.FindListAsync(
+                    x => !x.IsDeleted && x.SessionId == sessionId, cancellationToken);
+                orderIds = orders.Select(x => x.Id).Distinct().ToList();
+
+                if (orderIds.Count == 0)
+                {
+                    return Result.Success(
+                        new GetServingJobsResponse(0, []),
+                        "Serving jobs retrieved successfully.");
+                }
+            }
+
+            var jobs = request.SessionId.HasValue
+                ? await servingJobRepository.FindListAsync(
+                    x => !x.IsDeleted && (status == null || x.Status == status)
+                                      && orderIds.Contains(x.OrderId), cancellationToken)
+                : await servingJobRepository.FindListAsync(
+                    x => !x.IsDeleted && (status == null || x.Status == status), cancellationToken);
 
             var page = jobs
                 .OrderByDescending(x => x.CreatedAtUtc)
