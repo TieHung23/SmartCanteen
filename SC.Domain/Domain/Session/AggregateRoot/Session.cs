@@ -121,6 +121,24 @@ public class Session : AggregateRoot<Guid>, IAuditableEntity<Guid>, ISoftDeletab
     }
 
     /// <summary>
+    /// Closes the finalize window at the moment the session actually got finalized. Without this a
+    /// session finalized ahead of schedule keeps advertising a deadline in the future, so listings,
+    /// report timelines and any FE countdown still show time left to do something that is already
+    /// done. Must be called *after* Finalize() - Finalize() rejects a deadline that has passed, so
+    /// pulling the deadline in first would make the very next call throw. No-op when no deadline was
+    /// configured (nothing to close) or when it has already passed; never pushes a deadline back.
+    /// </summary>
+    public void CloseFinalizationWindowNow(Guid updatedBy)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (!FinalizationDeadline.HasValue || FinalizationDeadline.Value <= now)
+            return;
+
+        FinalizationDeadline = now;
+        Touch(updatedBy);
+    }
+
+    /// <summary>
     /// Marks the session inactive once its serving window has closed, so it stops showing up as an
     /// operating session (listings, "is this session still running" checks) even though the time
     /// window alone already blocks new orders/robot pulls. No-op if already inactive.

@@ -316,7 +316,13 @@ public class FinalizeSessionService(
         session.Finalize(managerId);
 
         if (startServingNow)
+        {
             session.StartServingNow(managerId);
+            // Serving starts now, so the finalize window is over as well - pull the deadline in too,
+            // otherwise the session still reports a future "chốt món" deadline it has already met.
+            // Order matters: Finalize() above throws on a deadline that has passed.
+            session.CloseFinalizationWindowNow(managerId);
+        }
 
         await context.SaveChangesAsync(cancellationToken);
 
