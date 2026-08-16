@@ -11,9 +11,18 @@ This is a **demo/ops-only variant** of the regular finalize endpoint (`POST /api
 
 Authorize role: **`Manager`**
 
-Does everything the regular `finalize` endpoint does (confirms prepared quantities, creates change proposals for under-supplied items, sends realtime notifications) **plus**: pulls the session's `availableFrom` forward to "now" so already-queued serving jobs immediately become eligible for robot pickup (robots only pull jobs whose session has `availableFrom <= now <= availableTo`).
+Does everything the regular `finalize` endpoint does (confirms prepared quantities, creates change proposals for under-supplied items, sends realtime notifications) **plus** pulls **two timestamps** on the session forward to "now":
 
-If `availableFrom` is already in the past (session already open), nothing changes there — this call is then equivalent to the regular finalize.
+| Field | Effect | No-op when |
+|---|---|---|
+| `availableFrom` | Already-queued serving jobs immediately become eligible for robot pickup (robots only pull jobs whose session has `availableFrom <= now <= availableTo`) | it is already in the past (session already open) |
+| `finalizationDeadline` | The finalize window closes at the moment the session was actually finalized, so the session stops advertising a deadline that is already met | it is `null` (no deadline was ever configured) or already in the past |
+
+Neither timestamp is ever pushed **back**: both are only moved earlier, never later. `availableTo` and `availableForOrder` are never touched.
+
+If both are already in the past, this call is equivalent to the regular finalize.
+
+> **FE note:** after a successful `finalize-now`, re-fetch the session (`GET /api/sessions/{id}`) rather than reusing cached values — both `availableFrom` and `finalizationDeadline` in your local copy are stale. Any countdown UI bound to `finalizationDeadline` should stop, since the deadline is now in the past and `isFinalized` is `true`.
 
 ### Request
 
@@ -77,8 +86,11 @@ All failures return HTTP `400` with:
 | Confirms prepared quantities / creates change proposals | ✅ | ✅ |
 | Sends realtime notifications | ✅ | ✅ |
 | Changes `availableFrom` | ❌ never | ✅ pulls it to "now", only if it was still in the future |
+| Changes `finalizationDeadline` | ❌ never — keeps advertising a future deadline on an already-finalized session | ✅ pulls it to "now", only if it was set and still in the future |
 | Fails if the widened window would overlap another session | ❌ no such check | ✅ blocked with `This session's serving window would overlap with another session; sessions are not allowed to overlap.` (checks full session windows, not just "who's active right now") |
 | Robots can pick up queued jobs | only once the originally scheduled `availableFrom` arrives | immediately after the call succeeds |
 
 ### FE suggestion
 Show `finalize-now` as a distinct "Finalize & Start Serving Now" action (e.g. in a demo/admin panel), separate from the normal "Finalize" button — they hit different endpoints and `finalize-now` can fail for a reason (overlaps another session's window) that `finalize` never does, so surface that error message distinctly to the manager.
+
+After success, refresh the session from the server: `availableFrom` and `finalizationDeadline` will both read as "now", and `isFinalized` as `true`. A session finalized through the regular `finalize` keeps its original `finalizationDeadline` in the future — that is expected, not a bug, so do not treat "deadline in the future" as "still finalizable"; use `isFinalized` for that.
