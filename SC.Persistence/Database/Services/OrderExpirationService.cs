@@ -9,6 +9,7 @@ using SessionAggregateRoot = SC.Domain.Domain.Session.AggregateRoot.Session;
 using PickupSlotEntity = SC.Domain.Domain.PickupSlot.Entity.PickupSlot;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
+using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 
 namespace SC.Persistence.Database.Services;
 
@@ -18,6 +19,7 @@ public sealed class OrderExpirationService(
     IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
     IGenericRepository<PickupSlotEntity, Guid> pickupSlotRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
+    IGenericRepository<TrayEntity, Guid> trayRepository,
     IUnitOfWork unitOfWork,
     ILogger<OrderExpirationService> logger) : IOrderExpirationService
 {
@@ -107,6 +109,19 @@ public sealed class OrderExpirationService(
             cancellationToken);
         foreach (var job in activeJobs)
         {
+            // Khay job đang giữ phải VỀ POOL trước khi job đóng — giống dead-order sweep của
+            // PullNextJob (bước 1c). Thiếu đoạn này khay kẹt Reserved vĩnh viễn vì job đã
+            // Cancelled thì không sweeper nào rờ tới nữa (đo thật: TRAY001 kẹt sáng 17/08).
+            if (job.TrayId is Guid heldTrayId)
+            {
+                var heldTray = await trayRepository.GetByIdAsync(heldTrayId, cancellationToken);
+                if (heldTray is not null)
+                {
+                    heldTray.Release(order.CreatedBy);
+                    trayRepository.Update(heldTray);
+                }
+                job.ClearTray(order.CreatedBy);
+            }
             job.Cancel(order.CreatedBy);
             servingJobRepository.Update(job);
         }
