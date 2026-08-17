@@ -7,12 +7,14 @@ using SC.Domain.Domain.RobotEventLog.Enum;
 using SC.Domain.Domain.ServingJob.Enum;
 using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 using RobotEventLogEntity = SC.Domain.Domain.RobotEventLog.Entity.RobotEventLog;
+using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 
 namespace SC.Application.MediatR.ServingJobAdmin.ManualCompleteServingJob;
 
 internal sealed class ManualCompleteServingJobCommandHandler(
     IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
     IGenericRepository<RobotEventLogEntity, Guid> robotEventLogRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
     ILogger<ManualCompleteServingJobCommandHandler> logger
@@ -54,6 +56,37 @@ internal sealed class ManualCompleteServingJobCommandHandler(
                     message: "MANUAL completion by staff" +
                              (string.IsNullOrWhiteSpace(request.Note) ? "" : $": {request.Note.Trim()}")),
                 cancellationToken);
+
+            // Ghi PlaceCompleted cho các món robot CHƯA đặt (nguồn sự thật "ráp đủ" là log này):
+            //   (1) watchdog IsAssemblyCompleteAsync thấy đủ món -> KHÔNG requeue ngược job vừa
+            //       làm tay (trước đây staff bấm xong ~60s là bị đạp Assembling -> Queued);
+            //   (2) job sau này bị requeue -> Done-resume gắn done=true cho món đặt tay, robot
+            //       không gắp lại món đã nằm trên khay;
+            //   (3) audit vẫn phân biệt người/máy: actor = staff + message MANUAL.
+            var order = await orderRepository.GetByIdAsync(job.OrderId, cancellationToken, o => o.OrderItems);
+            if (order is not null)
+            {
+                var placedLogs = await robotEventLogRepository.FindListAsync(
+                    x => x.ServingJobId == job.Id
+                         && x.EventType == RobotEventType.PlaceCompleted
+                         && x.DishId != null,
+                    cancellationToken);
+                var placedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+
+                foreach (var dishId in order.OrderItems.Select(i => i.DishId).Distinct())
+                {
+                    if (placedDishIds.Contains(dishId)) continue;
+                    await robotEventLogRepository.AddAsync(
+                        RobotEventLogEntity.Create(
+                            RobotEventType.PlaceCompleted,
+                            actorId,
+                            servingJobId: job.Id,
+                            orderId: job.OrderId,
+                            dishId: dishId,
+                            message: "MANUAL completion by staff"),
+                        cancellationToken);
+                }
+            }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
