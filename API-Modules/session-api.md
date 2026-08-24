@@ -16,6 +16,12 @@ When a session passes `finalizationDeadline` without manual finalization:
 `isActive` in session responses is the manager-controlled active flag.
 Ordering is still enforced by time rules on cart/order APIs: users can order only when `now >= availableForOrder` and `now <= availableTo`.
 
+**Reading `finalizationDeadline` after finalization.** Use `isFinalized` — never the deadline — to decide whether a session can still be finalized:
+- `POST .../finalize` leaves `finalizationDeadline` untouched, so a finalized session can legitimately still show a deadline in the future.
+- `POST .../finalize-now` pulls `finalizationDeadline` (and `availableFrom`) back to the moment of the call, so both read as "now" afterwards. See [`finalize-session-now-api.md`](finalize-session-now-api.md).
+
+Either way, ordering has already stopped the instant `isFinalized` becomes `true` — the cart/order APIs reject a finalized session regardless of the deadline or the time window.
+
 ---
 
 ## `GET /api/sessions`
@@ -232,12 +238,56 @@ Updates are allowed only before ordering opens for the current session:
 ---
 
 ## `DELETE /api/sessions/{id}`
-Authorize. Soft-delete.
+Authorize. Soft-delete **plus automatic refunds** for every order the robot has not started serving.
+
+Deleting a session used to strand the money of anyone who had already ordered from it. It now settles
+those orders in the same transaction as the delete:
+
+| Order state | What happens |
+|---|---|
+| No serving job yet, or job still `Queued` | Cancelled, full-order refund **auto-approved and credited immediately**, serving job cancelled, any held tray released back to the pool, open change proposals closed as `OrderRefundRequested`, customer notified |
+| Job `Pushed`, `Assembling`, `OnShelf` or `Failed` | **Left untouched** — the food is already on its way to a tray, so the customer still collects it even though the session is gone |
+| Already `Cancelled` / `Expired` / `Completed` | Ignored, nothing to settle |
+| Another full-order refund already `Pending`/`Approved` | Skipped, so the order is never credited twice |
+
+The `Queued`-only boundary is the same one the customer-facing full-order refund enforces
+(see [`change-proposal-api.md`](change-proposal-api.md)).
+
+**Refund amount** covers every line not already `Refunded`, under the policy configured at
+`CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE` — the same policy the change-proposal order
+refund uses. That policy must exist and must not require images, **but only when there is at least one
+order to refund**: a session with nothing to settle deletes fine on an instance where it was never
+configured.
+
+All-or-nothing: if crediting any wallet fails, nothing is deleted, cancelled or credited, and the call
+returns the credit error. Customer notifications are only sent after the transaction commits.
 
 **200:**
 ```json
-{ "value": { "id": "guid", "message": "Session deleted successfully (soft delete)." }, "isSuccess": true }
+{
+  "value": {
+    "id": "guid",
+    "refundedOrderCount": 2,
+    "skippedOrderCount": 1,
+    "message": "Session deleted successfully (soft delete). 2 order(s) were cancelled and refunded."
+  },
+  "isSuccess": true
+}
 ```
+
+`skippedOrderCount` counts orders left alone — either the robot had already started them, or another
+full-order refund was in flight. With nothing to refund the message stays
+`Session deleted successfully (soft delete).` and both counts are `0`.
+
+**400:**
+
+| Error | Message | When |
+|---|---|---|
+| `InvalidValue` | `Order refund policy is not configured.` | an order needs refunding but `ORDER_REFUND_POLICY_CODE` is missing or blank |
+| `InvalidValue` | `Configured order refund policy is not active or invalid.` | the referenced `REFUND_POLICY` scope is incomplete |
+| `InvalidValue` | `Configured order refund policy cannot require images.` | the policy has `REQUIRES_IMAGE = true` |
+
+**404:** `Session with id {id} not found.` — also returned for an already soft-deleted session.
 
 ---
 
@@ -256,7 +306,7 @@ Authorize role: `Manager`. Manager confirms prepared quantities per dish. Under-
 }
 ```
 
-`suggestedDishId` is optional. When provided, it must be active, part of the same session, different from `dishId`, allowed by affected order templates, and in the same required category when the missing dish is required.
+`suggestedDishId` is optional. When provided, it must be active, part of the same session, different from `dishId`, allowed by affected order templates, in the same required category when the missing dish is required, and priced the same as `dishId` (a swap must be money-neutral, so the customer can only accept an equal-priced dish - see [`change-proposal-api.md`](change-proposal-api.md)). The auto-picked suggestion obeys the same price rule, and is left empty when the category has no equal-priced dish with spare quantity.
 
 **200:**
 ```json
