@@ -156,6 +156,7 @@ internal class DeleteSessionCommandHandler(
                         order.CreatedBy,
                         refundRequest.Id,
                         order.Id,
+                        session.Name,
                         refundRequest.RefundAmount,
                         credit.WalletTransactionId,
                         credit.BalanceAfter,
@@ -308,15 +309,19 @@ internal class DeleteSessionCommandHandler(
         return Result.Success(policy!, "Refund policy retrieved successfully.");
     }
 
+    // Its own template rather than the generic RefundApproved one: the customer did not ask for this
+    // refund, so the message has to say which session went away - otherwise they get "your refund was
+    // approved" for a request they never made.
     private async Task NotifyCustomerAsync(RefundNotification notification, CancellationToken cancellationToken)
     {
         await businessNotificationService.NotifyAsync(
-            NotificationTemplateKeys.RefundApproved,
+            NotificationTemplateKeys.SessionDeletedRefund,
             notification.UserId,
             notification.RefundRequestId,
             new Dictionary<string, string>
             {
                 ["referenceId"] = notification.RefundRequestId.ToString(),
+                ["sessionName"] = notification.SessionName,
                 ["refundAmount"] = notification.RefundAmount.ToString("0.##")
             },
             new
@@ -336,6 +341,7 @@ internal class DeleteSessionCommandHandler(
         Guid UserId,
         Guid RefundRequestId,
         Guid OrderId,
+        string SessionName,
         decimal RefundAmount,
         Guid WalletTransactionId,
         decimal BalanceAfter,
