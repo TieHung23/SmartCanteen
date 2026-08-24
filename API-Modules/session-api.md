@@ -254,10 +254,26 @@ The `Queued`-only boundary is the same one the customer-facing full-order refund
 (see [`change-proposal-api.md`](change-proposal-api.md)).
 
 **Refund amount** covers every line not already `Refunded`, under the policy configured at
-`CHANGE_PROPOSAL / REFUND / ORDER_REFUND_POLICY_CODE` — the same policy the change-proposal order
-refund uses. That policy must exist and must not require images, **but only when there is at least one
-order to refund**: a session with nothing to settle deletes fine on an instance where it was never
-configured.
+`SESSION / REFUND / DELETE_REFUND_POLICY_CODE`.
+
+This flow has **its own policy**, deliberately not the change-proposal one: the refund report groups by
+`PolicyCode`, so sharing a code would merge "manager removed the session" and "kitchen came up short"
+into a single unreadable line. Terms are identical (100%, no evidence photo); only the identity differs.
+
+Required settings:
+
+| Group | Scope | Code | Value |
+|-------|-------|------|-------|
+| `SESSION` | `REFUND` | `DELETE_REFUND_POLICY_CODE` | policy code, e.g. `SESSION_DELETED_NO_IMAGE` |
+| `REFUND_POLICY` | `SESSION_DELETED_NO_IMAGE` | `NAME` | e.g. `Refund for a deleted session` |
+| `REFUND_POLICY` | `SESSION_DELETED_NO_IMAGE` | `DESCRIPTION` | free text |
+| `REFUND_POLICY` | `SESSION_DELETED_NO_IMAGE` | `PERCENT` | `100` |
+| `REFUND_POLICY` | `SESSION_DELETED_NO_IMAGE` | `REQUIRES_IMAGE` | `false` |
+
+The policy code is read from the setting, not hardcoded, so an instance can point this flow at a
+different policy without a code change. The policy must exist and must not require images, **but only
+when there is at least one order to refund**: a session with nothing to settle deletes fine on an
+instance where it was never configured.
 
 All-or-nothing: if crediting any wallet fails, nothing is deleted, cancelled or credited, and the call
 returns the credit error. Customer notifications are only sent after the transaction commits.
@@ -283,9 +299,9 @@ full-order refund was in flight. With nothing to refund the message stays
 
 | Error | Message | When |
 |---|---|---|
-| `InvalidValue` | `Order refund policy is not configured.` | an order needs refunding but `ORDER_REFUND_POLICY_CODE` is missing or blank |
-| `InvalidValue` | `Configured order refund policy is not active or invalid.` | the referenced `REFUND_POLICY` scope is incomplete |
-| `InvalidValue` | `Configured order refund policy cannot require images.` | the policy has `REQUIRES_IMAGE = true` |
+| `InvalidValue` | `Session deletion refund policy is not configured.` | an order needs refunding but `DELETE_REFUND_POLICY_CODE` is missing or blank |
+| `InvalidValue` | `Configured session deletion refund policy is not active or invalid.` | the referenced `REFUND_POLICY` scope is incomplete |
+| `InvalidValue` | `Configured session deletion refund policy cannot require images.` | the policy has `REQUIRES_IMAGE = true` |
 
 **404:** `Session with id {id} not found.` — also returned for an already soft-deleted session.
 
