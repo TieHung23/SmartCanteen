@@ -8,6 +8,7 @@ public static class NotificationTemplateKeys
     public const string RefundSubmitted = "RefundSubmitted";
     public const string RefundApproved = "RefundApproved";
     public const string RefundRejected = "RefundRejected";
+    public const string SessionDeletedRefund = "SessionDeletedRefund";
     public const string ChangeProposalCreated = "ChangeProposalCreated";
     public const string ChangeProposalAccepted = "ChangeProposalAccepted";
     public const string ChangeProposalItemRefundRequested = "ChangeProposalItemRefundRequested";
