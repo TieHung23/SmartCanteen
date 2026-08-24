@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using SC.Application.MediatR.Order.ChangeProposal;
 using SC.Application.MediatR.RefundPolicy;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Services.Notification;
@@ -92,7 +91,7 @@ internal class DeleteSessionCommandHandler(
                 {
                     return Result.Failure<DeleteSessionResponse>(
                         Error.InvalidValue,
-                        "Configured order refund policy cannot require images.");
+                        "Configured session deletion refund policy cannot require images.");
                 }
             }
 
@@ -279,16 +278,16 @@ internal class DeleteSessionCommandHandler(
         var policyCodeSetting = await settingRepository.FindSingleAsync(
             setting =>
                 !setting.IsDeleted
-                && setting.Group.ToUpper() == ChangeProposalSettingConstants.Group
-                && setting.Scope.ToUpper() == ChangeProposalSettingConstants.RefundScope
-                && setting.Code.ToUpper() == ChangeProposalSettingConstants.OrderRefundPolicyCode,
+                && setting.Group.ToUpper() == SessionRefundSettingConstants.Group
+                && setting.Scope.ToUpper() == SessionRefundSettingConstants.RefundScope
+                && setting.Code.ToUpper() == SessionRefundSettingConstants.DeleteRefundPolicyCode,
             cancellationToken);
 
         if (policyCodeSetting is null || string.IsNullOrWhiteSpace(policyCodeSetting.Value))
         {
             return Result.Failure<RefundPolicyDefinition>(
                 Error.InvalidValue,
-                "Order refund policy is not configured.");
+                "Session deletion refund policy is not configured.");
         }
 
         var policyCode = policyCodeSetting.Value.Trim();
@@ -303,7 +302,7 @@ internal class DeleteSessionCommandHandler(
         {
             return Result.Failure<RefundPolicyDefinition>(
                 Error.InvalidValue,
-                "Configured order refund policy is not active or invalid.");
+                "Configured session deletion refund policy is not active or invalid.");
         }
 
         return Result.Success(policy!, "Refund policy retrieved successfully.");
