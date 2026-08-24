@@ -33,8 +33,16 @@ Returns proposal detail, including:
 - `allowedActions`
 - `suggestedDishId`
 - `selectedDishId`
+- `currentUnitPrice`
 - `expiresAtUtc`
 - `isExpired`
+
+`currentUnitPrice` is what the customer was charged for this order line, and it is the number a
+replacement dish has to match. **Filter the candidate dishes against this, not against the current
+menu price of `currentDishId`** — the two normally agree, but a menu price edited after the order was
+placed would make the menu price the wrong one to compare with. It is `null` once the order line no
+longer carries `currentDishId` (the proposal was already swapped or refunded), where it is no longer
+needed. `GET /api/changeproposals` returns the same field per proposal.
 
 When `isExpired = true`, `allowedActions` is empty and action APIs return `400`.
 
@@ -62,7 +70,41 @@ Request:
 }
 ```
 
-If `isRequiredItem = true`, the replacement dish must belong to the required category.
+Rules on the replacement dish:
+
+- It must belong to the required category when `isRequiredItem = true`, otherwise to the same category as the dish being replaced.
+- It must be active and part of the session.
+- **It must cost exactly what the customer was charged for this item** (`currentUnitPrice` above). The wallet is debited in full when the order is placed and no step in this flow settles a difference, so a swap has to be money-neutral. The comparison is against the order item's charged `unitPrice`, not the current menu price of the dish being replaced - if the dish's price was edited after the order was placed, the two differ and the swap is rejected.
+- **It must still have portions left in this session.** Available portions are derived as `preparedQuantity` of that dish minus the quantity the session's live orders still have to be served (lines that are `Pending`, `Confirmed` or `Swapped`; refunded, refund-pending and change-pending lines do not hold a portion, and cancelled/expired orders are excluded). A dish the manager never entered a prepared quantity for counts as zero and can never be swapped onto. Because an accepted swap flips the line to `Swapped` on the new dish, each committed swap is immediately visible to the next customer - the suggestion a proposal carries is a hint, and the first customers to answer take the spare portions.
+- The resulting order must still satisfy its meal template (category min/max quantities).
+
+When no equal-priced dish is acceptable to the customer, the swap is a dead end by design and the remaining options are the refund endpoints below: item refund for an optional item, full order refund for a required one.
+
+Failure (`400`):
+
+```json
+{
+  "message": "Replacement dish must cost the same as the item being replaced. Request an item refund or a full order refund instead.",
+  "isSuccess": false
+}
+```
+
+For a required item the same rejection reads `... Request a full order refund instead.`
+
+Running out of portions is rejected the same way:
+
+```json
+{
+  "message": "Replacement dish has no portions left in this session. Pick another dish or request a refund.",
+  "errorCode": "InvalidValue",
+  "isSuccess": false
+}
+```
+
+The proposal stays `WaitingResponse` on both rejections, so the customer can pick a different dish or
+switch to a refund - nothing is consumed by a failed attempt. Two customers racing for the last
+portion can still both get through in the same instant: the endpoint opens no transaction and takes
+no lock on the proposal.
 
 Response:
 

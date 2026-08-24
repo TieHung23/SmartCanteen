@@ -226,8 +226,15 @@ public class FinalizeSessionService(
                 }
                 else
                 {
+                    // Same money-neutral rule the customer is held to when accepting the proposal
+                    // (AcceptChangeProposalCommandHandler): only an equal-priced dish can be swapped
+                    // in, so suggesting anything else would hand the customer a dish they cannot
+                    // actually pick. If the category has no equal-priced mate with spare CB the item
+                    // simply goes out without a suggestion and the customer refunds instead.
                     var donor = remainingByDish
                         .Where(kv => kv.Key != item.DishId && kv.Value > 0)
+                        .Where(kv => dishMap.TryGetValue(kv.Key, out var candidate)
+                                     && candidate.Price.Amount == item.UnitPrice.Amount)
                         .OrderByDescending(kv => kv.Value)
                         .ThenBy(kv => dishMap.GetValueOrDefault(kv.Key)?.Name)
                         .ThenBy(kv => kv.Key)
@@ -430,6 +437,17 @@ public class FinalizeSessionService(
                 return Result.Failure(
                     Error.NullValue,
                     $"Current dish {currentDishId} was not found.");
+            }
+
+            // A suggestion the customer could never accept is worse than no suggestion at all, so
+            // the same equal-price rule as the swap itself is enforced here on the menu prices.
+            // The authoritative gate stays in AcceptChangeProposalCommandHandler, which compares
+            // against what each order item was actually charged.
+            if (suggestedDish.Price.Amount != currentDish.Price.Amount)
+            {
+                return Result.Failure(
+                    Error.InvalidValue,
+                    $"Suggested dish {suggestedDishId.Value} must have the same price as dish {currentDishId}.");
             }
 
             var affectedOrders = orders

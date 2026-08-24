@@ -4,12 +4,14 @@ using SC.Domain.Abstraction.Repositories;
 using SC.Domain.Abstraction.Services;
 using SC.Domain.Domain.Order.AggregateRoot;
 using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
+using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 
 namespace SC.Application.MediatR.Order.ChangeProposal;
 
 internal class GetChangeProposalByIdQueryHandler(
     IGenericRepository<OrderItemChangeProposal, Guid> proposalRepository,
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
+    IGenericRepository<OrderAggregateRoot, Guid> orderRepository,
     ICurrentUserService currentUserService) : IQueryHandler<GetChangeProposalByIdQuery, ChangeProposalResponse>
 {
     public async Task<Result<ChangeProposalResponse>> Handle(
@@ -37,7 +39,16 @@ internal class GetChangeProposalByIdQueryHandler(
             cancellationToken);
         var dishMap = dishes.ToDictionary(d => d.Id);
 
-        var response = ChangeProposalMapping.ToResponse(proposal, dishMap);
+        // The price a replacement has to match is the one on the order line, not the dish's
+        // current menu price - see AcceptChangeProposalCommandHandler.
+        var order = await orderRepository.FindSingleAsync(
+            o => o.Id == proposal.OrderId && !o.IsDeleted,
+            cancellationToken);
+
+        var currentUnitPrice = order?.OrderItems
+            .FirstOrDefault(i => i.DishId == proposal.CurrentDishId)?.UnitPrice.Amount;
+
+        var response = ChangeProposalMapping.ToResponse(proposal, dishMap, currentUnitPrice);
         return Result.Success(response, "Change proposal retrieved successfully.");
     }
 }

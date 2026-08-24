@@ -100,6 +100,61 @@ internal class AcceptChangeProposalCommandHandler(
         if (item is null)
             return Result.Failure<AcceptChangeProposalResponse>(Error.NullValue, "Order item not found.");
 
+        // A swap has to be money-neutral: the wallet was debited in full when the order was placed
+        // and nothing downstream settles a difference, so a cheaper/pricier replacement would
+        // silently move money. Compared against the item's own UnitPrice - what the customer
+        // actually paid - rather than the current dish's price, so a menu price edited after the
+        // order was placed cannot open a gap either. When no equal-priced dish is acceptable the
+        // customer's remaining options are the refund endpoints (item refund for an optional item,
+        // full order refund for a required one).
+        if (newDish.Price.Amount != item.UnitPrice.Amount)
+        {
+            return Result.Failure<AcceptChangeProposalResponse>(
+                Error.InvalidValue,
+                proposal.IsRequiredItem
+                    ? "Replacement dish must cost the same as the item being replaced. Request a full order refund instead."
+                    : "Replacement dish must cost the same as the item being replaced. Request an item refund or a full order refund instead.");
+        }
+
+        // Prepared quantity is written once at finalize and never decremented, and the donor a
+        // proposal suggests is a hint rather than a reservation - so without this gate every
+        // customer short of the same dish could swap onto the same category mate and oversubscribe
+        // it. Nothing persists a running "portions left", but it can be derived: what the kitchen
+        // cooked, minus what the orders in this session still have to be served.
+        //
+        // Only items that will actually reach a tray count against the dish. Refunded and
+        // refund-pending ones are off the hook, and a ChangePending item does not count either -
+        // it is change-pending precisely because its own dish ran out for it, so counting it would
+        // subtract the same shortage twice. Because an accepted swap flips the item to Swapped on
+        // the new dish, each committed swap immediately shows up here for the next customer: the
+        // recomputation is the reservation.
+        var sessionOrders = await orderRepository.FindListAsync(
+            o => o.SessionId == session.Id
+                 && !o.IsDeleted
+                 && o.Status != OrderStatus.Cancelled
+                 && o.Status != OrderStatus.Expired,
+            cancellationToken);
+
+        var committedQuantity = sessionOrders
+            .SelectMany(o => o.OrderItems)
+            .Where(i => i.DishId == request.NewDishId
+                        && (i.ItemStatus == OrderItemStatus.Pending
+                            || i.ItemStatus == OrderItemStatus.Confirmed
+                            || i.ItemStatus == OrderItemStatus.Swapped))
+            .Sum(i => i.Quantity);
+
+        // A dish the manager never entered a prepared quantity for reads as zero here, the same way
+        // finalize treats it - nothing was cooked, so nothing can be swapped onto it.
+        var preparedQuantity = session.SessionDishes
+            .FirstOrDefault(sd => sd.DishId == request.NewDishId)?.PreparedQuantity ?? 0;
+
+        if (preparedQuantity - committedQuantity < item.Quantity)
+        {
+            return Result.Failure<AcceptChangeProposalResponse>(
+                Error.InvalidValue,
+                "Replacement dish has no portions left in this session. Pick another dish or request a refund.");
+        }
+
         var template = session.MealTemplates.FirstOrDefault(t =>
             t.Id == order.MealTemplateId && !t.IsDeleted);
 

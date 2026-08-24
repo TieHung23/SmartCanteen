@@ -38,7 +38,9 @@ If both are already in the past, this call is equivalent to the regular finalize
 }
 ```
 
-Same rules as the regular finalize: `suggestedDishId` is optional; when provided it must be active, part of the same session, different from `dishId`, allowed by affected order templates, and in the same required category when the missing dish is required.
+Same rules as the regular finalize: `suggestedDishId` is optional; when provided it must be active, part of the same session, different from `dishId`, allowed by affected order templates, in the same required category when the missing dish is required, and **priced the same as `dishId`** - a customer can only accept an equal-priced swap, so a differently-priced suggestion would be unusable.
+
+The auto-picked suggestion (used when the manager leaves `suggestedDishId` empty) follows the same rule: only an equal-priced category mate with spare prepared quantity is suggested. When the category has none, the proposal goes out with `suggestedDishId: null` and the customer's only options are the refund ones.
 
 ### 200 — Success
 
@@ -76,6 +78,7 @@ All failures return HTTP `400` with:
 | `InvalidValue` | `Suggested dish {suggestedDishId} is not allowed by one or more affected order templates.` | suggested dish's category isn't allowed by the meal template of an affected order |
 | `InvalidValue` | `Suggested dish {suggestedDishId} must be in the same required category as dish {dishId}.` | dish is a required item and the suggestion changes its required category |
 | `InvalidValue` | `Suggested dish {suggestedDishId} must be in the same category as optional dish {dishId}.` | dish is optional and the suggestion changes its category |
+| `InvalidValue` | `Suggested dish {suggestedDishId} must have the same price as dish {dishId}.` | the suggestion costs more or less than the dish it would replace |
 
 ---
 

@@ -8,7 +8,8 @@ internal static class ChangeProposalMapping
 {
     public static ChangeProposalResponse ToResponse(
         OrderItemChangeProposal proposal,
-        IReadOnlyDictionary<Guid, DishAggregateRoot> dishes)
+        IReadOnlyDictionary<Guid, DishAggregateRoot> dishes,
+        decimal? currentUnitPrice = null)
     {
         dishes.TryGetValue(proposal.CurrentDishId, out var currentDish);
         DishAggregateRoot? suggestedDish = null;
@@ -28,6 +29,7 @@ internal static class ChangeProposalMapping
             OrderId = proposal.OrderId,
             CurrentDishId = proposal.CurrentDishId,
             CurrentDishName = currentDish?.Name ?? string.Empty,
+            CurrentUnitPrice = currentUnitPrice,
             SuggestedDishId = proposal.SuggestedDishId,
             SuggestedDishName = suggestedDish?.Name,
             SelectedDishId = proposal.SelectedDishId,
