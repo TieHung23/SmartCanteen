@@ -10,7 +10,11 @@ Tất cả endpoint dưới đây yêu cầu role **Manager/Staff** (header `Aut
 
 ## 1. Order detail giờ trả `trayCode`
 
-`GET /api/manager/orders/{orderId}` — response **thêm field `trayCode`**:
+Áp dụng cho **cả 2** endpoint order detail (cùng dùng chung `GetOrderByIdQuery` nên đều có field mới):
+- `GET /api/manager/orders/{orderId}` — Manager/Staff xem đơn bất kỳ
+- `GET /api/orders/{orderId}` — Học Sinh xem đơn của chính mình (chủ đơn)
+
+Response **thêm field `trayCode`**:
 
 ```jsonc
 {
@@ -59,7 +63,9 @@ Response 1 notification (vd noti "Cánh tay đã gắp xong" `OrderAssembledStaf
 
 **FE làm:** khi bấm notification →
 - Cách 1: điều hướng thẳng theo `actionUrl`.
-- Cách 2: nếu `referenceType == "Order"` → route tới trang order detail bằng `referenceId`.
+- Cách 2 (**khuyến nghị làm fallback**): nếu `referenceType == "Order"` → route tới order detail bằng `referenceId`.
+
+> ⚠️ **`actionUrl` có thể `null`.** `referenceId`(=orderId) do **code** set nên **luôn có**. Còn `actionUrl` do **template** sinh (thay token `{referenceId}` → orderId) → chỉ có giá trị khi template noti đó khai `ActionUrlTemplate` (vd `/staff/orders/{referenceId}`) trong `appsettings.Notification.json` phía server. Template nào chưa khai thì `actionUrl = null` → **FE cứ dùng `referenceId` + `referenceType` để điều hướng** là chắc ăn nhất, không phụ thuộc config. (Đây là chỉnh config server, không phải đổi code — nếu cần bổ sung link cho template nào báo BE.)
 
 ---
 
