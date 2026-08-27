@@ -47,7 +47,7 @@ internal sealed class CheckTrayQueryHandler(
                     if (resumeJob is not null)
                         return Result.Success(
                             new CheckTrayResponse(true, tray.Status.ToString(), "Khay của đơn chờ làm lại."),
-                            "Tray of a queued (resume) job.");
+                            "Khay hợp lệ — thuộc job đang chờ làm lại.");
                 }
 
                 return Result.Success(

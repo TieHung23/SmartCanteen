@@ -30,7 +30,7 @@ internal class RegisterUserCommandHandler(
             {
                 return Result.Failure<RegisterUserResponse>(
                     Error.UnsupportedUserCategory,
-                    "Registration is only available for Student and Lecturer accounts.");
+                    "Chỉ Sinh viên và Giảng viên mới được tự đăng ký tài khoản.");
             }
 
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
