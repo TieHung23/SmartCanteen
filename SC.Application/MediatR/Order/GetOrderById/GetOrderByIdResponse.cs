@@ -11,6 +11,9 @@ public class GetOrderByIdResponse
     public string? ImgUrl { get; set; }
     public int Status { get; set; }
     public decimal TotalPrice { get; set; }
+    // Mã khay ĐANG gắn với job phục vụ của đơn (staff dựa vào để lấy đúng khay).
+    // null khi: đơn chưa vào phục vụ, chưa bind khay, HOẶC đã lên kệ (khay đã trả về pool).
+    public string? TrayCode { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
     public List<OrderStatusHistoryDto> StatusHistories { get; set; } = new();
     public DateTimeOffset CreatedAtUtc { get; set; }
