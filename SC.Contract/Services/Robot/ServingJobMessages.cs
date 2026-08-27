@@ -11,7 +11,8 @@ public sealed class ServingJobItemMessage
     public int Quantity { get; init; }
     public string? Station { get; init; }    // TAY nào gắp: mã RobotArm, vd "S1"
     public string? LaneCode { get; init; }   // GẮP Ở ĐÂU: mã lane, vd "S1_L2" (UNDERSCORE; edge tra teaching point)
-    public bool Done { get; init; }          // đã phục vụ xong lượt trước (BE suy từ RobotEventLogs) -> edge SKIP khi requeue
+    public bool Done { get; init; }          // đã phục vụ ĐỦ số lượng lượt trước (PlacedCount>=Quantity) -> edge SKIP khi requeue
+    public int PlacedCount { get; init; }    // #10: SỐ TÔ đã đặt (đếm log PlaceCompleted) -> requeue chỉ đặt (Quantity - PlacedCount) tô còn thiếu
 }
 
 /// <summary>Job phục vụ đẩy cho robot service qua SignalR (event "ReceiveJob").</summary>

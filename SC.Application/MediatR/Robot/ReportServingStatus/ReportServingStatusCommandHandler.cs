@@ -265,16 +265,23 @@ internal sealed class ReportServingStatusCommandHandler(
         var order = await orderRepository.GetByIdAsync(orderId, ct, o => o.OrderItems);
         if (order is null) return false;
 
-        var neededDishIds = order.OrderItems.Select(i => i.DishId).Distinct().ToHashSet();
-        if (neededDishIds.Count == 0) return false;
+        // #10: cần ĐỦ SỐ LƯỢNG mỗi món (Σ Quantity per DishId), không chỉ "có mặt".
+        var neededByDish = order.OrderItems
+            .GroupBy(i => i.DishId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+        if (neededByDish.Count == 0) return false;
 
         var placedLogs = await robotEventLogRepository.FindListAsync(
             x => x.ServingJobId == servingJobId
                  && x.EventType == RobotEventType.PlaceCompleted
                  && x.DishId != null,
             ct);
-        var placedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+        var placedByDish = placedLogs
+            .GroupBy(x => x.DishId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
 
-        return neededDishIds.IsSubsetOf(placedDishIds);
+        // đủ khi MỌI món có số tô đã đặt >= số cần (qty=1 -> giống "có mặt" cũ).
+        return neededByDish.All(kv =>
+            placedByDish.TryGetValue(kv.Key, out var placed) && placed >= kv.Value);
     }
 }

@@ -2,13 +2,16 @@ using Microsoft.Extensions.Logging;
 using SC.Contract.Abstraction.Message;
 using SC.Contract.Shared;
 using SC.Domain.Abstraction.Repositories;
+using SC.Domain.Domain.ServingJob.Enum;
 using SC.Domain.Domain.Tray.Enum;
 using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
+using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
 
 namespace SC.Application.MediatR.Robot.CheckTray;
 
 internal sealed class CheckTrayQueryHandler(
     IGenericRepository<TrayEntity, Guid> trayRepository,
+    IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
     ILogger<CheckTrayQueryHandler> logger
 ) : IQueryHandler<CheckTrayQuery, CheckTrayResponse>
 {
@@ -33,10 +36,25 @@ internal sealed class CheckTrayQueryHandler(
                     "Tray not found.");
 
             if (tray.Status != TrayStatus.Available)
+            {
+                // #4: khay Reserved MÀ đang được 1 job Queued giữ = khay của đơn CHỜ LÀM LẠI (resume) -> HỢP LỆ.
+                //     (khay chứa món đã gắp của job đó; Unity sẽ pull đúng job đó qua PullNextJob(trayCode)).
+                if (tray.Status == TrayStatus.Reserved)
+                {
+                    var resumeJob = await servingJobRepository.FindSingleAsync(
+                        j => j.TrayId == tray.Id && j.Status == ServingJobStatus.Queued && !j.IsDeleted,
+                        cancellationToken);
+                    if (resumeJob is not null)
+                        return Result.Success(
+                            new CheckTrayResponse(true, tray.Status.ToString(), "Khay của đơn chờ làm lại."),
+                            "Tray of a queued (resume) job.");
+                }
+
                 return Result.Success(
                     new CheckTrayResponse(false, tray.Status.ToString(),
                         $"Tray '{code}' không rảnh (status: {tray.Status})."),
                     "Tray not available.");
+            }
 
             return Result.Success(
                 new CheckTrayResponse(true, tray.Status.ToString(), "OK"),

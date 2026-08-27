@@ -9,6 +9,7 @@ using SC.Application.MediatR.Robot.ClaimServingJob;
 using SC.Application.MediatR.Robot.GetServingMap;
 using SC.Application.MediatR.Robot.PullNextJob;
 using SC.Application.MediatR.Robot.ReportServingStatus;
+using SC.Application.MediatR.Robot.RobotHeartbeat;
 using SC.Contract.Services.Robot;
 
 namespace SC.Api.Hubs;
@@ -43,10 +44,14 @@ public sealed class VisualizationHub(ISender mediator, IConfiguration config) : 
         await base.OnDisconnectedAsync(exception);
     }
 
-    /// <summary>Unity -&gt; server: kéo job kế tiếp (y hệt Edge pull). null nếu chưa có việc.</summary>
-    public async Task<ServingJobMessage?> PullNextJob()
+    /// <summary>
+    /// Unity -&gt; server: kéo job kế tiếp (y hệt Edge pull). null nếu chưa có việc.
+    /// <paramref name="trayCode"/> (tray-first, #4): mã khay Unity vừa quét — BE chọn job theo khay
+    /// (khay Reserved của job Queued → resume job đó) mà vẫn giữ FIFO. Bỏ trống = FIFO cũ.
+    /// </summary>
+    public async Task<ServingJobMessage?> PullNextJob(string? trayCode = null)
     {
-        var result = await mediator.Send(new PullNextJobCommand());
+        var result = await mediator.Send(new PullNextJobCommand(trayCode));
         return result.IsSuccess ? result.Value?.Job : null;
     }
 
@@ -97,6 +102,15 @@ public sealed class VisualizationHub(ISender mediator, IConfiguration config) : 
             update.Message,
             update.TrayId,
             update.DishId));
+
+    /// <summary>
+    /// Unity -&gt; server: NHỊP TIM executor (~30s) — các trạm Unity đang lái còn sống.
+    /// Dùng CHUNG <see cref="RobotHeartbeatCommand"/> với <see cref="RobotHub"/> (cập nhật
+    /// RobotArm.LastHeartbeatUtc, Offline-&gt;Idle). Nhờ đó "mọi arm Offline" = executor VẮNG
+    /// mặt thật (đúng cả chế độ Unity-captain), hết false-offline khi Unity rảnh không báo per-lane.
+    /// </summary>
+    public Task Heartbeat(string[] stations)
+        => mediator.Send(new RobotHeartbeatCommand(stations));
 
     /// <summary>
     /// Unity -&gt; server: "nhận" job của 1 order (<c>Queued</c> -&gt; <c>Pushed</c>) mà KHÔNG qua pull

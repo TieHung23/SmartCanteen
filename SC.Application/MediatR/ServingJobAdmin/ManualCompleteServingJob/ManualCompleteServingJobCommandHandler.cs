@@ -71,20 +71,29 @@ internal sealed class ManualCompleteServingJobCommandHandler(
                          && x.EventType == RobotEventType.PlaceCompleted
                          && x.DishId != null,
                     cancellationToken);
-                var placedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+                // #10: ghi ĐỦ SỐ tô còn thiếu mỗi món = (Σ Quantity) - (đã PlaceCompleted).
+                var neededByDish = order.OrderItems
+                    .GroupBy(i => i.DishId)
+                    .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+                var placedByDish = placedLogs
+                    .GroupBy(x => x.DishId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
 
-                foreach (var dishId in order.OrderItems.Select(i => i.DishId).Distinct())
+                foreach (var (dishId, needed) in neededByDish)
                 {
-                    if (placedDishIds.Contains(dishId)) continue;
-                    await robotEventLogRepository.AddAsync(
-                        RobotEventLogEntity.Create(
-                            RobotEventType.PlaceCompleted,
-                            actorId,
-                            servingJobId: job.Id,
-                            orderId: job.OrderId,
-                            dishId: dishId,
-                            message: "MANUAL completion by staff"),
-                        cancellationToken);
+                    var placed = placedByDish.TryGetValue(dishId, out var pc) ? pc : 0;
+                    for (var k = placed; k < needed; k++)   // qty=1 & chưa đặt -> ghi đúng 1 (như cũ)
+                    {
+                        await robotEventLogRepository.AddAsync(
+                            RobotEventLogEntity.Create(
+                                RobotEventType.PlaceCompleted,
+                                actorId,
+                                servingJobId: job.Id,
+                                orderId: job.OrderId,
+                                dishId: dishId,
+                                message: "MANUAL completion by staff"),
+                            cancellationToken);
+                    }
                 }
             }
 

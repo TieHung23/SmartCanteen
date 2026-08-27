@@ -19,6 +19,7 @@ public static class NotificationTemplateKeys
     public const string VerificationApproved = "VerificationApproved";
     public const string VerificationRejected = "VerificationRejected";
     public const string ServingFailed = "ServingFailed";
+    public const string ServingStuckAlert = "ServingStuckAlert";
     public const string OrderReadyForPickup = "OrderReadyForPickup";
     public const string OrderServingIssue = "OrderServingIssue";
     public const string OrderPreparing = "OrderPreparing";

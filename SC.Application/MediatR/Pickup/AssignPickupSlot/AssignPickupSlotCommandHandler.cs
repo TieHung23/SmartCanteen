@@ -82,6 +82,10 @@ internal sealed class AssignPickupSlotCommandHandler(
             trayRepository.Update(tray);
 
             job.MarkOnShelf(slot.Id, actorId);
+            // #7: khay vừa Release về pool -> GỠ TrayId khỏi job để không job nào còn trỏ 1 khay Available
+            //     (chống '1 khay 2 job': đơn sau bind lại khay này trong khi job cũ vẫn giữ TrayId).
+            //     job.TrayId là con trỏ SỐNG (khay đang phục vụ), không phải lịch sử -> shelve xong thì gỡ.
+            job.ClearTray(actorId);
             servingJobRepository.Update(job);
 
             var order = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);

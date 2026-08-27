@@ -58,10 +58,12 @@ internal sealed class PullNextJobCommandHandler(
             var queuedOrders = await orderRepository.FindListAsync(
                 x => queuedOrderIds.Contains(x.Id), cancellationToken);
 
-            // 1c) Đơn đã HỦY/HẾT HẠN mà job còn Queued (luồng hủy/refund không đụng ServingJob)
-            //     -> HỦY job + trả khay đang giữ (requeue) về pool. Tuyệt đối không phục vụ đơn chết.
+            // 1c) Đơn đã HỦY/HẾT HẠN/HOÀN TẤT mà job còn Queued (luồng hủy/refund/pickup không đụng ServingJob)
+            //     -> HỦY job + trả khay đang giữ (requeue) về pool. Tuyệt đối không phục vụ đơn đã kết thúc.
+            //     Bất biến: Order ở trạng thái kết thúc (Cancelled/Expired/Completed) ⟹ Job cũng phải kết thúc
+            //     (chặn double-serve: job Queued mồ côi của đơn đã Completed bị pull + phục vụ lại).
             var deadOrderIds = queuedOrders
-                .Where(x => x.Status is OrderStatus.Cancelled or OrderStatus.Expired)
+                .Where(x => x.Status is OrderStatus.Cancelled or OrderStatus.Expired or OrderStatus.Completed)
                 .Select(x => x.Id)
                 .ToHashSet();
             if (deadOrderIds.Count > 0)
@@ -81,7 +83,7 @@ internal sealed class PullNextJobCommandHandler(
                     deadJob.Cancel(actorId);
                     servingJobRepository.Update(deadJob);
                     logger.LogInformation(
-                        "Cancelled queued serving job {JobId}: order {OrderId} is cancelled/expired.",
+                        "Cancelled queued serving job {JobId}: order {OrderId} is cancelled/expired/completed.",
                         deadJob.Id, deadJob.OrderId);
                 }
                 await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -99,12 +101,60 @@ internal sealed class PullNextJobCommandHandler(
                 cancellationToken);
             var activeSessionIds = activeSessions.Select(x => x.Id).ToHashSet();
 
-            var job = orderedQueued.FirstOrDefault(j =>
-                sessionIdByOrder.TryGetValue(j.OrderId, out var sid)
-                && activeSessionIds.Contains(sid));
-            if (job is null)
+            // candidate = job Queued của ca ĐANG MỞ, GIỮ thứ tự FIFO (orderedQueued đã sort theo CreatedAtUtc).
+            var candidates = orderedQueued
+                .Where(j => sessionIdByOrder.TryGetValue(j.OrderId, out var sid) && activeSessionIds.Contains(sid))
+                .ToList();
+            if (candidates.Count == 0)
             {
                 return Result.Success(new PullNextJobResponse(null), "No queued job for an active session.");
+            }
+
+            // #4 TRAY-FIRST: chọn job theo KHAY Unity quét được — GIỮ NGUYÊN FIFO:
+            //   - trayCode rỗng (non-camera / cũ): FIFO-oldest như cũ.
+            //   - khay Available: FIFO-oldest job MỚI (chưa có khay) -> sẽ bind khay này. Job requeue (đã có
+            //     khay) KHÔNG lấy khay khác -> bỏ qua, chờ đúng khay Reserved của nó.
+            //   - khay Reserved của 1 job Queued: CHÍNH job đó (resume trên khay chứa món đã gắp). Khay dành
+            //     riêng job đó nên không "chen hàng" FIFO của job khác (job khác không dùng được khay này).
+            //   - khay Reserved mồ côi / chưa đăng ký / InUse: null (không phục vụ bừa -> tránh bind hụt -> fail oan).
+            ServingJobEntity? job;
+            var scannedCode = (request.TrayCode ?? string.Empty).Trim();
+            if (scannedCode.Length == 0)
+            {
+                job = candidates[0];
+            }
+            else
+            {
+                var scannedTray = await trayRepository.FindSingleAsync(
+                    x => x.Code == scannedCode && !x.IsDeleted, cancellationToken);
+                if (scannedTray is null)
+                {
+                    return Result.Success(new PullNextJobResponse(null), $"Tray '{scannedCode}' chưa đăng ký.");
+                }
+
+                if (scannedTray.Status == TrayStatus.Reserved)
+                {
+                    job = candidates.FirstOrDefault(j => j.TrayId == scannedTray.Id);
+                    if (job is null)
+                    {
+                        return Result.Success(new PullNextJobResponse(null),
+                            $"Tray '{scannedCode}' đang Reserved nhưng không có job chờ nào giữ nó.");
+                    }
+                }
+                else if (scannedTray.Status == TrayStatus.Available)
+                {
+                    job = candidates.FirstOrDefault(j => j.TrayId is null);
+                    if (job is null)
+                    {
+                        return Result.Success(new PullNextJobResponse(null),
+                            "Không có job mới (chưa có khay) để gán khay Available này.");
+                    }
+                }
+                else
+                {
+                    return Result.Success(new PullNextJobResponse(null),
+                        $"Tray '{scannedCode}' không dùng được (status: {scannedTray.Status}).");
+                }
             }
 
             // 2) Khay: KHÔNG auto-gán ở đây nữa — edge quét mã khay VẬT LÝ rồi gọi bind-tray
@@ -159,14 +209,17 @@ internal sealed class PullNextJobCommandHandler(
             servingJobRepository.Update(job);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 5b) RESUME: món đã PlaceCompleted ở lượt trước (đọc RobotEventLogs — nguồn chân lý,
-            //     sống qua restart edge). Requeue -> gắn Done=true để edge SKIP, khỏi gắp lại.
+            // 5b) RESUME (#10 count-based): SỐ TÔ đã PlaceCompleted lượt trước, ĐẾM PER DishId
+            //     (RobotEventLogs — nguồn chân lý, sống qua restart edge). Requeue -> edge chỉ đặt
+            //     (Quantity - PlacedCount) tô còn thiếu; đủ số (Done) thì SKIP hẳn.
             var placedLogs = await robotEventLogRepository.FindListAsync(
                 x => x.ServingJobId == job.Id
                      && x.EventType == RobotEventType.PlaceCompleted
                      && x.DishId != null,
                 cancellationToken);
-            var servedDishIds = placedLogs.Select(x => x.DishId!.Value).ToHashSet();
+            var placedCountByDish = placedLogs
+                .GroupBy(x => x.DishId!.Value)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             var message = new ServingJobMessage
             {
@@ -174,23 +227,31 @@ internal sealed class PullNextJobCommandHandler(
                 OrderId = order.Id,
                 TrayId = job.TrayId,      // null cho job mới (edge quét+bind); có sẵn cho requeue
                 TrayCode = tray?.Code,    // null cho job mới
-                Items = order.OrderItems.Select(i =>
-                {
-                    configByDish.TryGetValue(i.DishId, out var cfg);
-                    string? station = null;
-                    if (cfg?.RobotArmId is Guid armId && armCodeById.TryGetValue(armId, out var code))
-                        station = code;
-
-                    return new ServingJobItemMessage
+                // GỘP theo DishId + Σ Quantity: 1 món = 1 item (dù đơn có nhiều OrderItem cùng dish).
+                //   qty=1 -> mỗi món 1 item như cũ; qty>1 -> Quantity mang số tô.
+                Items = order.OrderItems
+                    .GroupBy(i => i.DishId)
+                    .Select(g =>
                     {
-                        DishId = i.DishId,
-                        DishName = dishNameById.TryGetValue(i.DishId, out var name) ? name : null,
-                        Quantity = i.Quantity,
-                        Station = station,
-                        LaneCode = cfg?.LaneCode,
-                        Done = servedDishIds.Contains(i.DishId)
-                    };
-                }).ToList()
+                        var dishId = g.Key;
+                        var quantity = g.Sum(i => i.Quantity);
+                        configByDish.TryGetValue(dishId, out var cfg);
+                        string? station = null;
+                        if (cfg?.RobotArmId is Guid armId && armCodeById.TryGetValue(armId, out var code))
+                            station = code;
+                        var placed = placedCountByDish.TryGetValue(dishId, out var pc) ? pc : 0;
+
+                        return new ServingJobItemMessage
+                        {
+                            DishId = dishId,
+                            DishName = dishNameById.TryGetValue(dishId, out var name) ? name : null,
+                            Quantity = quantity,
+                            Station = station,
+                            LaneCode = cfg?.LaneCode,
+                            PlacedCount = placed,
+                            Done = placed >= quantity   // đặt đủ số tô -> edge SKIP
+                        };
+                    }).ToList()
             };
 
             return Result.Success(new PullNextJobResponse(message), "Job dispatched.");
