@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SC.Application.MediatR.ServingJobAdmin.FailServingJob;
 using SC.Application.MediatR.ServingJobAdmin.GetServingJobs;
 using SC.Application.MediatR.ServingJobAdmin.ManualCompleteServingJob;
 using SC.Application.MediatR.ServingJobAdmin.RequeueServingJob;
@@ -49,6 +50,21 @@ public class ServingJobsManagerController(IMediator mediator) : ControllerBase
         [FromRoute] Guid id, [FromBody] ManualCompleteServingJobCommand command, CancellationToken ct)
     {
         var result = await mediator.Send(command with { Id = id }, ct);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
+    }
+
+    /// <summary>
+    /// Staff TUYÊN BỐ job đang dang dở (Queued/Pushed/Assembling) là Failed — dùng khi robot mất
+    /// kết nối / đơn kẹt chờ mà cần can thiệp. Mở đường vào Requeue / ManualComplete. Body tuỳ chọn
+    /// { "reason": "..." }.
+    /// </summary>
+    [HttpPost("{id:guid}/fail")]
+    public async Task<IActionResult> Fail(
+        [FromRoute] Guid id, [FromBody] FailServingJobCommand? command, CancellationToken ct)
+    {
+        var result = await mediator.Send((command ?? new FailServingJobCommand(id, null)) with { Id = id }, ct);
         return result.IsFailure
             ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
             : Ok(result);

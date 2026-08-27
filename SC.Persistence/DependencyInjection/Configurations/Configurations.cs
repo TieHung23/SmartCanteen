@@ -22,6 +22,9 @@ public static class Configurations
         services.AddScoped<IFinalizeSessionService, FinalizeSessionService>();
         services.AddScoped<IChangeProposalExpirationService, ChangeProposalExpirationService>();
         services.AddScoped<IOrderExpirationService, OrderExpirationService>();
+        // Throttle cảnh báo job-Queued-mồ-côi phải SỐNG XUYÊN các lượt sweep (watchdog service là Scoped,
+        // tạo mới mỗi 30s) -> đăng ký SINGLETON.
+        services.AddSingleton<ServingStuckAlertThrottle>();
         services.AddScoped<IServingJobWatchdogService, ServingJobWatchdogService>();
     }
 }
