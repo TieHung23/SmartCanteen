@@ -30,7 +30,7 @@ internal class RegisterUserCommandHandler(
             {
                 return Result.Failure<RegisterUserResponse>(
                     Error.UnsupportedUserCategory,
-                    "Registration is only available for Student and Lecturer accounts.");
+                    "Chỉ Sinh viên và Giảng viên mới được tự đăng ký tài khoản.");
             }
 
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
@@ -42,7 +42,7 @@ internal class RegisterUserCommandHandler(
             {
                 return Result.Failure<RegisterUserResponse>(
                     Error.EmailAlreadyExists,
-                    "Email is already in use.");
+                    "Email đã được sử dụng.");
             }
 
             if (!string.IsNullOrWhiteSpace(request.StudentId))
@@ -54,7 +54,7 @@ internal class RegisterUserCommandHandler(
                 {
                     return Result.Failure<RegisterUserResponse>(
                         Error.StudentIdAlreadyUsed,
-                        "Student ID is already linked to another account.");
+                        "Mã số sinh viên đã liên kết với tài khoản khác.");
                 }
             }
 
@@ -118,8 +118,8 @@ internal class RegisterUserCommandHandler(
             return Result.Success(
                 response,
                 requiresVerificationCode
-                    ? "Registration successful. Please verify your email."
-                    : "Registration successful. You can sign in now.");
+                    ? "Đăng ký thành công. Vui lòng xác minh email."
+                    : "Đăng ký thành công. Bạn có thể đăng nhập ngay.");
         }
         catch (Exception ex)
         {
@@ -127,7 +127,7 @@ internal class RegisterUserCommandHandler(
             logger.LogError(ex, "Error during user registration for {Email}", request.Email);
             return Result.Failure<RegisterUserResponse>(
                 Error.ServerError,
-                "An error occurred while creating the account.");
+                "Đã xảy ra lỗi khi tạo tài khoản.");
         }
     }
 }

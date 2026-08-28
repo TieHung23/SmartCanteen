@@ -30,7 +30,7 @@ internal class ChangePasswordCommandHandler(
             {
                 return Result.Failure<PasswordActionResponse>(
                     Error.Forbidden,
-                    "Not authenticated.");
+                    "Chưa đăng nhập.");
             }
 
             var user = await userRepository.GetByIdAsync(userId, cancellationToken);
@@ -38,21 +38,21 @@ internal class ChangePasswordCommandHandler(
             {
                 return Result.Failure<PasswordActionResponse>(
                     Error.Forbidden,
-                    "User not found.");
+                    "Không tìm thấy người dùng.");
             }
 
             if (user.PasswordHash is null)
             {
                 return Result.Failure<PasswordActionResponse>(
                     Error.PasswordLoginUnavailable,
-                    "This account uses Google sign-in and does not have a password.");
+                    "Tài khoản này đăng nhập bằng Google nên không có mật khẩu.");
             }
 
             if (!passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
             {
                 return Result.Failure<PasswordActionResponse>(
                     Error.IncorrectCurrentPassword,
-                    "Current password is incorrect.");
+                    "Mật khẩu hiện tại không đúng.");
             }
 
             var activeRefreshTokens = await refreshTokenRepository
@@ -69,7 +69,7 @@ internal class ChangePasswordCommandHandler(
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 
-            const string message = "Password changed successfully. Please sign in again.";
+            const string message = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.";
             return Result.Success(new PasswordActionResponse(message), message);
         }
         catch (Exception ex)
@@ -78,7 +78,7 @@ internal class ChangePasswordCommandHandler(
             logger.LogError(ex, "Error changing password for user {UserId}", currentUserService.UserId);
             return Result.Failure<PasswordActionResponse>(
                 Error.ServerError,
-                "An error occurred while changing the password.");
+                "Đã xảy ra lỗi khi đổi mật khẩu.");
         }
     }
 }

@@ -30,7 +30,7 @@ internal sealed class BindTrayCommandHandler(
             if (code.Length == 0)
             {
                 return Result.Failure<BindTrayResponse>(
-                    Error.InvalidValue, "TrayCode is required.");
+                    Error.InvalidValue, "Vui lòng cung cấp mã khay.");
             }
 
             var job = await servingJobRepository.FindSingleAsync(
@@ -38,21 +38,21 @@ internal sealed class BindTrayCommandHandler(
             if (job is null)
             {
                 return Result.Failure<BindTrayResponse>(
-                    Error.ServingJobNotFound, "Serving job was not found.");
+                    Error.ServingJobNotFound, "Không tìm thấy công việc phục vụ.");
             }
 
             // Chỉ bind khi robot đang làm job (Pushed/Assembling).
             if (job.Status is not (ServingJobStatus.Pushed or ServingJobStatus.Assembling))
             {
                 return Result.Failure<BindTrayResponse>(
-                    Error.ServingJobNotReady, $"Cannot bind a tray to a {job.Status} job.");
+                    Error.ServingJobNotReady, $"Không thể gán khay cho công việc ở trạng thái {job.Status}.");
             }
 
             // Đã có khay (vd requeue) -> không bind đè (đồ đã gắp còn trên khay cũ).
             if (job.TrayId is not null)
             {
                 return Result.Failure<BindTrayResponse>(
-                    Error.ServingJobNotReady, "Job already has a tray bound.");
+                    Error.ServingJobNotReady, "Công việc đã được gán khay.");
             }
 
             var tray = await trayRepository.FindSingleAsync(
@@ -60,13 +60,13 @@ internal sealed class BindTrayCommandHandler(
             if (tray is null)
             {
                 return Result.Failure<BindTrayResponse>(
-                    Error.TrayNotFound, "Tray was not found.");
+                    Error.TrayNotFound, "Không tìm thấy khay.");
             }
 
             if (tray.Status != TrayStatus.Available)
             {
                 return Result.Failure<BindTrayResponse>(
-                    Error.ResourceBusy, $"Tray '{code}' is not available (status: {tray.Status}).");
+                    Error.ResourceBusy, $"Khay '{code}' không sẵn sàng (trạng thái: {tray.Status}).");
             }
 
             // Available -> Reserved + gán vào job. 1 SaveChanges = atomic.
@@ -78,13 +78,13 @@ internal sealed class BindTrayCommandHandler(
 
             return Result.Success(
                 new BindTrayResponse(job.Id, job.OrderId, tray.Id, tray.Code, job.Status.ToString()),
-                "Tray bound to job.");
+                "Đã gán khay cho công việc.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error binding tray to job {JobId}", request.JobId);
             return Result.Failure<BindTrayResponse>(
-                Error.ServerError, "An error occurred while binding the tray.");
+                Error.ServerError, "Đã xảy ra lỗi khi gán khay.");
         }
     }
 }

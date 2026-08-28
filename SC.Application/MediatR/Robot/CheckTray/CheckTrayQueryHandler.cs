@@ -24,8 +24,8 @@ internal sealed class CheckTrayQueryHandler(
             var code = (request.TrayCode ?? string.Empty).Trim();
             if (code.Length == 0)
                 return Result.Success(
-                    new CheckTrayResponse(false, null, "TrayCode is required."),
-                    "TrayCode is required.");
+                    new CheckTrayResponse(false, null, "Vui lòng cung cấp mã khay."),
+                    "Vui lòng cung cấp mã khay.");
 
             // Cùng tiêu chí với BindTrayCommandHandler (đăng ký? Available?) — nhưng KHÔNG reserve.
             var tray = await trayRepository.FindSingleAsync(
@@ -33,7 +33,7 @@ internal sealed class CheckTrayQueryHandler(
             if (tray is null)
                 return Result.Success(
                     new CheckTrayResponse(false, null, $"Tray '{code}' chưa đăng ký."),
-                    "Tray not found.");
+                    "Không tìm thấy khay.");
 
             if (tray.Status != TrayStatus.Available)
             {
@@ -47,24 +47,24 @@ internal sealed class CheckTrayQueryHandler(
                     if (resumeJob is not null)
                         return Result.Success(
                             new CheckTrayResponse(true, tray.Status.ToString(), "Khay của đơn chờ làm lại."),
-                            "Tray of a queued (resume) job.");
+                            "Khay hợp lệ — thuộc job đang chờ làm lại.");
                 }
 
                 return Result.Success(
                     new CheckTrayResponse(false, tray.Status.ToString(),
                         $"Tray '{code}' không rảnh (status: {tray.Status})."),
-                    "Tray not available.");
+                    "Khay không sẵn sàng.");
             }
 
             return Result.Success(
                 new CheckTrayResponse(true, tray.Status.ToString(), "OK"),
-                "Tray is valid & available.");
+                "Khay hợp lệ và sẵn sàng.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error checking tray {TrayCode}", request.TrayCode);
             return Result.Failure<CheckTrayResponse>(
-                Error.ServerError, "An error occurred while checking the tray.");
+                Error.ServerError, "Đã xảy ra lỗi khi kiểm tra khay.");
         }
     }
 }

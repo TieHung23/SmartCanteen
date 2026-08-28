@@ -25,7 +25,7 @@ internal class UpdateProfileCommandHandler(
             {
                 return Result.Failure<UpdateProfileResponse>(
                     Error.Forbidden,
-                    "Not authenticated.");
+                    "Chưa đăng nhập.");
             }
 
             var user = await userRepository.GetByIdAsync(userId, cancellationToken);
@@ -33,7 +33,7 @@ internal class UpdateProfileCommandHandler(
             {
                 return Result.Failure<UpdateProfileResponse>(
                     Error.Forbidden,
-                    "User not found.");
+                    "Không tìm thấy người dùng.");
             }
 
             user.UpdateProfile(
@@ -66,14 +66,14 @@ internal class UpdateProfileCommandHandler(
                 user.Balance.Amount,
                 user.LastLoginAt);
 
-            return Result.Success(response, "Profile updated successfully.");
+            return Result.Success(response, "Cập nhật hồ sơ thành công.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error updating profile for user {UserId}", currentUserService.UserId);
             return Result.Failure<UpdateProfileResponse>(
                 Error.ServerError,
-                "An error occurred while updating the profile.");
+                "Đã xảy ra lỗi khi cập nhật hồ sơ.");
         }
     }
 

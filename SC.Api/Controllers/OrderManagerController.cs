@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SC.Application.MediatR.Order.GetOrderById;
+using SC.Application.MediatR.Order.GetOrderEvents;
 using SC.Application.MediatR.Order.Manager.GetOrdersBySession;
 using SC.Application.MediatR.Order.UpdateOrder;
 
@@ -45,6 +46,21 @@ public sealed class OrderManagerController(IMediator mediator) : ControllerBase
 
         var result = await mediator.Send(query, cancellationToken);
         return result.IsFailure ? BadRequest(result) : Ok(result);
+    }
+
+    /// <summary>
+    /// Lịch sử sự kiện robot của 1 ĐƠN (gom mọi serving job của đơn). Lọc: ?type=Error|PlaceCompleted|...
+    /// </summary>
+    [HttpGet("{id:guid}/events")]
+    public async Task<IActionResult> GetOrderEvents(
+        [FromRoute] Guid id,
+        [FromQuery] string? type,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(new GetOrderEventsQuery(id, type), cancellationToken);
+        return result.IsFailure
+            ? StatusCode(result.Error?.HttpStatusCode ?? 400, result)
+            : Ok(result);
     }
 
     /// <summary>

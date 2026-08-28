@@ -7,6 +7,8 @@ using DishAggregateRoot = SC.Domain.Domain.Dish.AggregateRoot.Dish;
 using OrderAggregateRoot = SC.Domain.Domain.Order.AggregateRoot.Order;
 using OrderStatusHistoryEntity = SC.Domain.Domain.OrderStatusHistory.Entity.OrderStatusHistory;
 using UserAggregateRoot = SC.Domain.Domain.User.User;
+using ServingJobEntity = SC.Domain.Domain.ServingJob.Entity.ServingJob;
+using TrayEntity = SC.Domain.Domain.Tray.Entity.Tray;
 
 namespace SC.Application.MediatR.Order.GetOrderById;
 
@@ -15,6 +17,8 @@ internal class GetOrderByIdQueryHandler(
     IGenericRepository<DishAggregateRoot, Guid> dishRepository,
     IGenericRepository<UserAggregateRoot, Guid> userRepository,
     IGenericRepository<OrderStatusHistoryEntity, Guid> orderStatusHistoryRepository,
+    IGenericRepository<ServingJobEntity, Guid> servingJobRepository,
+    IGenericRepository<TrayEntity, Guid> trayRepository,
     ICurrentUserService currentUserService,
     ILogger<GetOrderByIdQueryHandler> logger
 ) : IQueryHandler<GetOrderByIdQuery, GetOrderByIdResponse>
@@ -53,6 +57,18 @@ internal class GetOrderByIdQueryHandler(
 
             var totalPrice = order.OrderItems.Sum(item => item.UnitPrice.Amount * item.Quantity);
 
+            // TrayCode: khay đang gắn với job phục vụ MỚI NHẤT của đơn.
+            //   null nếu: chưa có job / chưa bind khay / đã lên kệ (AssignPickupSlot ClearTray + trả khay về pool).
+            string? trayCode = null;
+            var servingJobs = await servingJobRepository
+                .FindListAsync(x => x.OrderId == order.Id && !x.IsDeleted, cancellationToken);
+            var latestJob = servingJobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
+            if (latestJob?.TrayId is Guid trayId)
+            {
+                var tray = await trayRepository.GetByIdAsync(trayId, cancellationToken);
+                trayCode = tray?.Code;
+            }
+
             var response = new GetOrderByIdResponse
             {
                 Id = order.Id,
@@ -64,6 +80,7 @@ internal class GetOrderByIdQueryHandler(
                 ImgUrl = user?.ImgUrl,
                 Status = (int)order.Status,
                 TotalPrice = totalPrice,
+                TrayCode = trayCode,
                 Items = order.OrderItems.Select(item =>
                 {
                     var dish = dishMap.GetValueOrDefault(item.DishId);

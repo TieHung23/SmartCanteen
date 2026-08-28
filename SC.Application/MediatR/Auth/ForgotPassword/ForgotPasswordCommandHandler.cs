@@ -22,7 +22,7 @@ internal class ForgotPasswordCommandHandler(
     : ICommandHandler<ForgotPasswordCommand, PasswordActionResponse>
 {
     private const string ResponseMessage =
-        "If an eligible account exists for this email, a password reset link has been sent.";
+        "Nếu email này tồn tại tài khoản hợp lệ, liên kết đặt lại mật khẩu đã được gửi.";
 
     public async Task<Result<PasswordActionResponse>> Handle(
         ForgotPasswordCommand request,
@@ -76,7 +76,7 @@ internal class ForgotPasswordCommandHandler(
             logger.LogError(ex, "Error requesting password reset for {Email}", request.Email);
             return Result.Failure<PasswordActionResponse>(
                 Error.ServerError,
-                "An error occurred while requesting a password reset.");
+                "Đã xảy ra lỗi khi yêu cầu đặt lại mật khẩu.");
         }
     }
 

@@ -49,7 +49,7 @@ internal sealed class CollectOrderCommandHandler(
                     cancellationToken);
             var job = jobs.OrderByDescending(x => x.CreatedAtUtc).FirstOrDefault();
             if (job is null)
-                return Result.Failure<CollectOrderResponse>(Error.ServingJobNotFound, "No active serving job for this order.");
+                return Result.Failure<CollectOrderResponse>(Error.ServingJobNotFound, "Không có công việc phục vụ đang chạy cho đơn này.");
 
             // Khay ĐÃ được trả về pool lúc staff lên kệ (AssignPickupSlot). Collect chỉ dọn ô.
             // (Không release khay ở đây: khay có thể đã tái dùng cho đơn khác -> release là sai.)
@@ -112,14 +112,14 @@ internal sealed class CollectOrderCommandHandler(
 
             return Result.Success(
                 new CollectOrderResponse(request.OrderId, slotCode),
-                "Order collected.");
+                "Đã nhận đơn.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error collecting order {OrderId}", request.OrderId);
             return Result.Failure<CollectOrderResponse>(
                 Error.ServerError,
-                "An error occurred while collecting the order.");
+                "Đã xảy ra lỗi khi nhận đơn.");
         }
     }
 }

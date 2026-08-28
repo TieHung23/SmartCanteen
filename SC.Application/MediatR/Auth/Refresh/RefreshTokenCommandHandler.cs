@@ -30,7 +30,7 @@ internal class RefreshTokenCommandHandler(
 
             if (existing is null || !existing.IsActive)
             {
-                return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Refresh token is invalid or expired.");
+                return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
             }
 
             await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -42,7 +42,7 @@ internal class RefreshTokenCommandHandler(
                 refreshTokenRepository.Update(existing);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 await unitOfWork.CommitAsync(cancellationToken);
-                return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Account no longer eligible.");
+                return Result.Failure<AuthTokensDto>(Error.InvalidRefreshToken, "Tài khoản không còn hợp lệ.");
             }
 
             if (user.Status == AccountStatus.Banned)
@@ -53,7 +53,7 @@ internal class RefreshTokenCommandHandler(
                 await unitOfWork.CommitAsync(cancellationToken);
                 return Result.Failure<AuthTokensDto>(
                     Error.AccountBanned,
-                    "This account has been banned.",
+                    "Tài khoản này đã bị cấm.",
                     user.StatusReason);
             }
 
@@ -65,7 +65,7 @@ internal class RefreshTokenCommandHandler(
                 await unitOfWork.CommitAsync(cancellationToken);
                 return Result.Failure<AuthTokensDto>(
                     Error.AccountSuspended,
-                    "This account has been suspended.",
+                    "Tài khoản này đã bị tạm khóa.",
                     user.StatusReason);
             }
 
@@ -93,13 +93,13 @@ internal class RefreshTokenCommandHandler(
                     newOpaque.RawToken,
                     newRefresh.ExpiresAt,
                     user.Category),
-                "Token refreshed.");
+                "Làm mới phiên đăng nhập thành công.");
         }
         catch (Exception ex)
         {
             await unitOfWork.RollbackAsync(cancellationToken);
             logger.LogError(ex, "Error refreshing token");
-            return Result.Failure<AuthTokensDto>(Error.ServerError, "An error occurred while refreshing the token.");
+            return Result.Failure<AuthTokensDto>(Error.ServerError, "Đã xảy ra lỗi khi làm mới phiên đăng nhập.");
         }
     }
 }
